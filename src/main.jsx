@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { useState, useEffect } from 'react'
+import { TelegramProvider, useTelegram } from './context/TelegramContext'
 
 window.onerror = function (message, source, lineno, colno, error) {
   const root = document.getElementById('root')
@@ -14,47 +14,21 @@ window.onerror = function (message, source, lineno, colno, error) {
   }
 }
 
-function getTelegramInfo() {
-  const sources = [
-    { name: 'window', obj: window.Telegram },
-    { name: 'window.parent', obj: window.parent?.Telegram },
-    { name: 'window.top', obj: window.top?.Telegram },
-  ]
-
-  return {
-    sources: sources.map((s) => ({
-      source: s.name,
-      hasTelegram: typeof s.obj !== 'undefined',
-      keys: s.obj ? Object.keys(s.obj) : [],
-      hasWebApp: !!(s.obj && s.obj.WebApp),
-    })),
-    webviewProxy: typeof window.TelegramWebviewProxy !== 'undefined',
-    webviewProxyKeys: window.TelegramWebviewProxy ? Object.keys(window.TelegramWebviewProxy) : [],
-    userAgent: navigator.userAgent,
-    self: window.self === window.top ? 'top' : 'iframe',
-  }
-}
-
 function App() {
-  const [info, setInfo] = useState(getTelegramInfo())
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setInfo(getTelegramInfo())
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [])
+  const { webApp, user, ready } = useTelegram()
 
   return (
     <div style={{ padding: 20, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Telegram API debug</h1>
-      <p style={{ fontSize: 12, color: '#666' }}>Обновляется каждую секунду. Подожди 3-5 секунд.</p>
-      <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>
-        {JSON.stringify(info, null, 2)}
-      </pre>
+      <h1>TelegramProvider test</h1>
+      <p>Ready: {ready ? 'yes' : 'no'}</p>
+      <p>WebApp: {webApp ? 'yes' : 'no'}</p>
+      <p>User: {user ? (user.first_name || user.username || user.id) : 'fallback'}</p>
     </div>
   )
 }
 
-createRoot(document.getElementById('root')).render(<App />)
+createRoot(document.getElementById('root')).render(
+  <TelegramProvider>
+    <App />
+  </TelegramProvider>
+)
