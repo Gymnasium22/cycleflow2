@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { TelegramProvider } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Loading } from './components/Loading'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
@@ -31,11 +32,13 @@ function AppContent() {
 
 function App() {
   return (
-    <TelegramProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </TelegramProvider>
+    <ErrorBoundary>
+      <TelegramProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </TelegramProvider>
+    </ErrorBoundary>
   )
 }
 
