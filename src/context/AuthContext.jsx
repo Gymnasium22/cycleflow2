@@ -15,22 +15,22 @@ export function AuthProvider({ children }) {
     async function authenticate() {
       if (!ready) return
 
-      // Check existing session
-      const { data: existingSession } = await supabase.auth.getSession()
-      if (existingSession?.session) {
-        setSession(existingSession.session)
-        await loadProfile(existingSession.session.user.id)
-        setLoading(false)
-        return
-      }
-
-      // In development without Telegram
-      if (!webApp) {
-        setLoading(false)
-        return
-      }
-
       try {
+        // Check existing session
+        const { data: existingSession } = await supabase.auth.getSession()
+        if (existingSession?.session) {
+          setSession(existingSession.session)
+          await loadProfile(existingSession.session.user.id)
+          setLoading(false)
+          return
+        }
+
+        // In development without Telegram
+        if (!webApp) {
+          setLoading(false)
+          return
+        }
+
         const initData = webApp.initData
         if (!initData) {
           setError('No Telegram initData')
@@ -39,6 +39,7 @@ export function AuthProvider({ children }) {
         }
 
         const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-auth`
+
         const response = await fetch(functionUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -48,7 +49,11 @@ export function AuthProvider({ children }) {
         const data = await response.json()
 
         if (!response.ok) {
-          throw new Error(data.error || 'Auth failed')
+          throw new Error(data.error || `Auth failed: ${response.status}`)
+        }
+
+        if (!data.session?.access_token || !data.session?.refresh_token) {
+          throw new Error('Invalid session data from server')
         }
 
         await supabase.auth.setSession({
@@ -106,6 +111,18 @@ export function AuthProvider({ children }) {
     }
 
     setProfile((prev) => ({ ...prev, ...updates }))
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full p-6 bg-white text-black">
+        <h2 className="text-xl font-bold mb-2">Ошибка авторизации</h2>
+        <p className="text-sm text-gray-600 text-center mb-4">{error}</p>
+        <p className="text-xs text-gray-500 text-center">
+          URL: {import.meta.env.VITE_SUPABASE_URL || 'не задан'}
+        </p>
+      </div>
+    )
   }
 
   return (
