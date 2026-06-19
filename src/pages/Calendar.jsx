@@ -7,7 +7,6 @@ import {
   generateCalendarDays,
   getCycleDay,
   getCurrentPhase,
-  getNextPeriodDate,
   getOvulationDate,
   isSameDay,
   DEFAULT_CYCLE_LENGTH,
@@ -36,7 +35,6 @@ export function Calendar() {
   const lastCycle = cycles[0]
   const lastPeriod = lastCycle?.start_date || new Date().toISOString().split('T')[0]
 
-  const nextPeriod = useMemo(() => getNextPeriodDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])
   const ovulation = useMemo(() => getOvulationDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])
 
   const year = currentDate.getFullYear()

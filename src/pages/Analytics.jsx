@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { TrendingUp, Clock, Calendar, Download } from 'lucide-react'
+import { TrendingUp, Clock, Calendar } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'

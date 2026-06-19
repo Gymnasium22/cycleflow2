@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'

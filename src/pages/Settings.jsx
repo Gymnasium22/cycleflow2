@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Globe, Bell, Moon, Info, Download } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -25,6 +25,12 @@ export function Settings() {
   const debounceRef = useRef(null)
   const notifyDebounceRef = useRef(null)
 
+  const showSavedMessage = useCallback(() => {
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }, [])
+
+  // Sync profile into local state
   useEffect(() => {
     if (profile) {
       setCycleLength(profile.cycle_length || DEFAULT_CYCLE_LENGTH)
@@ -32,6 +38,7 @@ export function Settings() {
     }
   }, [profile])
 
+  // Sync settings into local state
   useEffect(() => {
     if (settings) {
       setNotifyPeriod(settings.notify_period ?? true)
@@ -42,16 +49,26 @@ export function Settings() {
   // Auto-save cycle settings with debounce
   useEffect(() => {
     if (!profile) return
+    if (cycleLength === profile.cycle_length && periodLength === profile.period_length) return
+
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       updateProfile({ cycle_length: cycleLength, period_length: periodLength })
       showSavedMessage()
     }, 800)
-  }, [cycleLength, periodLength])
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [cycleLength, periodLength, profile, updateProfile, showSavedMessage])
 
   // Auto-save notification settings with debounce
   useEffect(() => {
     if (!settings) return
+    if (notifyPeriod === (settings.notify_period ?? true) && notifyOvulation === (settings.notify_ovulation ?? false)) {
+      return
+    }
+
     if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
     notifyDebounceRef.current = setTimeout(() => {
       updateSettings({
@@ -60,7 +77,11 @@ export function Settings() {
       })
       showSavedMessage()
     }, 400)
-  }, [notifyPeriod, notifyOvulation])
+
+    return () => {
+      if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
+    }
+  }, [notifyPeriod, notifyOvulation, settings, updateSettings, showSavedMessage])
 
   const handleLanguageChange = (lang) => {
     setLanguage(lang)
@@ -94,21 +115,17 @@ export function Settings() {
     showSavedMessage()
   }
 
-  function showSavedMessage() {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
   function exportData() {
     try {
       const storedSymptoms = localStorage.getItem('cicle_symptoms')
       const storedSettings = localStorage.getItem('cicle_settings')
+      const storedProfile = localStorage.getItem('cicle_fallback_profile')
       const data = {
         exported_at: new Date().toISOString(),
         cycles,
         symptoms: storedSymptoms ? JSON.parse(storedSymptoms) : [],
         settings: storedSettings ? JSON.parse(storedSettings) : (settings || {}),
-        profile: profile || {},
+        profile: profile || (storedProfile ? JSON.parse(storedProfile) : {}),
       }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)

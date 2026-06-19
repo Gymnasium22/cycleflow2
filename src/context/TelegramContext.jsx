@@ -2,7 +2,25 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 const TelegramContext = createContext(null)
 
-function waitForTelegramWebApp(timeout = 1000) {
+const TG_SCRIPT_URL = 'https://telegram.org/js/telegram-web-app.js'
+
+function loadTelegramScript() {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${TG_SCRIPT_URL}"]`)) {
+      resolve()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = TG_SCRIPT_URL
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Telegram WebApp script'))
+    document.head.appendChild(script)
+  })
+}
+
+function waitForTelegramWebApp(timeout = 3000) {
   return new Promise((resolve) => {
     const start = Date.now()
 
@@ -13,7 +31,7 @@ function waitForTelegramWebApp(timeout = 1000) {
           resolve(tg)
           return
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
 
@@ -34,25 +52,39 @@ export function TelegramProvider({ children }) {
   const [ready, setReady] = useState(false)
   const [error, setError] = useState(null)
   const [themeParams, setThemeParams] = useState({})
+  const [initData, setInitData] = useState(null)
 
   useEffect(() => {
     let isMounted = true
 
     async function init() {
       try {
+        // Ensure the Telegram script is loaded (index.html also includes it)
+        await loadTelegramScript()
+
+        if (!isMounted) return
+
         const tg = await waitForTelegramWebApp()
 
         if (!isMounted) return
 
         if (tg) {
+          console.log('[Telegram] WebApp detected', {
+            initData: tg.initData ? 'present' : 'missing',
+            initDataUnsafe: tg.initDataUnsafe ? 'present' : 'missing',
+            version: tg.version,
+            platform: tg.platform,
+          })
+
           try {
             tg.ready()
             tg.expand()
-          } catch (e) {
-            console.warn('WebApp ready/expand error:', e)
+          } catch (err) {
+            console.warn('[Telegram] ready/expand error:', err)
           }
 
           setWebApp(tg)
+          setInitData(tg.initData || null)
           setUser(tg.initDataUnsafe?.user || null)
           setThemeParams(tg.themeParams || {})
 
@@ -67,8 +99,22 @@ export function TelegramProvider({ children }) {
             if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color)
             if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
           }
+
+          tg.onEvent('themeChanged', () => {
+            if (!isMounted) return
+            const updated = tg.themeParams
+            setThemeParams(updated)
+            const root = document.documentElement
+            if (updated.bg_color) root.style.setProperty('--tg-theme-bg-color', updated.bg_color)
+            if (updated.text_color) root.style.setProperty('--tg-theme-text-color', updated.text_color)
+            if (updated.hint_color) root.style.setProperty('--tg-theme-hint-color', updated.hint_color)
+            if (updated.link_color) root.style.setProperty('--tg-theme-link-color', updated.link_color)
+            if (updated.button_color) root.style.setProperty('--tg-theme-button-color', updated.button_color)
+            if (updated.button_text_color) root.style.setProperty('--tg-theme-button-text-color', updated.button_text_color)
+            if (updated.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', updated.secondary_bg_color)
+          })
         } else {
-          // Fallback mode when Telegram WebApp API is not available
+          console.warn('[Telegram] WebApp not detected, running in fallback mode')
           try {
             const savedLang = localStorage.getItem('i18nextLng')
             setUser({
@@ -77,7 +123,7 @@ export function TelegramProvider({ children }) {
               username: 'test_user',
               language_code: savedLang || 'ru',
             })
-          } catch (e) {
+          } catch {
             setUser({
               id: 123456,
               first_name: 'Test',
@@ -87,6 +133,7 @@ export function TelegramProvider({ children }) {
           }
         }
       } catch (err) {
+        console.error('[Telegram] Init error:', err)
         if (isMounted) {
           setError(err.message)
         }
@@ -114,7 +161,7 @@ export function TelegramProvider({ children }) {
   }
 
   return (
-    <TelegramContext.Provider value={{ webApp, user, ready, themeParams }}>
+    <TelegramContext.Provider value={{ webApp, user, ready, themeParams, initData }}>
       {children}
     </TelegramContext.Provider>
   )

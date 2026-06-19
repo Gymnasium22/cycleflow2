@@ -8,6 +8,7 @@ import { Home } from './pages/Home'
 import { Calendar } from './pages/Calendar'
 import { Analytics } from './pages/Analytics'
 import { Settings } from './pages/Settings'
+import { Onboarding } from './pages/Onboarding'
 
 const TABS = {
   home: <Home />,
@@ -18,10 +19,15 @@ const TABS = {
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('home')
-  const { loading } = useAuth()
+  const { loading, profile } = useAuth()
 
   if (loading) {
     return <Loading />
+  }
+
+  // Show onboarding for new users without a profile
+  if (!profile) {
+    return <Onboarding />
   }
 
   return (

@@ -2,16 +2,63 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 import { crypto } from 'https://deno.land/std@0.177.0/crypto/mod.ts'
 
+const ALLOWED_ORIGINS = [
+  'https://gymnasium22.github.io',
+  'https://gymnasium22.github.io/cycleflow2',
+  'https://gymnasium22.github.io/cycleflow2/',
+  'http://localhost:5173',
+  'http://localhost:4173',
+]
+
+function getCorsHeaders(origin: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+  }
+}
+
+function jsonResponse(body: unknown, status: number, origin: string | null) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCorsHeaders(origin),
+    },
+  })
+}
+
 serve(async (req) => {
-  const { initData } = await req.json()
+  const origin = req.headers.get('origin')
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: getCorsHeaders(origin),
+    })
+  }
+
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405, origin)
+  }
+
+  let initData: string | undefined
+  try {
+    const body = await req.json()
+    initData = body.initData
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON body' }, 400, origin)
+  }
 
   if (!initData) {
-    return new Response(JSON.stringify({ error: 'initData is required' }), { status: 400 })
+    return jsonResponse({ error: 'initData is required' }, 400, origin)
   }
 
   const botToken = Deno.env.get('BOT_TOKEN')
   if (!botToken) {
-    return new Response(JSON.stringify({ error: 'Bot token not configured' }), { status: 500 })
+    return jsonResponse({ error: 'Bot token not configured' }, 500, origin)
   }
 
   try {
@@ -44,13 +91,14 @@ serve(async (req) => {
       .join('')
 
     if (computedHash !== hash) {
-      return new Response(JSON.stringify({ error: 'Invalid Telegram hash' }), { status: 403 })
+      console.error('Hash mismatch', { computedHash, hash })
+      return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
     }
 
     const authDate = parseInt(params.get('auth_date') || '0', 10)
     const now = Math.floor(Date.now() / 1000)
     if (now - authDate > 3600) {
-      return new Response(JSON.stringify({ error: 'initData expired' }), { status: 403 })
+      return jsonResponse({ error: 'initData expired' }, 403, origin)
     }
 
     // 2. Parse user data
@@ -62,7 +110,7 @@ serve(async (req) => {
     const languageCode = userData.language_code || 'ru'
 
     if (!telegramId) {
-      return new Response(JSON.stringify({ error: 'User data missing' }), { status: 400 })
+      return jsonResponse({ error: 'User data missing' }, 400, origin)
     }
 
     // 3. Generate deterministic user id and password
@@ -71,10 +119,9 @@ serve(async (req) => {
     const email = `${telegramId}@telegram.local`
 
     // 4. Admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get('SB_URL') ?? '',
-      Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseUrl = Deno.env.get('SB_URL') ?? ''
+    const serviceRoleKey = Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
     // 5. Create or update auth user
     const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(userUuid)
@@ -95,23 +142,23 @@ serve(async (req) => {
       })
 
       if (createError) {
-        return new Response(JSON.stringify({ error: createError.message }), { status: 500 })
+        return jsonResponse({ error: createError.message }, 500, origin)
       }
 
-      // Create profile
-      await supabaseAdmin.from('profiles').insert({
+      // Create or upsert profile
+      await supabaseAdmin.from('profiles').upsert({
         id: userUuid,
         telegram_id: telegramId,
         username,
         first_name: firstName,
         last_name: lastName,
         language_code: languageCode,
-      })
+      }, { onConflict: 'id' })
 
-      // Create default settings
-      await supabaseAdmin.from('settings').insert({
+      // Create or upsert default settings
+      await supabaseAdmin.from('settings').upsert({
         user_id: userUuid,
-      })
+      }, { onConflict: 'user_id' })
     } else {
       // Update password and metadata
       await supabaseAdmin.auth.admin.updateUserById(userUuid, {
@@ -125,18 +172,26 @@ serve(async (req) => {
         },
       })
 
-      await supabaseAdmin.from('profiles').update({
+      // Upsert profile (handles case where profile was missing)
+      await supabaseAdmin.from('profiles').upsert({
+        id: userUuid,
+        telegram_id: telegramId,
         username,
         first_name: firstName,
         last_name: lastName,
         language_code: languageCode,
         updated_at: new Date().toISOString(),
-      }).eq('id', userUuid)
+      }, { onConflict: 'id' })
+
+      // Upsert settings
+      await supabaseAdmin.from('settings').upsert({
+        user_id: userUuid,
+      }, { onConflict: 'user_id' })
     }
 
     // 6. Sign in to get session tokens
     const supabaseClient = createClient(
-      Deno.env.get('SB_URL') ?? '',
+      supabaseUrl,
       Deno.env.get('SB_ANON_KEY') ?? ''
     )
 
@@ -146,29 +201,27 @@ serve(async (req) => {
     })
 
     if (signInError || !sessionData.session) {
-      return new Response(JSON.stringify({ error: signInError?.message || 'Failed to create session' }), { status: 500 })
+      return jsonResponse({ error: signInError?.message || 'Failed to create session' }, 500, origin)
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        session: {
-          access_token: sessionData.session.access_token,
-          refresh_token: sessionData.session.refresh_token,
-          expires_at: sessionData.session.expires_at,
-        },
-        user: {
-          id: userUuid,
-          telegram_id: telegramId,
-          username,
-          first_name: firstName,
-          language_code: languageCode,
-        },
-      }),
-      { status: 200 }
-    )
+    return jsonResponse({
+      success: true,
+      session: {
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token,
+        expires_at: sessionData.session.expires_at,
+      },
+      user: {
+        id: userUuid,
+        telegram_id: telegramId,
+        username,
+        first_name: firstName,
+        language_code: languageCode,
+      },
+    }, 200, origin)
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    console.error('Telegram auth error:', err)
+    return jsonResponse({ error: err.message }, 500, origin)
   }
 })
 
