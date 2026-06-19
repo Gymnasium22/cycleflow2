@@ -2,69 +2,62 @@
 
 Полноценное Mini App для отслеживания менструального цикла прямо внутри Telegram.
 
+## Возможности
+
+- 📅 Календарь цикла с цветовой индикацией фаз
+- 🔮 Прогноз следующих месячных и овуляции
+- 📝 Логирование симптомов, настроения и самочувствия
+- 📊 Аналитика и графики циклов
+- 🌍 Мультиязычность (русский + английский)
+- 🔔 Уведомления в Telegram
+- 🎨 Адаптация под тему Telegram
+
 ## Технологии
 
-- **React 19** + **Vite** — фронтенд
-- **Tailwind CSS v4** — стили
-- **React Router** — навигация (HashRouter для GitHub Pages)
-- **Recharts** — графики (будут позже)
-- **i18next** — мультиязычность (русский + английский)
-- **Supabase** — база данных, авторизация, уведомления
-- **GitHub Pages** — хостинг
+- **React 19** + **Vite**
+- **Tailwind CSS v4**
+- **React Router** (HashRouter для GitHub Pages)
+- **Recharts** для графиков
+- **i18next** для переводов
+- **Supabase** (PostgreSQL + Edge Functions)
+- **GitHub Pages** для хостинга
 
 ## Быстрый старт
 
 ```bash
-# Установить зависимости
 npm install
-
-# Запустить локально
 npm run dev
-
-# Собрать для продакшена
-npm run build
 ```
 
-## Как задеплоить
+## Полная инструкция по запуску
 
-1. Создай репозиторий на GitHub
-2. Запушь этот проект:
-   ```bash
-   git remote add origin https://github.com/ТВОЙ_НИК/cikl3.git
-   git branch -M main
-   git push -u origin main
-   ```
-3. В настройках репозитория включи GitHub Pages:
-   - Settings → Pages → Source: GitHub Actions
-4. GitHub Actions автоматически соберёт и выложит приложение
-5. Получи ссылку вида `https://твой_ник.github.io/cikl3/`
-
-## Настройка Telegram бота
-
-1. Напиши [@BotFather](https://t.me/BotFather)
-2. Создай бота: `/newbot`
-3. Получи токен и сохрани его
-4. Подключи Mini App:
-   - `/mybots` → выбери бота → Bot Settings → Menu Button
-   - Укажи название кнопки и URL задеплоенного приложения
-5. Готово! Открывай приложение из меню бота
+См. [DEPLOY.md](./DEPLOY.md) — там пошаговое руководство по настройке Supabase, Telegram бота и GitHub Pages.
 
 ## Структура проекта
 
 ```
 src/
-  components/       # Переиспользуемые компоненты
-  context/          # React Context (Telegram, авторизация)
+  components/       # UI-компоненты
+  context/          # React Context (Telegram, Auth)
+  hooks/            # Кастомные хуки для Supabase
   i18n/             # Переводы
+  lib/              # Клиент Supabase
   pages/            # Экраны приложения
-  utils/            # Утилиты (расчёт цикла)
+  utils/            # Утилиты расчёта цикла
+supabase/
+  functions/        # Edge Functions
+  migrations/       # SQL-миграции
 ```
 
-## Статус
+## Переменные окружения
 
-Проект в активной разработке. Следующие шаги:
-- [ ] Подключение Supabase
-- [ ] Авторизация через Telegram
-- [ ] Сохранение данных в облаке
-- [ ] Уведомления
-- [ ] Расширенная аналитика с графиками
+Создай файл `.env` в корне проекта:
+
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+## Лицензия
+
+MIT

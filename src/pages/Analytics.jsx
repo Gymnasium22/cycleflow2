@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { TrendingUp, Clock, Calendar } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import {
@@ -14,6 +15,15 @@ export function Analytics() {
 
   const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
+
+  const chartData = cycles.length > 0
+    ? [...cycles].reverse().map((cycle, index) => ({
+        name: `${t('analytics.cycleHistory')} ${index + 1}`,
+        days: cycle.cycle_length || cycleLength,
+      }))
+    : [
+        { name: '1', days: cycleLength },
+      ]
 
   const stats = [
     {
@@ -39,6 +49,8 @@ export function Analytics() {
     },
   ]
 
+  const colors = ['#f43f5e', '#8b5cf6', '#14b8a6', '#f59e0b', '#6366f1']
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t('analytics.title')}</h1>
@@ -57,26 +69,28 @@ export function Analytics() {
         ))}
       </div>
 
+      {/* Chart */}
       <div className="rounded-2xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
         <h2 className="text-lg font-bold mb-4">{t('analytics.cycleHistory')}</h2>
-        <div className="space-y-3">
-          {cycles.length === 0 ? (
-            <div className="p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] text-sm text-[var(--tg-theme-hint-color,#6b7280)]">
-              {i18n.language === 'ru' ? 'Пока нет записей. Добавьте первый цикл на главном экране.' : 'No records yet. Add your first cycle on the home screen.'}
-            </div>
-          ) : (
-            cycles.map((cycle) => (
-              <div key={cycle.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)]">
-                <div>
-                  <p className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{cycle.start_date}</p>
-                  <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-                    {cycle.end_date ? `${t('home.nextPeriod')}: ${cycle.end_date}` : t('home.nextPeriod')}
-                  </p>
-                </div>
-                <span className="text-sm font-semibold text-violet-600">{cycle.cycle_length || cycleLength} {t('analytics.days')}</span>
-              </div>
-            ))
-          )}
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: '12px',
+                  border: 'none',
+                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                }}
+              />
+              <Bar dataKey="days" radius={[8, 8, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
