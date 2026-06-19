@@ -9,7 +9,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: 'initData is required' }), { status: 400 })
   }
 
-  const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
+  const botToken = Deno.env.get('BOT_TOKEN')
   if (!botToken) {
     return new Response(JSON.stringify({ error: 'Bot token not configured' }), { status: 500 })
   }
@@ -72,8 +72,8 @@ serve(async (req) => {
 
     // 4. Admin client
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SB_URL') ?? '',
+      Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
     )
 
     // 5. Create or update auth user
@@ -136,8 +136,8 @@ serve(async (req) => {
 
     // 6. Sign in to get session tokens
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SB_URL') ?? '',
+      Deno.env.get('SB_ANON_KEY') ?? ''
     )
 
     const { data: sessionData, error: signInError } = await supabaseClient.auth.signInWithPassword({

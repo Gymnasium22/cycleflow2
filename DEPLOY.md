@@ -48,10 +48,10 @@
 
 3. Задай секретные переменные:
    ```bash
-   supabase secrets set TELEGRAM_BOT_TOKEN=your-telegram-bot-token
-   supabase secrets set SUPABASE_URL=https://your-project.supabase.co
-   supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   supabase secrets set SUPABASE_ANON_KEY=your-anon-key
+   supabase secrets set BOT_TOKEN=your-telegram-bot-token
+   supabase secrets set SB_URL=https://your-project.supabase.co
+   supabase secrets set SB_SERVICE_ROLE_KEY=your-service-role-key
+   supabase secrets set SB_ANON_KEY=your-anon-key
    ```
 
 4. Задеплой функции:
@@ -127,7 +127,7 @@
 - Убедись, что в `vite.config.js` правильный `base`
 
 **Ошибка авторизации**
-- Проверь, что `TELEGRAM_BOT_TOKEN` правильный
+- Проверь, что `BOT_TOKEN` правильный
 - Убедись, что Edge Function `telegram-auth` задеплоена
 - Проверь CORS в Supabase Functions
 
