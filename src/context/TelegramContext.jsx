@@ -2,6 +2,27 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 const TelegramContext = createContext(null)
 
+function waitForTelegramWebApp(timeout = 5000) {
+  return new Promise((resolve) => {
+    const start = Date.now()
+
+    const check = () => {
+      const tg = window.Telegram?.WebApp
+      if (tg) {
+        resolve(tg)
+        return
+      }
+      if (Date.now() - start > timeout) {
+        resolve(null)
+        return
+      }
+      setTimeout(check, 100)
+    }
+
+    check()
+  })
+}
+
 export function TelegramProvider({ children }) {
   const [webApp, setWebApp] = useState(null)
   const [user, setUser] = useState(null)
@@ -10,44 +31,61 @@ export function TelegramProvider({ children }) {
   const [themeParams, setThemeParams] = useState({})
 
   useEffect(() => {
-    try {
-      const tg = window.Telegram?.WebApp
+    let isMounted = true
 
-      if (tg) {
-        tg.ready()
-        tg.expand()
+    async function init() {
+      try {
+        const tg = await waitForTelegramWebApp()
 
-        setWebApp(tg)
-        setUser(tg.initDataUnsafe?.user || null)
-        setThemeParams(tg.themeParams || {})
+        if (!isMounted) return
 
-        const params = tg.themeParams
-        if (params) {
-          const root = document.documentElement
-          if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color)
-          if (params.text_color) root.style.setProperty('--tg-theme-text-color', params.text_color)
-          if (params.hint_color) root.style.setProperty('--tg-theme-hint-color', params.hint_color)
-          if (params.link_color) root.style.setProperty('--tg-theme-link-color', params.link_color)
-          if (params.button_color) root.style.setProperty('--tg-theme-button-color', params.button_color)
-          if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color)
-          if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
+        if (tg) {
+          try {
+            tg.ready()
+            tg.expand()
+          } catch (e) {
+            console.warn('WebApp ready/expand error:', e)
+          }
+
+          setWebApp(tg)
+          setUser(tg.initDataUnsafe?.user || null)
+          setThemeParams(tg.themeParams || {})
+
+          const params = tg.themeParams
+          if (params) {
+            const root = document.documentElement
+            if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color)
+            if (params.text_color) root.style.setProperty('--tg-theme-text-color', params.text_color)
+            if (params.hint_color) root.style.setProperty('--tg-theme-hint-color', params.hint_color)
+            if (params.link_color) root.style.setProperty('--tg-theme-link-color', params.link_color)
+            if (params.button_color) root.style.setProperty('--tg-theme-button-color', params.button_color)
+            if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color)
+            if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
+          }
+        } else {
+          // Development fallback
+          const savedLang = localStorage.getItem('i18nextLng')
+          setUser({
+            id: 123456,
+            first_name: 'Test',
+            username: 'test_user',
+            language_code: savedLang || 'ru',
+          })
         }
 
         setReady(true)
-      } else {
-        // Development fallback
-        const savedLang = localStorage.getItem('i18nextLng')
-        setUser({
-          id: 123456,
-          first_name: 'Test',
-          username: 'test_user',
-          language_code: savedLang || 'ru',
-        })
-        setReady(true)
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message)
+          setReady(true)
+        }
       }
-    } catch (err) {
-      setError(err.message)
-      setReady(true)
+    }
+
+    init()
+
+    return () => {
+      isMounted = false
     }
   }, [])
 
