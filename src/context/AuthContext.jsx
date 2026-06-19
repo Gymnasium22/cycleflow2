@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
           return
         }
 
-        // In development without Telegram
+        // If Telegram WebApp is not available, work in fallback mode
         if (!webApp) {
           setLoading(false)
           return
@@ -33,7 +33,6 @@ export function AuthProvider({ children }) {
 
         const initData = webApp.initData
         if (!initData) {
-          setError('No Telegram initData')
           setLoading(false)
           return
         }
@@ -111,18 +110,6 @@ export function AuthProvider({ children }) {
     }
 
     setProfile((prev) => ({ ...prev, ...updates }))
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-full p-6 bg-white text-black">
-        <h2 className="text-xl font-bold mb-2">Ошибка авторизации</h2>
-        <p className="text-sm text-gray-600 text-center mb-4">{error}</p>
-        <p className="text-xs text-gray-500 text-center">
-          URL: {import.meta.env.VITE_SUPABASE_URL || 'не задан'}
-        </p>
-      </div>
-    )
   }
 
   return (
