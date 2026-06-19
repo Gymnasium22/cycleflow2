@@ -1,5 +1,4 @@
 import { createRoot } from 'react-dom/client'
-import { HashRouter, Routes, Route } from 'react-router-dom'
 import { TelegramProvider } from './context/TelegramContext'
 import { AuthProvider } from './context/AuthContext'
 import { Layout } from './components/Layout'
@@ -17,21 +16,11 @@ window.onerror = function (message, source, lineno, colno, error) {
   }
 }
 
-function TestPage() {
-  return <div style={{ padding: 20 }}><h1>Router works!</h1></div>
-}
-
 function App() {
   return (
     <TelegramProvider>
       <AuthProvider>
-        <HashRouter>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<TestPage />} />
-            </Route>
-          </Routes>
-        </HashRouter>
+        <Layout />
       </AuthProvider>
     </TelegramProvider>
   )
