@@ -2,16 +2,21 @@ import { createContext, useContext, useEffect, useState } from 'react'
 
 const TelegramContext = createContext(null)
 
-function waitForTelegramWebApp(timeout = 5000) {
+function waitForTelegramWebApp(timeout = 1000) {
   return new Promise((resolve) => {
     const start = Date.now()
 
     const check = () => {
-      const tg = window.Telegram?.WebApp
-      if (tg) {
-        resolve(tg)
-        return
+      try {
+        const tg = window.Telegram?.WebApp
+        if (tg) {
+          resolve(tg)
+          return
+        }
+      } catch (e) {
+        // ignore
       }
+
       if (Date.now() - start > timeout) {
         resolve(null)
         return
@@ -63,20 +68,30 @@ export function TelegramProvider({ children }) {
             if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
           }
         } else {
-          // Development fallback
-          const savedLang = localStorage.getItem('i18nextLng')
-          setUser({
-            id: 123456,
-            first_name: 'Test',
-            username: 'test_user',
-            language_code: savedLang || 'ru',
-          })
+          // Fallback mode when Telegram WebApp API is not available
+          try {
+            const savedLang = localStorage.getItem('i18nextLng')
+            setUser({
+              id: 123456,
+              first_name: 'Test',
+              username: 'test_user',
+              language_code: savedLang || 'ru',
+            })
+          } catch (e) {
+            setUser({
+              id: 123456,
+              first_name: 'Test',
+              username: 'test_user',
+              language_code: 'ru',
+            })
+          }
         }
-
-        setReady(true)
       } catch (err) {
         if (isMounted) {
           setError(err.message)
+        }
+      } finally {
+        if (isMounted) {
           setReady(true)
         }
       }
