@@ -2,14 +2,33 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
+const STORAGE_KEY = 'cicle_symptoms'
+
+function getStoredSymptoms() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function setStoredSymptoms(symptoms) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(symptoms))
+}
+
 export function useSymptoms(date) {
   const { session } = useAuth()
   const [symptoms, setSymptoms] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const isAuthenticated = !!session?.user?.id
+
   const fetchSymptoms = useCallback(async () => {
-    if (!session?.user?.id || !date) {
+    if (!isAuthenticated || !date) {
+      const all = getStoredSymptoms()
+      setSymptoms(all.filter((s) => s.date === date))
       setLoading(false)
       return
     }
@@ -27,14 +46,32 @@ export function useSymptoms(date) {
       setSymptoms(data || [])
     }
     setLoading(false)
-  }, [session?.user?.id, date])
+  }, [isAuthenticated, session?.user?.id, date])
 
   useEffect(() => {
     fetchSymptoms()
   }, [fetchSymptoms])
 
   async function saveSymptom(symptom) {
-    if (!session?.user?.id || !date) return
+    if (!date) return
+
+    const newSymptom = {
+      id: `local_${Date.now()}`,
+      date,
+      symptom_type: symptom.symptom_type,
+      intensity: symptom.intensity,
+      notes: symptom.notes || '',
+    }
+
+    if (!isAuthenticated) {
+      const all = getStoredSymptoms().filter(
+        (s) => !(s.date === date && s.symptom_type === symptom.symptom_type)
+      )
+      const updated = [...all, newSymptom]
+      setStoredSymptoms(updated)
+      setSymptoms(updated.filter((s) => s.date === date))
+      return newSymptom
+    }
 
     const { data: existing } = await supabase
       .from('symptoms')
@@ -81,6 +118,13 @@ export function useSymptoms(date) {
   }
 
   async function deleteSymptom(id) {
+    if (!isAuthenticated) {
+      const updated = getStoredSymptoms().filter((s) => s.id !== id)
+      setStoredSymptoms(updated)
+      setSymptoms(updated.filter((s) => s.date === date))
+      return true
+    }
+
     const { error } = await supabase.from('symptoms').delete().eq('id', id)
     if (error) {
       setError(error)

@@ -34,7 +34,7 @@ export function Calendar() {
   const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
 
   const lastCycle = cycles[0]
-  const lastPeriod = lastCycle?.start_date || localStorage.getItem('lastPeriodStart') || new Date().toISOString().split('T')[0]
+  const lastPeriod = lastCycle?.start_date || new Date().toISOString().split('T')[0]
 
   const nextPeriod = useMemo(() => getNextPeriodDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])
   const ovulation = useMemo(() => getOvulationDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])

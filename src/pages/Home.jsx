@@ -59,7 +59,7 @@ export function Home() {
   const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
 
   const lastCycle = cycles[0]
-  const lastPeriodStart = lastCycle?.start_date || localStorage.getItem('lastPeriodStart') || getDemoDate()
+  const lastPeriodStart = lastCycle?.start_date || getDemoDate()
 
   function getDemoDate() {
     const d = new Date()
@@ -210,7 +210,7 @@ export function Home() {
 
       {/* Symptoms modal */}
       {showSymptoms && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{t('symptoms.title')}</h3>
