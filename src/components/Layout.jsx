@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router-dom'
-import { BottomNav } from './BottomNav'
 
 export function Layout() {
   return (
@@ -7,7 +6,6 @@ export function Layout() {
       <main className="flex-1 overflow-y-auto px-5 py-6">
         <Outlet />
       </main>
-      <BottomNav />
     </div>
   )
 }
