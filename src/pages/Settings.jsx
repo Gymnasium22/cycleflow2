@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../hooks/useSettings'
+import { useCycles } from '../hooks/useCycles'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
@@ -12,6 +13,7 @@ export function Settings() {
   const { t, i18n } = useTranslation()
   const { profile, updateProfile } = useAuth()
   const { settings, updateSettings } = useSettings()
+  const { cycles } = useCycles()
 
   const [language, setLanguage] = useState(i18n.language || 'ru')
   const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
@@ -19,6 +21,9 @@ export function Settings() {
   const [notifyPeriod, setNotifyPeriod] = useState(settings?.notify_period ?? true)
   const [notifyOvulation, setNotifyOvulation] = useState(settings?.notify_ovulation ?? false)
   const [saved, setSaved] = useState(false)
+
+  const debounceRef = useRef(null)
+  const notifyDebounceRef = useRef(null)
 
   useEffect(() => {
     if (profile) {
@@ -33,6 +38,29 @@ export function Settings() {
       setNotifyOvulation(settings.notify_ovulation ?? false)
     }
   }, [settings])
+
+  // Auto-save cycle settings with debounce
+  useEffect(() => {
+    if (!profile) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      updateProfile({ cycle_length: cycleLength, period_length: periodLength })
+      showSavedMessage()
+    }, 800)
+  }, [cycleLength, periodLength])
+
+  // Auto-save notification settings with debounce
+  useEffect(() => {
+    if (!settings) return
+    if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
+    notifyDebounceRef.current = setTimeout(() => {
+      updateSettings({
+        notify_period: notifyPeriod,
+        notify_ovulation: notifyOvulation,
+      })
+      showSavedMessage()
+    }, 400)
+  }, [notifyPeriod, notifyOvulation])
 
   const handleLanguageChange = (lang) => {
     setLanguage(lang)
@@ -71,6 +99,30 @@ export function Settings() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  function exportData() {
+    try {
+      const storedSymptoms = localStorage.getItem('cicle_symptoms')
+      const storedSettings = localStorage.getItem('cicle_settings')
+      const data = {
+        exported_at: new Date().toISOString(),
+        cycles,
+        symptoms: storedSymptoms ? JSON.parse(storedSymptoms) : [],
+        settings: storedSettings ? JSON.parse(storedSettings) : (settings || {}),
+        profile: profile || {},
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `cicle-export-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Export failed:', e)
+      alert(i18n.language === 'ru' ? 'Ошибка экспорта' : 'Export failed')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
@@ -89,7 +141,7 @@ export function Settings() {
               className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 language === lang
                   ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
-                  : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-black/5'
+                  : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
               }`}
             >
               {lang === 'ru' ? 'Русский' : 'English'}
@@ -148,7 +200,7 @@ export function Settings() {
           <span className="font-semibold">{t('settings.notifications')}</span>
         </div>
 
-        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] cursor-pointer">
+        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
           <span className="text-sm font-medium">{t('settings.notifyPeriod')}</span>
           <input
             type="checkbox"
@@ -158,7 +210,7 @@ export function Settings() {
           />
         </label>
 
-        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] cursor-pointer">
+        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
           <span className="text-sm font-medium">{t('settings.notifyOvulation')}</span>
           <input
             type="checkbox"
@@ -167,6 +219,21 @@ export function Settings() {
             className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
           />
         </label>
+      </div>
+
+      {/* Data Export */}
+      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
+          <Download size={20} className="text-blue-500" />
+          <span className="font-semibold">{language === 'ru' ? 'Данные' : 'Data'}</span>
+        </div>
+        <button
+          onClick={exportData}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
+        >
+          <Download size={18} />
+          {language === 'ru' ? 'Экспортировать данные (JSON)' : 'Export data (JSON)'}
+        </button>
       </div>
 
       {/* Info */}

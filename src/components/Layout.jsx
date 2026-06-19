@@ -32,7 +32,7 @@ function BottomNav({ activeTab, onTabChange }) {
             className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all duration-200 ${
               activeTab === item.id
                 ? 'text-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10'
-                : 'text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-black/5'
+                : 'text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
             }`}
           >
             <item.icon size={22} strokeWidth={2} />

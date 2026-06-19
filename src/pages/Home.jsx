@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
@@ -50,16 +50,20 @@ export function Home() {
   const { cycles, addCycle, updateCycle, deleteCycle } = useCycles()
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
-  const { symptoms, saveSymptom, deleteSymptom } = useSymptoms(todayStr)
+  const { symptoms, saveSymptom, deleteSymptom, updateSymptom } = useSymptoms(todayStr)
 
   const [showSymptoms, setShowSymptoms] = useState(false)
   const [selectedSymptoms, setSelectedSymptoms] = useState({})
+  const [symptomNotes, setSymptomNotes] = useState('')
+  const [editingSymptom, setEditingSymptom] = useState(null)
+
   const [showEditCycle, setShowEditCycle] = useState(false)
   const [editingCycle, setEditingCycle] = useState(null)
   const [editDate, setEditDate] = useState('')
 
   const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
+  const [editPeriodLength, setEditPeriodLength] = useState(periodLength)
 
   const lastCycle = cycles[0]
   const lastPeriodStart = lastCycle?.start_date || getDemoDate()
@@ -79,6 +83,8 @@ export function Home() {
   const daysUntilOvulation = getDaysUntil(ovulation)
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
 
+  const isPeriodStartedToday = lastCycle?.start_date === todayStr
+
   async function handleStartPeriod() {
     await addCycle({
       start_date: todayStr,
@@ -87,32 +93,73 @@ export function Home() {
     })
   }
 
+  async function handleCancelPeriod() {
+    if (confirm(i18n.language === 'ru' ? 'Отменить начало месячных?' : 'Cancel period start?')) {
+      await deleteCycle(lastCycle.id)
+    }
+  }
+
+  function openSymptomModal() {
+    setEditingSymptom(null)
+    setSelectedSymptoms({})
+    setSymptomNotes('')
+    setShowSymptoms(true)
+  }
+
+  function openEditSymptom(symptom) {
+    setEditingSymptom(symptom)
+    setSelectedSymptoms({ [symptom.symptom_type]: symptom.intensity })
+    setSymptomNotes(symptom.notes || '')
+    setShowSymptoms(true)
+  }
+
   async function handleSaveSymptoms() {
-    for (const [type, value] of Object.entries(selectedSymptoms)) {
-      if (value) {
-        await saveSymptom({
-          symptom_type: type,
-          intensity: value,
-          notes: '',
+    if (editingSymptom) {
+      const type = editingSymptom.symptom_type
+      const intensity = selectedSymptoms[type]
+      if (intensity) {
+        await updateSymptom(editingSymptom.id, {
+          intensity,
+          notes: symptomNotes,
         })
+      } else {
+        // Если интенсивность сброшена — удалить
+        await deleteSymptom(editingSymptom.id)
+      }
+    } else {
+      for (const [type, value] of Object.entries(selectedSymptoms)) {
+        if (value) {
+          await saveSymptom({
+            symptom_type: type,
+            intensity: value,
+            notes: symptomNotes,
+          })
+        }
       }
     }
     setShowSymptoms(false)
+    setEditingSymptom(null)
     setSelectedSymptoms({})
+    setSymptomNotes('')
   }
 
   function openEditCycle(cycle) {
     setEditingCycle(cycle)
     setEditDate(cycle.start_date)
+    setEditPeriodLength(cycle.period_length || periodLength)
     setShowEditCycle(true)
   }
 
   async function handleUpdateCycle() {
     if (!editingCycle || !editDate) return
-    await updateCycle(editingCycle.id, { start_date: editDate })
+    await updateCycle(editingCycle.id, {
+      start_date: editDate,
+      period_length: editPeriodLength,
+    })
     setShowEditCycle(false)
     setEditingCycle(null)
     setEditDate('')
+    setEditPeriodLength(periodLength)
   }
 
   async function handleDeleteCycle(id) {
@@ -199,8 +246,8 @@ export function Home() {
       <div className="space-y-3">
         <h2 className="text-lg font-bold">{t('home.logSymptoms')}</h2>
         <button
-          onClick={() => setShowSymptoms(true)}
-          className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] hover:bg-black/5 transition-colors text-left"
+          onClick={openSymptomModal}
+          className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center text-white">
@@ -214,13 +261,23 @@ export function Home() {
           <ChevronRight size={20} className="text-[var(--tg-theme-hint-color,#6b7280)]" />
         </button>
 
-        <button
-          onClick={handleStartPeriod}
-          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
-        >
-          <Droplets size={18} />
-          {i18n.language === 'ru' ? 'Месячные начались' : 'Period started'}
-        </button>
+        {isPeriodStartedToday ? (
+          <button
+            onClick={handleCancelPeriod}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 transition-colors border border-[var(--tg-theme-hint-color,#d1d5db)]/30"
+          >
+            <X size={18} />
+            {i18n.language === 'ru' ? 'Отменить начало месячных' : 'Cancel period start'}
+          </button>
+        ) : (
+          <button
+            onClick={handleStartPeriod}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Droplets size={18} />
+            {i18n.language === 'ru' ? 'Месячные начались' : 'Period started'}
+          </button>
+        )}
       </div>
 
       {/* Today's logged symptoms */}
@@ -229,19 +286,21 @@ export function Home() {
           <p className="text-sm font-semibold mb-2 text-[var(--tg-theme-text-color,#111827)]">{t('symptoms.title')}</p>
           <div className="flex flex-wrap gap-2">
             {symptoms.map((s) => (
-              <div
+              <button
                 key={s.id}
-                className="px-3 py-1 rounded-full text-xs font-medium bg-white text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
+                onClick={() => openEditSymptom(s)}
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group hover:opacity-80 transition-opacity"
               >
+                <Pencil size={12} className="opacity-50 group-hover:opacity-100" />
                 <span>{t(`symptoms.${s.symptom_type}`)}: {s.intensity}/5</span>
-                <button
-                  onClick={() => handleDeleteSymptom(s.id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 font-bold"
+                <span
+                  onClick={(e) => { e.stopPropagation(); handleDeleteSymptom(s.id) }}
+                  className="text-red-500 hover:text-red-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1"
                   title={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
                 >
-                  ×
-                </button>
-              </div>
+                  <Trash2 size={12} />
+                </span>
+              </button>
             ))}
           </div>
         </div>
@@ -255,7 +314,7 @@ export function Home() {
           </p>
           <div className="space-y-2">
             {cycles.slice(0, 5).map((cycle) => (
-              <div key={cycle.id} className="flex items-center justify-between p-3 rounded-xl bg-white">
+              <div key={cycle.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20">
                 <div className="text-sm">
                   <p className="font-medium text-[var(--tg-theme-text-color,#111827)]">
                     {formatDate(new Date(cycle.start_date), locale)}
@@ -289,8 +348,8 @@ export function Home() {
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">{i18n.language === 'ru' ? 'Изменить дату' : 'Edit date'}</h3>
-              <button onClick={() => setShowEditCycle(false)} className="p-2 rounded-full hover:bg-black/5">
+              <h3 className="text-lg font-bold">{i18n.language === 'ru' ? 'Изменить запись' : 'Edit record'}</h3>
+              <button onClick={() => setShowEditCycle(false)} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
                 <X size={20} />
               </button>
             </div>
@@ -303,8 +362,27 @@ export function Home() {
                 type="date"
                 value={editDate}
                 onChange={(e) => setEditDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)] bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
+                {i18n.language === 'ru' ? 'Длительность' : 'Duration'}
+              </label>
+              <input
+                type="range"
+                min="2"
+                max="8"
+                value={editPeriodLength}
+                onChange={(e) => setEditPeriodLength(Number(e.target.value))}
+                className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
+              />
+              <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+                <span>2</span>
+                <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{editPeriodLength} {i18n.language === 'ru' ? 'дн.' : 'days'}</span>
+                <span>8</span>
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -324,36 +402,60 @@ export function Home() {
           </div>
         </div>
       )}
+
+      {/* Symptom modal (add / edit) */}
       {showSymptoms && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">{t('symptoms.title')}</h3>
-              <button onClick={() => setShowSymptoms(false)} className="p-2 rounded-full hover:bg-black/5">
+              <h3 className="text-lg font-bold">
+                {editingSymptom
+                  ? (i18n.language === 'ru' ? 'Изменить самочувствие' : 'Edit symptom')
+                  : t('symptoms.title')}
+              </h3>
+              <button onClick={() => setShowSymptoms(false)} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
                 <X size={20} />
               </button>
             </div>
 
-            {symptomTypes.map((type) => (
-              <div key={type} className="space-y-2">
-                <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t(`symptoms.${type}`)}</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setSelectedSymptoms((prev) => ({ ...prev, [type]: level }))}
-                      className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                        selectedSymptoms[type] === level
-                          ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
-                          : 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] hover:bg-black/5'
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
+            {symptomTypes.map((type) => {
+              // При редактировании показываем только тот тип, который редактируем
+              if (editingSymptom && editingSymptom.symptom_type !== type) return null
+
+              return (
+                <div key={type} className="space-y-2">
+                  <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t(`symptoms.${type}`)}</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setSelectedSymptoms((prev) => ({ ...prev, [type]: level }))}
+                        className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                          selectedSymptoms[type] === level
+                            ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
+                            : 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
+                {i18n.language === 'ru' ? 'Заметки' : 'Notes'}
+              </label>
+              <textarea
+                value={symptomNotes}
+                onChange={(e) => setSymptomNotes(e.target.value)}
+                placeholder={i18n.language === 'ru' ? 'Что ещё чувствуете?' : 'Anything else?'}
+                rows={3}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-sm resize-none"
+              />
+            </div>
 
             <button
               onClick={handleSaveSymptoms}

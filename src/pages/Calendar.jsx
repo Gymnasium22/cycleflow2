@@ -95,13 +95,13 @@ export function Calendar() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('calendar.title')}</h1>
         <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-black/5">
+          <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
             <ChevronLeft size={20} />
           </button>
           <span className="text-sm font-semibold min-w-[100px] text-center">
             {monthNames[lang][month]} {year}
           </span>
-          <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-black/5">
+          <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
             <ChevronRight size={20} />
           </button>
         </div>
@@ -126,7 +126,7 @@ export function Calendar() {
               <div
                 key={idx}
                 className={`aspect-square flex items-center justify-center rounded-xl text-sm font-semibold transition-all ${
-                  type ? typeStyles[type] : 'text-[var(--tg-theme-text-color,#111827)] hover:bg-black/5'
+                  type ? typeStyles[type] : 'text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
                 } ${isToday && !type ? 'ring-2 ring-[var(--tg-theme-button-color,#e11d48)]' : ''}`}
               >
                 {date.getDate()}

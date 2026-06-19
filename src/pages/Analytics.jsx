@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { TrendingUp, Clock, Calendar } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { TrendingUp, Clock, Calendar, Download } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import {
@@ -13,43 +13,53 @@ export function Analytics() {
   const { profile } = useAuth()
   const { cycles } = useCycles()
 
-  const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
-  const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
+  const fallbackCycle = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
+  const fallbackPeriod = profile?.period_length || DEFAULT_PERIOD_LENGTH
+
+  const avgCycleLength = cycles.length > 0
+    ? Math.round(cycles.reduce((sum, c) => sum + (c.cycle_length || fallbackCycle), 0) / cycles.length)
+    : fallbackCycle
+
+  const avgPeriodLength = cycles.length > 0
+    ? Math.round(cycles.reduce((sum, c) => sum + (c.period_length || fallbackPeriod), 0) / cycles.length)
+    : fallbackPeriod
 
   const chartData = cycles.length > 0
     ? [...cycles].reverse().map((cycle, index) => ({
-        name: `${t('analytics.cycleHistory')} ${index + 1}`,
-        days: cycle.cycle_length || cycleLength,
+        name: `#${index + 1}`,
+        cycle: cycle.cycle_length || fallbackCycle,
+        period: cycle.period_length || fallbackPeriod,
       }))
     : [
-        { name: '1', days: cycleLength },
+        { name: '1', cycle: fallbackCycle, period: fallbackPeriod },
       ]
 
   const stats = [
     {
       icon: Clock,
       label: t('analytics.averageCycle'),
-      value: `${cycleLength} ${t('analytics.days')}`,
+      value: `${avgCycleLength} ${t('analytics.days')}`,
       color: 'text-violet-600',
       bg: 'bg-violet-500/10',
     },
     {
       icon: Calendar,
       label: t('analytics.averagePeriod'),
-      value: `${periodLength} ${t('analytics.days')}`,
+      value: `${avgPeriodLength} ${t('analytics.days')}`,
       color: 'text-rose-600',
       bg: 'bg-rose-500/10',
     },
     {
       icon: TrendingUp,
       label: t('analytics.cyclesCount'),
-      value: String(cycles.length || 1),
+      value: String(cycles.length || 0),
       color: 'text-teal-600',
       bg: 'bg-teal-500/10',
     },
   ]
 
-  const colors = ['#f43f5e', '#8b5cf6', '#14b8a6', '#f59e0b', '#6366f1']
+  const cycleColors = ['#f43f5e', '#8b5cf6', '#14b8a6', '#f59e0b', '#6366f1']
+  const periodColors = ['#fb7185', '#a78bfa', '#5eead4', '#fcd34d', '#818cf8']
 
   return (
     <div className="space-y-6">
@@ -84,9 +94,15 @@ export function Analytics() {
                   boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
                 }}
               />
-              <Bar dataKey="days" radius={[8, 8, 0, 0]}>
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="cycle" name={i18n.language === 'ru' ? 'Цикл' : 'Cycle'} radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                  <Cell key={`cell-${index}`} fill={cycleColors[index % cycleColors.length]} />
+                ))}
+              </Bar>
+              <Bar dataKey="period" name={i18n.language === 'ru' ? 'Месячные' : 'Period'} radius={[8, 8, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`pcell-${index}`} fill={periodColors[index % periodColors.length]} />
                 ))}
               </Bar>
             </BarChart>
