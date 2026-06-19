@@ -1,10 +1,23 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { useState } from 'react'
 import { TelegramProvider } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Loading } from './components/Loading'
+import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
+import { Calendar } from './pages/Calendar'
+import { Analytics } from './pages/Analytics'
+import { Settings } from './pages/Settings'
+
+const TABS = {
+  home: <Home />,
+  calendar: <Calendar />,
+  analytics: <Analytics />,
+  settings: <Settings />,
+}
 
 function AppContent() {
+  const [activeTab, setActiveTab] = useState('home')
   const { loading } = useAuth()
 
   if (loading) {
@@ -12,21 +25,21 @@ function AppContent() {
   }
 
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-      </Routes>
-    </HashRouter>
+    <Layout activeTab={activeTab} onTabChange={setActiveTab}>
+      {TABS[activeTab]}
+    </Layout>
   )
 }
 
 function App() {
   return (
-    <TelegramProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </TelegramProvider>
+    <ErrorBoundary>
+      <TelegramProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </TelegramProvider>
+    </ErrorBoundary>
   )
 }
 
