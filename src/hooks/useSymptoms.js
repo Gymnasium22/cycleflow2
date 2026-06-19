@@ -134,5 +134,32 @@ export function useSymptoms(date) {
     return true
   }
 
-  return { symptoms, loading, error, saveSymptom, deleteSymptom, refetch: fetchSymptoms }
+  async function updateSymptom(id, updates) {
+    if (!date) return
+
+    if (!isAuthenticated) {
+      const all = getStoredSymptoms()
+      const updated = all.map((s) => (s.id === id ? { ...s, ...updates } : s))
+      setStoredSymptoms(updated)
+      setSymptoms(updated.filter((s) => s.date === date))
+      return updated.find((s) => s.id === id)
+    }
+
+    const { data, error } = await supabase
+      .from('symptoms')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      setError(error)
+      return null
+    }
+
+    setSymptoms((prev) => prev.map((s) => (s.id === id ? data : s)))
+    return data
+  }
+
+  return { symptoms, loading, error, saveSymptom, deleteSymptom, updateSymptom, refetch: fetchSymptoms }
 }

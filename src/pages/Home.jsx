@@ -47,13 +47,16 @@ const symptomTypes = ['mood', 'energy', 'pain', 'discharge']
 export function Home() {
   const { t, i18n } = useTranslation()
   const { profile } = useAuth()
-  const { cycles, addCycle } = useCycles()
+  const { cycles, addCycle, updateCycle, deleteCycle } = useCycles()
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
-  const { symptoms, saveSymptom } = useSymptoms(todayStr)
+  const { symptoms, saveSymptom, deleteSymptom } = useSymptoms(todayStr)
 
   const [showSymptoms, setShowSymptoms] = useState(false)
   const [selectedSymptoms, setSelectedSymptoms] = useState({})
+  const [showEditCycle, setShowEditCycle] = useState(false)
+  const [editingCycle, setEditingCycle] = useState(null)
+  const [editDate, setEditDate] = useState('')
 
   const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
@@ -96,6 +99,32 @@ export function Home() {
     }
     setShowSymptoms(false)
     setSelectedSymptoms({})
+  }
+
+  function openEditCycle(cycle) {
+    setEditingCycle(cycle)
+    setEditDate(cycle.start_date)
+    setShowEditCycle(true)
+  }
+
+  async function handleUpdateCycle() {
+    if (!editingCycle || !editDate) return
+    await updateCycle(editingCycle.id, { start_date: editDate })
+    setShowEditCycle(false)
+    setEditingCycle(null)
+    setEditDate('')
+  }
+
+  async function handleDeleteCycle(id) {
+    if (confirm(i18n.language === 'ru' ? 'Удалить эту запись?' : 'Delete this record?')) {
+      await deleteCycle(id)
+    }
+  }
+
+  async function handleDeleteSymptom(id) {
+    if (confirm(i18n.language === 'ru' ? 'Удалить симптом?' : 'Delete symptom?')) {
+      await deleteSymptom(id)
+    }
   }
 
   return (
@@ -200,15 +229,101 @@ export function Home() {
           <p className="text-sm font-semibold mb-2 text-[var(--tg-theme-text-color,#111827)]">{t('symptoms.title')}</p>
           <div className="flex flex-wrap gap-2">
             {symptoms.map((s) => (
-              <span key={s.id} className="px-3 py-1 rounded-full text-xs font-medium bg-white text-[var(--tg-theme-text-color,#111827)]">
-                {t(`symptoms.${s.symptom_type}`)}: {s.intensity}/5
-              </span>
+              <div
+                key={s.id}
+                className="px-3 py-1 rounded-full text-xs font-medium bg-white text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
+              >
+                <span>{t(`symptoms.${s.symptom_type}`)}: {s.intensity}/5</span>
+                <button
+                  onClick={() => handleDeleteSymptom(s.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 font-bold"
+                  title={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Symptoms modal */}
+      {/* Recent cycles history */}
+      {cycles.length > 0 && (
+        <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
+          <p className="text-sm font-semibold mb-3 text-[var(--tg-theme-text-color,#111827)]">
+            {i18n.language === 'ru' ? 'История менструаций' : 'Period History'}
+          </p>
+          <div className="space-y-2">
+            {cycles.slice(0, 5).map((cycle) => (
+              <div key={cycle.id} className="flex items-center justify-between p-3 rounded-xl bg-white">
+                <div className="text-sm">
+                  <p className="font-medium text-[var(--tg-theme-text-color,#111827)]">
+                    {formatDate(new Date(cycle.start_date), locale)}
+                  </p>
+                  <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+                    {cycle.period_length} {i18n.language === 'ru' ? 'дн.' : 'days'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => openEditCycle(cycle)}
+                    className="text-xs px-2 py-1 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20"
+                  >
+                    {i18n.language === 'ru' ? 'Изменить' : 'Edit'}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCycle(cycle.id)}
+                    className="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                  >
+                    {i18n.language === 'ru' ? 'Удалить' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit cycle modal */}
+      {showEditCycle && editingCycle && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold">{i18n.language === 'ru' ? 'Изменить дату' : 'Edit date'}</h3>
+              <button onClick={() => setShowEditCycle(false)} className="p-2 rounded-full hover:bg-black/5">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
+                {i18n.language === 'ru' ? 'Дата начала' : 'Start date'}
+              </label>
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)] bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowEditCycle(false)}
+                className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75"
+              >
+                {i18n.language === 'ru' ? 'Отмена' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleUpdateCycle}
+                className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90"
+              >
+                {i18n.language === 'ru' ? 'Сохранить' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showSymptoms && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">

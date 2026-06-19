@@ -18,6 +18,7 @@ export function Settings() {
   const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
   const [notifyPeriod, setNotifyPeriod] = useState(settings?.notify_period ?? true)
   const [notifyOvulation, setNotifyOvulation] = useState(settings?.notify_ovulation ?? false)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -38,25 +39,36 @@ export function Settings() {
     i18n.changeLanguage(lang)
     localStorage.setItem('i18nextLng', lang)
     updateProfile({ language_code: lang })
+    showSavedMessage()
   }
 
   const handleCycleLengthChange = (value) => {
     setCycleLength(value)
-    updateProfile({ cycle_length: value })
   }
 
   const handlePeriodLengthChange = (value) => {
     setPeriodLength(value)
-    updateProfile({ period_length: value })
   }
 
   const handleNotificationChange = (key, value) => {
     if (key === 'notifyPeriod') setNotifyPeriod(value)
     if (key === 'notifyOvulation') setNotifyOvulation(value)
-    updateSettings({
-      notify_period: key === 'notifyPeriod' ? value : notifyPeriod,
-      notify_ovulation: key === 'notifyOvulation' ? value : notifyOvulation,
-    })
+  }
+
+  async function saveAllSettings() {
+    await Promise.all([
+      updateProfile({ cycle_length: cycleLength, period_length: periodLength }),
+      updateSettings({
+        notify_period: notifyPeriod,
+        notify_ovulation: notifyOvulation,
+      }),
+    ])
+    showSavedMessage()
+  }
+
+  function showSavedMessage() {
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   return (
@@ -165,6 +177,21 @@ export function Settings() {
             ? 'Уведомления работают через Telegram бота и Supabase Edge Functions. Убедитесь, что они настроены.'
             : 'Notifications work via Telegram bot and Supabase Edge Functions. Make sure they are configured.'}
         </p>
+      </div>
+
+      {/* Save button and confirmation */}
+      <div className="space-y-2">
+        <button
+          onClick={saveAllSettings}
+          className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+        >
+          {language === 'ru' ? 'Сохранить все' : 'Save all'}
+        </button>
+        {saved && (
+          <p className="text-center text-sm text-green-600 font-medium">
+            {language === 'ru' ? '✓ Сохранено' : '✓ Saved'}
+          </p>
+        )}
       </div>
     </div>
   )
