@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+
+# Screenshots and scripts for local testing
+screenshot.js
+screenshot-*.png
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
