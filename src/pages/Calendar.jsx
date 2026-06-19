@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { useCycles } from '../hooks/useCycles'
 import {
   generateCalendarDays,
   getCycleDay,
@@ -24,11 +26,15 @@ const weekDays = {
 
 export function Calendar() {
   const { t, i18n } = useTranslation()
+  const { profile } = useAuth()
+  const { cycles } = useCycles()
   const [currentDate, setCurrentDate] = useState(new Date())
 
-  const lastPeriod = localStorage.getItem('lastPeriodStart') || new Date().toISOString().split('T')[0]
-  const cycleLength = Number(localStorage.getItem('cycleLength')) || DEFAULT_CYCLE_LENGTH
-  const periodLength = Number(localStorage.getItem('periodLength')) || DEFAULT_PERIOD_LENGTH
+  const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
+  const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
+
+  const lastCycle = cycles[0]
+  const lastPeriod = lastCycle?.start_date || localStorage.getItem('lastPeriodStart') || new Date().toISOString().split('T')[0]
 
   const nextPeriod = useMemo(() => getNextPeriodDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])
   const ovulation = useMemo(() => getOvulationDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])
@@ -47,11 +53,9 @@ export function Calendar() {
     const d = new Date(date)
     d.setHours(0, 0, 0, 0)
 
-    // Generate period days for this month
     const periodStart = new Date(lastPeriod)
     periodStart.setHours(0, 0, 0, 0)
 
-    // Check all possible period windows in this month
     let checkDate = new Date(periodStart)
     while (checkDate.getFullYear() < year + 1) {
       for (let i = 0; i < periodLength; i++) {
@@ -64,12 +68,10 @@ export function Calendar() {
 
     if (isSameDay(d, ovulation)) return 'ovulation'
 
-    // Fertile window: 5 days before ovulation + ovulation day
     const fertileStart = new Date(ovulation)
     fertileStart.setDate(fertileStart.getDate() - 5)
     if (d >= fertileStart && d <= ovulation) return 'fertile'
 
-    // Phase-based coloring
     const cycleDay = getCycleDay(lastPeriod, cycleLength)
     if (cycleDay) {
       const phase = getCurrentPhase(cycleDay, periodLength, cycleLength)

@@ -19,7 +19,6 @@ export function TelegramProvider({ children }) {
       setUser(tg.initDataUnsafe?.user || null)
       setThemeParams(tg.themeParams || {})
 
-      // Apply Telegram theme colors to CSS variables
       const params = tg.themeParams
       if (params) {
         const root = document.documentElement
@@ -34,12 +33,13 @@ export function TelegramProvider({ children }) {
 
       setReady(true)
     } else {
-      // Fallback for development in browser
+      // Development fallback
+      const savedLang = localStorage.getItem('i18nextLng')
       setUser({
         id: 123456,
         first_name: 'Test',
         username: 'test_user',
-        language_code: 'ru',
+        language_code: savedLang || 'ru',
       })
       setReady(true)
     }

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Globe, Bell, Moon, Info } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+import { useSettings } from '../hooks/useSettings'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
@@ -8,21 +10,53 @@ import {
 
 export function Settings() {
   const { t, i18n } = useTranslation()
+  const { profile, updateProfile } = useAuth()
+  const { settings, updateSettings } = useSettings()
+
   const [language, setLanguage] = useState(i18n.language || 'ru')
-  const [cycleLength, setCycleLength] = useState(() => Number(localStorage.getItem('cycleLength')) || DEFAULT_CYCLE_LENGTH)
-  const [periodLength, setPeriodLength] = useState(() => Number(localStorage.getItem('periodLength')) || DEFAULT_PERIOD_LENGTH)
-  const [notifyPeriod, setNotifyPeriod] = useState(true)
-  const [notifyOvulation, setNotifyOvulation] = useState(false)
+  const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
+  const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
+  const [notifyPeriod, setNotifyPeriod] = useState(settings?.notify_period ?? true)
+  const [notifyOvulation, setNotifyOvulation] = useState(settings?.notify_ovulation ?? false)
 
   useEffect(() => {
-    localStorage.setItem('cycleLength', String(cycleLength))
-    localStorage.setItem('periodLength', String(periodLength))
-  }, [cycleLength, periodLength])
+    if (profile) {
+      setCycleLength(profile.cycle_length || DEFAULT_CYCLE_LENGTH)
+      setPeriodLength(profile.period_length || DEFAULT_PERIOD_LENGTH)
+    }
+  }, [profile])
+
+  useEffect(() => {
+    if (settings) {
+      setNotifyPeriod(settings.notify_period ?? true)
+      setNotifyOvulation(settings.notify_ovulation ?? false)
+    }
+  }, [settings])
 
   const handleLanguageChange = (lang) => {
     setLanguage(lang)
     i18n.changeLanguage(lang)
     localStorage.setItem('i18nextLng', lang)
+    updateProfile({ language_code: lang })
+  }
+
+  const handleCycleLengthChange = (value) => {
+    setCycleLength(value)
+    updateProfile({ cycle_length: value })
+  }
+
+  const handlePeriodLengthChange = (value) => {
+    setPeriodLength(value)
+    updateProfile({ period_length: value })
+  }
+
+  const handleNotificationChange = (key, value) => {
+    if (key === 'notifyPeriod') setNotifyPeriod(value)
+    if (key === 'notifyOvulation') setNotifyOvulation(value)
+    updateSettings({
+      notify_period: key === 'notifyPeriod' ? value : notifyPeriod,
+      notify_ovulation: key === 'notifyOvulation' ? value : notifyOvulation,
+    })
   }
 
   return (
@@ -64,7 +98,7 @@ export function Settings() {
             min="21"
             max="35"
             value={cycleLength}
-            onChange={(e) => setCycleLength(Number(e.target.value))}
+            onChange={(e) => handleCycleLengthChange(Number(e.target.value))}
             className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
           />
           <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -84,7 +118,7 @@ export function Settings() {
             min="2"
             max="8"
             value={periodLength}
-            onChange={(e) => setPeriodLength(Number(e.target.value))}
+            onChange={(e) => handlePeriodLengthChange(Number(e.target.value))}
             className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
           />
           <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -107,7 +141,7 @@ export function Settings() {
           <input
             type="checkbox"
             checked={notifyPeriod}
-            onChange={(e) => setNotifyPeriod(e.target.checked)}
+            onChange={(e) => handleNotificationChange('notifyPeriod', e.target.checked)}
             className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
           />
         </label>
@@ -117,7 +151,7 @@ export function Settings() {
           <input
             type="checkbox"
             checked={notifyOvulation}
-            onChange={(e) => setNotifyOvulation(e.target.checked)}
+            onChange={(e) => handleNotificationChange('notifyOvulation', e.target.checked)}
             className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
           />
         </label>
@@ -127,7 +161,9 @@ export function Settings() {
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 text-amber-800">
         <Info size={20} className="shrink-0 mt-0.5" />
         <p className="text-sm">
-          Уведомления будут работать после подключения Telegram бота и Supabase. Этот раздел пока в демо-режиме.
+          {language === 'ru'
+            ? 'Уведомления работают через Telegram бота и Supabase Edge Functions. Убедитесь, что они настроены.'
+            : 'Notifications work via Telegram bot and Supabase Edge Functions. Make sure they are configured.'}
         </p>
       </div>
     </div>
