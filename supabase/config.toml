@@ -55,14 +55,6 @@ refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 
-[auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = true
-# If enabled, a user will be required to confirm any email change on both the old, and new email addresses.
-double_confirm_changes = true
-# If enabled, users need to confirm their email address before signing in.
-confirm_email = false
-
 [edge_runtime]
 enabled = true
 # Configure one of the supported pooler services: "supabase" or "pgbouncer".
