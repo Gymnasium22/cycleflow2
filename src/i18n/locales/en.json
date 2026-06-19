@@ -1,0 +1,58 @@
+{
+  "app": {
+    "title": "Cicle — Cycle Tracker",
+    "loading": "Loading..."
+  },
+  "nav": {
+    "home": "Home",
+    "calendar": "Calendar",
+    "analytics": "Analytics",
+    "settings": "Settings"
+  },
+  "home": {
+    "dayOfCycle": "Cycle day",
+    "nextPeriod": "Next period",
+    "ovulation": "Ovulation",
+    "logSymptoms": "Log symptoms",
+    "today": "Today",
+    "phase": {
+      "menstruation": "Menstruation",
+      "follicular": "Follicular phase",
+      "ovulation": "Ovulation",
+      "luteal": "Luteal phase"
+    }
+  },
+  "calendar": {
+    "title": "Calendar",
+    "periodDay": "P",
+    "ovulationDay": "O",
+    "fertileDay": "F"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "averageCycle": "Average cycle",
+    "averagePeriod": "Average period",
+    "cyclesCount": "Cycles logged",
+    "days": "days",
+    "cycleHistory": "Cycle history"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "cycleLength": "Cycle length",
+    "periodLength": "Period length",
+    "notifications": "Notifications",
+    "notifyPeriod": "Period reminders",
+    "notifyOvulation": "Ovulation reminders",
+    "save": "Save"
+  },
+  "symptoms": {
+    "title": "Symptoms",
+    "mood": "Mood",
+    "energy": "Energy",
+    "pain": "Pain",
+    "discharge": "Discharge",
+    "notes": "Notes",
+    "save": "Save entry"
+  }
+}

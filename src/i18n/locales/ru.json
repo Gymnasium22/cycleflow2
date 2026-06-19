@@ -1,0 +1,58 @@
+{
+  "app": {
+    "title": "Cicle — трекер цикла",
+    "loading": "Загрузка..."
+  },
+  "nav": {
+    "home": "Главная",
+    "calendar": "Календарь",
+    "analytics": "Аналитика",
+    "settings": "Настройки"
+  },
+  "home": {
+    "dayOfCycle": "День цикла",
+    "nextPeriod": "Следующие месячные",
+    "ovulation": "Овуляция",
+    "logSymptoms": "Записать самочувствие",
+    "today": "Сегодня",
+    "phase": {
+      "menstruation": "Менструация",
+      "follicular": "Фолликулярная фаза",
+      "ovulation": "Овуляция",
+      "luteal": "Лютеиновая фаза"
+    }
+  },
+  "calendar": {
+    "title": "Календарь",
+    "periodDay": "М",
+    "ovulationDay": "О",
+    "fertileDay": "Ф"
+  },
+  "analytics": {
+    "title": "Аналитика",
+    "averageCycle": "Средний цикл",
+    "averagePeriod": "Средняя менструация",
+    "cyclesCount": "Записано циклов",
+    "days": "дней",
+    "cycleHistory": "История циклов"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "cycleLength": "Длина цикла",
+    "periodLength": "Длительность месячных",
+    "notifications": "Уведомления",
+    "notifyPeriod": "Напоминать о месячных",
+    "notifyOvulation": "Напоминать об овуляции",
+    "save": "Сохранить"
+  },
+  "symptoms": {
+    "title": "Самочувствие",
+    "mood": "Настроение",
+    "energy": "Энергия",
+    "pain": "Боль",
+    "discharge": "Выделения",
+    "notes": "Заметки",
+    "save": "Сохранить запись"
+  }
+}
