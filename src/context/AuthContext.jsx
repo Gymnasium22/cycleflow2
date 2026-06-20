@@ -1,9 +1,22 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTelegram } from './TelegramContext'
 import { DEFAULT_CYCLE_LENGTH, DEFAULT_PERIOD_LENGTH } from '../utils/cycle'
 
 const AuthContext = createContext(null)
+
+function parseTelegramUserFromInitData(initData) {
+  if (!initData) return null
+  try {
+    const params = new URLSearchParams(initData)
+    const userJson = params.get('user')
+    if (!userJson) return null
+    return JSON.parse(decodeURIComponent(userJson))
+  } catch (err) {
+    console.warn('[Auth] Failed to parse user from initData:', err)
+    return null
+  }
+}
 
 const FALLBACK_PROFILE_KEY = 'cicle_fallback_profile'
 const FALLBACK_CYCLES_KEY = 'cicle_cycles'
@@ -21,6 +34,13 @@ function getStoredFallbackProfile() {
 
 export function AuthProvider({ children }) {
   const { webApp, user: telegramUser, ready, initData } = useTelegram()
+  const telegramUserFromInitData = useMemo(() => parseTelegramUserFromInitData(initData), [initData])
+  const effectiveTelegramUser = telegramUser || telegramUserFromInitData
+  console.log('[Auth] Effective telegram user:', {
+    fromContext: telegramUser?.id,
+    fromInitData: telegramUserFromInitData?.id,
+    effective: effectiveTelegramUser?.id,
+  })
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -47,13 +67,18 @@ export function AuthProvider({ children }) {
   }, [])
 
   const createProfile = useCallback(async (userId, overrides = {}) => {
+    const telegramId = effectiveTelegramUser?.id ?? overrides.telegram_id
+    if (!telegramId) {
+      console.error('[Auth] Cannot create profile without telegram_id', { userId, overrides, effectiveTelegramUser })
+      throw new Error('Cannot create profile: missing telegram_id')
+    }
     const payload = {
       id: userId,
-      telegram_id: telegramUser?.id ?? overrides.telegram_id ?? null,
-      username: telegramUser?.username ?? overrides.username ?? null,
-      first_name: telegramUser?.first_name ?? overrides.first_name ?? null,
-      last_name: telegramUser?.last_name ?? overrides.last_name ?? null,
-      language_code: telegramUser?.language_code ?? overrides.language_code ?? 'ru',
+      telegram_id: telegramId,
+      username: effectiveTelegramUser?.username ?? overrides.username ?? null,
+      first_name: effectiveTelegramUser?.first_name ?? overrides.first_name ?? null,
+      last_name: effectiveTelegramUser?.last_name ?? overrides.last_name ?? null,
+      language_code: effectiveTelegramUser?.language_code ?? overrides.language_code ?? 'ru',
       cycle_length: overrides.cycle_length ?? DEFAULT_CYCLE_LENGTH,
       period_length: overrides.period_length ?? DEFAULT_PERIOD_LENGTH,
       ...overrides,
@@ -83,7 +108,7 @@ export function AuthProvider({ children }) {
 
     setProfile(data)
     return data
-  }, [telegramUser])
+  }, [effectiveTelegramUser])
 
   const updateProfile = useCallback(async (updates) => {
     if (!session?.user?.id) {
@@ -105,10 +130,15 @@ export function AuthProvider({ children }) {
     }
 
     const userId = session.user.id
+    const telegramId = effectiveTelegramUser?.id ?? profile?.telegram_id
+    const payload = { id: userId, ...updates }
+    if (telegramId && !('telegram_id' in updates)) {
+      payload.telegram_id = telegramId
+    }
 
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: userId, ...updates }, { onConflict: 'id' })
+      .upsert(payload, { onConflict: 'id' })
       .select()
       .single()
 
@@ -120,7 +150,7 @@ export function AuthProvider({ children }) {
 
     setProfile(data)
     return data
-  }, [session, telegramUser])
+  }, [session, effectiveTelegramUser, profile])
 
   const migrateFallbackData = useCallback(async (userId) => {
     try {
@@ -282,9 +312,7 @@ export function AuthProvider({ children }) {
           setSession(existingSession.session)
           const loaded = await loadProfile(existingSession.session.user.id)
           if (!loaded) {
-            await createProfile(existingSession.session.user.id, {
-              ...existingSession.session.user.user_metadata,
-            })
+            await createProfile(existingSession.session.user.id)
           }
           setLoading(false)
           return
@@ -299,12 +327,7 @@ export function AuthProvider({ children }) {
           console.log('[Auth] Telegram auth success, userId:', userId)
           const loaded = await loadProfile(userId)
           if (!loaded) {
-            await createProfile(userId, {
-              telegram_id: telegramUser?.id,
-              username: telegramUser?.username,
-              first_name: telegramUser?.first_name,
-              language_code: telegramUser?.language_code,
-            })
+            await createProfile(userId)
           }
           await migrateFallbackData(userId)
           setLoading(false)
@@ -340,9 +363,7 @@ export function AuthProvider({ children }) {
       if (newSession?.user?.id) {
         const loaded = await loadProfile(newSession.user.id)
         if (!loaded) {
-          await createProfile(newSession.user.id, {
-            ...newSession.user.user_metadata,
-          })
+          await createProfile(newSession.user.id)
         }
       }
     })

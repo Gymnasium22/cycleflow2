@@ -85,7 +85,9 @@ export function TelegramProvider({ children }) {
 
           setWebApp(tg)
           setInitData(tg.initData || null)
-          setUser(tg.initDataUnsafe?.user || null)
+          const tgUser = tg.initDataUnsafe?.user || null
+          console.log('[Telegram] User from initDataUnsafe:', tgUser)
+          setUser(tgUser)
           setThemeParams(tg.themeParams || {})
 
           const params = tg.themeParams
