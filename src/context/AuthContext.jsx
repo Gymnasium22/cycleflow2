@@ -213,18 +213,32 @@ export function AuthProvider({ children }) {
   const signInWithTelegram = useCallback(async (telegramInitData) => {
     const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-auth`
 
-    console.log('[Auth] Calling telegram-auth...')
-    const response = await fetch(functionUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData: telegramInitData }),
-    })
+    console.log('[Auth] Calling telegram-auth...', { functionUrl })
+    let response
+    try {
+      response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: telegramInitData }),
+      })
+    } catch (networkErr) {
+      console.error('[Auth] Network error calling telegram-auth:', networkErr)
+      throw new Error(`Network error: ${networkErr.message || 'Failed to connect to auth server'}`)
+    }
 
-    const data = await response.json()
-    console.log('[Auth] telegram-auth response:', { status: response.status, ok: response.ok })
+    let data
+    const responseText = await response.text()
+    console.log('[Auth] telegram-auth raw response:', { status: response.status, statusText: response.statusText, body: responseText })
+
+    try {
+      data = responseText ? JSON.parse(responseText) : {}
+    } catch (parseErr) {
+      console.error('[Auth] Failed to parse telegram-auth response:', parseErr)
+      throw new Error(`Invalid response from auth server: ${responseText.slice(0, 200)}`)
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || `Auth failed: ${response.status}`)
+      throw new Error(data.error || `Auth failed: ${response.status} ${response.statusText}`)
     }
 
     if (!data.session?.access_token || !data.session?.refresh_token) {
@@ -301,8 +315,8 @@ export function AuthProvider({ children }) {
         }
         setLoading(false)
       } catch (err) {
-        console.error('[Auth] Auth error:', err)
-        setError(err.message)
+        console.error('[Auth] Auth error:', err, err?.stack, err?.name, err?.message)
+        setError(err?.message || JSON.stringify(err) || 'Unknown auth error')
         setLoading(false)
       }
     }
