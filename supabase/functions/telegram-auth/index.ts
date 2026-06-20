@@ -154,12 +154,10 @@ serve(async (req) => {
         dataCheckString: validation.dataCheckString,
         lastStrategy: matchedStrategy,
       })
-      // TEMPORARY: allow auth despite hash mismatch while debugging token issue
-      console.warn('[telegram-auth] ALLOWING auth despite hash mismatch for debugging')
-      // return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
-    } else {
-      console.log('[telegram-auth] Hash matched using strategy:', matchedStrategy)
+      return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
     }
+
+    console.log('[telegram-auth] Hash matched using strategy:', matchedStrategy)
 
     // Re-parse with URLSearchParams for convenient access to user/auth_date
     const params = new URLSearchParams(initData)
