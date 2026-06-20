@@ -58,7 +58,7 @@ serve(async (req) => {
     return jsonResponse({ error: 'initData is required' }, 400, origin)
   }
 
-  const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN')
+  const botToken = (Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN'))?.trim()
   if (!botToken) {
     return jsonResponse({ error: 'Bot token not configured' }, 500, origin)
   }
@@ -66,45 +66,82 @@ serve(async (req) => {
 
   try {
     // 1. Parse and validate Telegram initData
-    const params = new URLSearchParams(initData)
-    const hash = params.get('hash')
-    params.delete('hash')
+    async function computeHmac(dataCheckString: string): Promise<string> {
+      const secretKey = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(botToken),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      )
+      const secret = await crypto.subtle.sign('HMAC', secretKey, new TextEncoder().encode('WebAppData'))
+      const validationKey = await crypto.subtle.importKey(
+        'raw',
+        secret,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      )
+      const signature = await crypto.subtle.sign('HMAC', validationKey, new TextEncoder().encode(dataCheckString))
+      return Array.from(new Uint8Array(signature))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+    }
 
-    const entries = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b))
-    const dataCheckString = entries.map(([key, value]) => `${key}=${value}`).join('\n')
+    function parseInitData(data: string, useRawValues: boolean) {
+      const pairs = data.split('&')
+      let hash: string | null = null
+      const entries: [string, string][] = []
 
-    console.log('[telegram-auth] Validation data:', {
+      for (const pair of pairs) {
+        const eqIndex = pair.indexOf('=')
+        if (eqIndex === -1) continue
+        const key = pair.slice(0, eqIndex)
+        const rawValue = pair.slice(eqIndex + 1)
+        if (key === 'hash') {
+          hash = decodeURIComponent(rawValue)
+        } else {
+          entries.push([key, useRawValues ? rawValue : decodeURIComponent(rawValue)])
+        }
+      }
+
+      entries.sort(([a], [b]) => a.localeCompare(b))
+      const dataCheckString = entries.map(([key, value]) => `${key}=${value}`).join('\n')
+      return { hash: hash || '', dataCheckString, entries }
+    }
+
+    // Try decoded values first (standard Telegram docs), then raw values as fallback
+    let validation = parseInitData(initData, false)
+    let computedHash = await computeHmac(validation.dataCheckString)
+
+    console.log('[telegram-auth] Validation data (decoded):', {
       botTokenLength: botToken.length,
-      hashLength: hash?.length,
-      dataCheckStringLength: dataCheckString.length,
-      dataCheckStringPreview: dataCheckString.slice(0, 200),
-      entries: entries.map(([k]) => k),
+      hashLength: validation.hash.length,
+      dataCheckStringLength: validation.dataCheckString.length,
+      dataCheckStringPreview: validation.dataCheckString.slice(0, 200),
+      entries: validation.entries.map(([k]) => k),
+      computedHash,
     })
 
-    const secretKey = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(botToken),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    )
-    const secret = await crypto.subtle.sign('HMAC', secretKey, new TextEncoder().encode('WebAppData'))
-    const validationKey = await crypto.subtle.importKey(
-      'raw',
-      secret,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    )
-    const signature = await crypto.subtle.sign('HMAC', validationKey, new TextEncoder().encode(dataCheckString))
-    const computedHash = Array.from(new Uint8Array(signature))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
+    if (computedHash !== validation.hash) {
+      validation = parseInitData(initData, true)
+      computedHash = await computeHmac(validation.dataCheckString)
 
-    if (computedHash !== hash) {
-      console.error('[telegram-auth] Hash mismatch', { computedHash, hash })
+      console.log('[telegram-auth] Validation data (raw):', {
+        dataCheckStringLength: validation.dataCheckString.length,
+        dataCheckStringPreview: validation.dataCheckString.slice(0, 200),
+        entries: validation.entries.map(([k]) => k),
+        computedHash,
+      })
+    }
+
+    if (computedHash !== validation.hash) {
+      console.error('[telegram-auth] Hash mismatch', { computedHash, hash: validation.hash })
       return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
     }
+
+    // Re-parse with URLSearchParams for convenient access to user/auth_date
+    const params = new URLSearchParams(initData)
 
     const authDate = parseInt(params.get('auth_date') || '0', 10)
     const now = Math.floor(Date.now() / 1000)
