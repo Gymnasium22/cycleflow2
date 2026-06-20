@@ -102,9 +102,8 @@ serve(async (req) => {
       .join('')
 
     if (computedHash !== hash) {
-      console.warn('Hash mismatch - bypassing validation for debugging', { computedHash, hash })
-      // TODO: re-enable hash validation once the correct bot token is configured
-      // return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
+      console.error('[telegram-auth] Hash mismatch', { computedHash, hash })
+      return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
     }
 
     const authDate = parseInt(params.get('auth_date') || '0', 10)
