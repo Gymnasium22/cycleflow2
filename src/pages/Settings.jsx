@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2 } from 'lucide-react'
+import { Spinner } from '../components/Spinner'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
 import {
@@ -11,8 +15,8 @@ import {
 
 export function Settings() {
   const { t, i18n } = useTranslation()
-  const { profile, updateProfile } = useAuth()
-  const { settings, updateSettings } = useSettings()
+  const { profile, updateProfile, isLoading: profileLoading } = useAuth()
+  const { settings, updateSettings, isLoading: settingsLoading } = useSettings()
   const { cycles } = useCycles()
 
   const [language, setLanguage] = useState(i18n.language || 'ru')
@@ -24,6 +28,10 @@ export function Settings() {
   const [ovulationReminderDays, setOvulationReminderDays] = useState(settings?.ovulation_reminder_days ?? 1)
   const [notifyTime, setNotifyTime] = useState(settings?.notify_time ?? '09:00')
   const [saved, setSaved] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const { hapticFeedback } = useTelegram()
 
   const debounceRef = useRef(null)
   const notifyDebounceRef = useRef(null)
@@ -98,11 +106,43 @@ export function Settings() {
   }, [notifyPeriod, notifyOvulation, periodReminderDays, ovulationReminderDays, notifyTime, settings, updateSettings, showSavedMessage])
 
   const handleLanguageChange = (lang) => {
+    hapticFeedback.impact('light')
     setLanguage(lang)
     i18n.changeLanguage(lang)
     localStorage.setItem('i18nextLng', lang)
     updateProfile({ language_code: lang })
     showSavedMessage()
+  }
+
+  async function deleteAllData() {
+    setIsDeleting(true)
+    hapticFeedback.notification('warning')
+    try {
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-all-data`
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete data')
+      }
+
+      // Clear all local storage
+      localStorage.clear()
+      // Sign out and reload
+      hapticFeedback.notification('success')
+      await supabase.auth.signOut()
+      window.location.reload()
+    } catch (err) {
+      console.error('Delete all data error:', err)
+      alert(i18n.language === 'ru' ? 'Ошибка при удалении данных' : 'Error deleting data')
+      setIsDeleting(false)
+    }
   }
 
   const handleCycleLengthChange = (value) => {
@@ -114,6 +154,7 @@ export function Settings() {
   }
 
   async function saveAllSettings() {
+    hapticFeedback.impact('light')
     await Promise.all([
       updateProfile({ cycle_length: cycleLength, period_length: periodLength }),
       updateSettings({
@@ -128,6 +169,7 @@ export function Settings() {
   }
 
   function exportData() {
+    hapticFeedback.impact('light')
     try {
       const storedSymptoms = localStorage.getItem('cicle_symptoms')
       const storedSettings = localStorage.getItem('cicle_settings')
@@ -338,6 +380,17 @@ export function Settings() {
           <Download size={18} />
           {tLocal.exportData}
         </button>
+        <button
+          onClick={() => {
+            hapticFeedback.impact('medium')
+            setShowDeleteDialog(true)
+          }}
+          disabled={isDeleting}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 font-semibold hover:bg-red-100 transition-colors disabled:opacity-60"
+        >
+          {isDeleting ? <Spinner size={18} /> : <Trash2 size={18} />}
+          {i18n.language === 'ru' ? 'Удалить все данные' : 'Delete all data'}
+        </button>
       </div>
 
       {/* Info */}
@@ -350,8 +403,10 @@ export function Settings() {
       <div className="space-y-2">
         <button
           onClick={saveAllSettings}
-          className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+          disabled={profileLoading || settingsLoading}
+          className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
         >
+          {(profileLoading || settingsLoading) && <Spinner size={18} />}
           {tLocal.saveAll}
         </button>
         {saved && (
@@ -360,6 +415,19 @@ export function Settings() {
           </p>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title={i18n.language === 'ru' ? 'Удалить все данные' : 'Delete all data'}
+        message={i18n.language === 'ru'
+          ? 'Все ваши циклы, симптомы, настройки и профиль будут безвозвратно удалены. Это действие нельзя отменить.'
+          : 'All your cycles, symptoms, settings and profile will be permanently deleted. This action cannot be undone.'}
+        confirmText={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
+        cancelText={i18n.language === 'ru' ? 'Отмена' : 'Cancel'}
+        destructive
+        onConfirm={deleteAllData}
+        onCancel={() => setShowDeleteDialog(false)}
+      />
     </div>
   )
 }

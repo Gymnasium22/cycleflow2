@@ -27,3 +27,4 @@ jobs:
           supabase link --project-ref $SUPABASE_PROJECT_ID
           supabase functions deploy telegram-auth
           supabase functions deploy send-notifications
+          supabase functions deploy delete-all-data

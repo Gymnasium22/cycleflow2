@@ -1,5 +1,6 @@
 -- Add missing columns for existing tables
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC';
 
 -- Профили пользователей, созданные на основе Telegram
 CREATE TABLE IF NOT EXISTS profiles (
@@ -174,3 +175,17 @@ DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
 CREATE TRIGGER update_settings_updated_at
   BEFORE UPDATE ON settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Extensions for scheduled notifications
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- IMPORTANT: replace <YOUR_CRON_SECRET> with the value from Supabase Secrets CRON_SECRET
+-- and <YOUR_SUPABASE_PROJECT_ID> with your project ref.
+-- This schedules the send-notifications Edge Function to run every 15 minutes.
+-- To set up manually in SQL Editor:
+-- SELECT cron.schedule(
+--   'send-notifications',
+--   '*/15 * * * *',
+--   'SELECT net.http_post(url := ''https://<YOUR_PROJECT_REF>.supabase.co/functions/v1/send-notifications'', headers := ''{"Content-Type": "application/json", "X-Cron-Secret": "<YOUR_CRON_SECRET>"}''::jsonb) AS request_id;'
+-- );

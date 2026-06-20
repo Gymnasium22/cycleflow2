@@ -22,6 +22,7 @@ export function useCycles() {
   const { session } = useAuth()
   const [cycles, setCycles] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const isAuthenticated = !!session?.user?.id
@@ -53,6 +54,7 @@ export function useCycles() {
   }, [fetchCycles])
 
   async function addCycle(cycle) {
+    setIsLoading(true)
     const newCycle = {
       id: `local_${Date.now()}`,
       start_date: cycle.start_date,
@@ -65,10 +67,12 @@ export function useCycles() {
       const updated = [newCycle, ...getStoredCycles()]
       setStoredCycles(updated)
       setCycles(updated)
+      setIsLoading(false)
       return newCycle
     }
 
-    const { data, error } = await supabase
+    try {
+      const { data, error } = await supabase
       .from('cycles')
       .insert({
         user_id: session.user.id,
@@ -77,57 +81,84 @@ export function useCycles() {
       .select()
       .single()
 
-    if (error) {
-      setError(error)
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return null
+      }
+
+      setCycles((prev) => [data, ...prev])
+      setIsLoading(false)
+      return data
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
       return null
     }
-
-    setCycles((prev) => [data, ...prev])
-    return data
   }
 
   async function updateCycle(id, updates) {
+    setIsLoading(true)
     if (!isAuthenticated) {
       const updated = getStoredCycles().map((c) => (c.id === id ? { ...c, ...updates } : c))
       setStoredCycles(updated)
       setCycles(updated)
+      setIsLoading(false)
       return updated.find((c) => c.id === id)
     }
 
-    const { data, error } = await supabase
+    try {
+      const { data, error } = await supabase
       .from('cycles')
       .update(updates)
       .eq('id', id)
       .select()
       .single()
 
-    if (error) {
-      setError(error)
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return null
+      }
+
+      setCycles((prev) => prev.map((c) => (c.id === id ? data : c)))
+      setIsLoading(false)
+      return data
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
       return null
     }
-
-    setCycles((prev) => prev.map((c) => (c.id === id ? data : c)))
-    return data
   }
 
   async function deleteCycle(id) {
+    setIsLoading(true)
     if (!isAuthenticated) {
       const updated = getStoredCycles().filter((c) => c.id !== id)
       setStoredCycles(updated)
       setCycles(updated)
+      setIsLoading(false)
       return true
     }
 
-    const { error } = await supabase.from('cycles').delete().eq('id', id)
-    if (error) {
-      setError(error)
+    try {
+      const { error } = await supabase.from('cycles').delete().eq('id', id)
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return false
+      }
+      setCycles((prev) => prev.filter((c) => c.id !== id))
+      setIsLoading(false)
+      return true
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
       return false
     }
-    setCycles((prev) => prev.filter((c) => c.id !== id))
-    return true
   }
 
-  return { cycles, loading, error, addCycle, updateCycle, deleteCycle, refetch: fetchCycles }
+  return { cycles, loading, isLoading, error, addCycle, updateCycle, deleteCycle, refetch: fetchCycles }
 }
 
 export function isPeriodActive(cycle) {

@@ -21,6 +21,7 @@ export function useSymptoms(date) {
   const { session } = useAuth()
   const [symptoms, setSymptoms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const isAuthenticated = !!session?.user?.id
@@ -54,6 +55,7 @@ export function useSymptoms(date) {
 
   async function saveSymptom(symptom) {
     if (!date) return
+    setIsLoading(true)
 
     const newSymptom = {
       id: `local_${Date.now()}`,
@@ -70,10 +72,12 @@ export function useSymptoms(date) {
       const updated = [...all, newSymptom]
       setStoredSymptoms(updated)
       setSymptoms(updated.filter((s) => s.date === date))
+      setIsLoading(false)
       return newSymptom
     }
 
-    const { data: existing } = await supabase
+    try {
+      const { data: existing } = await supabase
       .from('symptoms')
       .select('id')
       .eq('user_id', session.user.id)
@@ -89,16 +93,18 @@ export function useSymptoms(date) {
         .select()
         .single()
 
-      if (error) {
-        setError(error)
-        return null
+        if (error) {
+          setError(error)
+          setIsLoading(false)
+          return null
+        }
+
+        setSymptoms((prev) => prev.map((s) => (s.id === existing.id ? data : s)))
+        setIsLoading(false)
+        return data
       }
 
-      setSymptoms((prev) => prev.map((s) => (s.id === existing.id ? data : s)))
-      return data
-    }
-
-    const { data, error } = await supabase
+      const { data, error } = await supabase
       .from('symptoms')
       .insert({
         user_id: session.user.id,
@@ -108,33 +114,51 @@ export function useSymptoms(date) {
       .select()
       .single()
 
-    if (error) {
-      setError(error)
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return null
+      }
+
+      setSymptoms((prev) => [...prev, data])
+      setIsLoading(false)
+      return data
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
       return null
     }
-
-    setSymptoms((prev) => [...prev, data])
-    return data
   }
 
   async function deleteSymptom(id) {
+    setIsLoading(true)
     if (!isAuthenticated) {
       const updated = getStoredSymptoms().filter((s) => s.id !== id)
       setStoredSymptoms(updated)
       setSymptoms(updated.filter((s) => s.date === date))
+      setIsLoading(false)
       return true
     }
 
-    const { error } = await supabase.from('symptoms').delete().eq('id', id)
-    if (error) {
-      setError(error)
+    try {
+      const { error } = await supabase.from('symptoms').delete().eq('id', id)
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return false
+      }
+      setSymptoms((prev) => prev.filter((s) => s.id !== id))
+      setIsLoading(false)
+      return true
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
       return false
     }
-    setSymptoms((prev) => prev.filter((s) => s.id !== id))
-    return true
   }
 
   async function updateSymptom(id, updates) {
+    setIsLoading(true)
     if (!date) return
 
     if (!isAuthenticated) {
@@ -142,24 +166,33 @@ export function useSymptoms(date) {
       const updated = all.map((s) => (s.id === id ? { ...s, ...updates } : s))
       setStoredSymptoms(updated)
       setSymptoms(updated.filter((s) => s.date === date))
+      setIsLoading(false)
       return updated.find((s) => s.id === id)
     }
 
-    const { data, error } = await supabase
+    try {
+      const { data, error } = await supabase
       .from('symptoms')
       .update(updates)
       .eq('id', id)
       .select()
       .single()
 
-    if (error) {
-      setError(error)
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return null
+      }
+
+      setSymptoms((prev) => prev.map((s) => (s.id === id ? data : s)))
+      setIsLoading(false)
+      return data
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
       return null
     }
-
-    setSymptoms((prev) => prev.map((s) => (s.id === id ? data : s)))
-    return data
   }
 
-  return { symptoms, loading, error, saveSymptom, deleteSymptom, updateSymptom, refetch: fetchSymptoms }
+  return { symptoms, loading, isLoading, error, saveSymptom, deleteSymptom, updateSymptom, refetch: fetchSymptoms }
 }

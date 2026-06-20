@@ -162,8 +162,25 @@ export function TelegramProvider({ children }) {
     )
   }
 
+  const hapticFeedback = {
+    impact: (style = 'light') => {
+      try {
+        webApp?.HapticFeedback?.impactOccurred(style)
+      } catch {
+        // ignore
+      }
+    },
+    notification: (type = 'success') => {
+      try {
+        webApp?.HapticFeedback?.notificationOccurred(type)
+      } catch {
+        // ignore
+      }
+    },
+  }
+
   return (
-    <TelegramContext.Provider value={{ webApp, user, ready, themeParams, initData }}>
+    <TelegramContext.Provider value={{ webApp, user, ready, themeParams, initData, hapticFeedback }}>
       {children}
     </TelegramContext.Provider>
   )

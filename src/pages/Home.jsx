@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
+import { Spinner } from '../components/Spinner'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
@@ -50,10 +53,10 @@ const symptomTypes = ['mood', 'energy', 'pain', 'discharge']
 export function Home() {
   const { t, i18n } = useTranslation()
   const { profile } = useAuth()
-  const { cycles, addCycle, updateCycle, deleteCycle } = useCycles()
+  const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
-  const { symptoms, saveSymptom, deleteSymptom, updateSymptom } = useSymptoms(todayStr)
+  const { symptoms, saveSymptom, deleteSymptom, updateSymptom, isLoading: symptomsLoading } = useSymptoms(todayStr)
 
   const [showSymptoms, setShowSymptoms] = useState(false)
   const [selectedSymptoms, setSelectedSymptoms] = useState({})
@@ -72,6 +75,10 @@ export function Home() {
 
   const [editPeriodLength, setEditPeriodLength] = useState(fallbackPeriodLength)
 
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
+
+  const { hapticFeedback } = useTelegram()
+
   const lastCycle = cycles[0]
   const lastPeriodStart = lastCycle?.start_date || null
 
@@ -89,27 +96,56 @@ export function Home() {
   const activePeriodDay = activePeriod ? getActivePeriodDay(lastCycle) : null
   const isPeriodStartedToday = lastCycle?.start_date === todayStr
 
+  function openConfirmDialog({ title, message, confirmText, cancelText, onConfirm, destructive = false }) {
+    hapticFeedback.impact('medium')
+    setConfirmDialog({ isOpen: true, title, message, confirmText, cancelText, onConfirm, destructive })
+  }
+
+  function closeConfirmDialog() {
+    setConfirmDialog({ isOpen: false, title: '', message: '', confirmText: '', cancelText: '', onConfirm: null, destructive: false })
+  }
+
   async function handleStartPeriod() {
+    hapticFeedback.impact('light')
     await addCycle({
       start_date: todayStr,
       period_length: fallbackPeriodLength,
       cycle_length: fallbackCycleLength,
     })
+    hapticFeedback.notification('success')
   }
 
   async function handleEndPeriod() {
-    if (confirm(i18n.language === 'ru' ? 'Отметить окончание месячных?' : 'Mark period as ended?')) {
-      await updateCycle(lastCycle.id, { end_date: todayStr })
-    }
+    openConfirmDialog({
+      title: i18n.language === 'ru' ? 'Окончание месячных' : 'Period ended',
+      message: i18n.language === 'ru' ? 'Отметить окончание месячных?' : 'Mark period as ended?',
+      confirmText: i18n.language === 'ru' ? 'Отметить' : 'Mark',
+      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
+      onConfirm: async () => {
+        closeConfirmDialog()
+        await updateCycle(lastCycle.id, { end_date: todayStr })
+        hapticFeedback.notification('success')
+      },
+    })
   }
 
   async function handleCancelPeriod() {
-    if (confirm(i18n.language === 'ru' ? 'Отменить начало месячных?' : 'Cancel period start?')) {
-      await deleteCycle(lastCycle.id)
-    }
+    openConfirmDialog({
+      title: i18n.language === 'ru' ? 'Отменить начало' : 'Cancel start',
+      message: i18n.language === 'ru' ? 'Отменить начало месячных?' : 'Cancel period start?',
+      confirmText: i18n.language === 'ru' ? 'Отменить' : 'Cancel',
+      cancelText: i18n.language === 'ru' ? 'Нет' : 'No',
+      destructive: true,
+      onConfirm: async () => {
+        closeConfirmDialog()
+        await deleteCycle(lastCycle.id)
+        hapticFeedback.notification('success')
+      },
+    })
   }
 
   function openSymptomModal() {
+    hapticFeedback.impact('light')
     setEditingSymptom(null)
     setSelectedSymptoms({})
     setSymptomNotes('')
@@ -117,6 +153,7 @@ export function Home() {
   }
 
   function openEditSymptom(symptom) {
+    hapticFeedback.impact('light')
     setEditingSymptom(symptom)
     setSelectedSymptoms({ [symptom.symptom_type]: symptom.intensity })
     setSymptomNotes(symptom.notes || '')
@@ -151,9 +188,11 @@ export function Home() {
     setEditingSymptom(null)
     setSelectedSymptoms({})
     setSymptomNotes('')
+    hapticFeedback.notification('success')
   }
 
   function openEditCycle(cycle) {
+    hapticFeedback.impact('light')
     setEditingCycle(cycle)
     setEditDate(cycle.start_date)
     setEditPeriodLength(cycle.period_length || fallbackPeriodLength)
@@ -173,15 +212,33 @@ export function Home() {
   }
 
   async function handleDeleteCycle(id) {
-    if (confirm(i18n.language === 'ru' ? 'Удалить эту запись?' : 'Delete this record?')) {
-      await deleteCycle(id)
-    }
+    openConfirmDialog({
+      title: i18n.language === 'ru' ? 'Удалить запись' : 'Delete record',
+      message: i18n.language === 'ru' ? 'Удалить эту запись о цикле?' : 'Delete this cycle record?',
+      confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
+      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
+      destructive: true,
+      onConfirm: async () => {
+        closeConfirmDialog()
+        await deleteCycle(id)
+        hapticFeedback.notification('success')
+      },
+    })
   }
 
   async function handleDeleteSymptom(id) {
-    if (confirm(i18n.language === 'ru' ? 'Удалить симптом?' : 'Delete symptom?')) {
-      await deleteSymptom(id)
-    }
+    openConfirmDialog({
+      title: i18n.language === 'ru' ? 'Удалить симптом' : 'Delete symptom',
+      message: i18n.language === 'ru' ? 'Удалить этот симптом?' : 'Delete this symptom?',
+      confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
+      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
+      destructive: true,
+      onConfirm: async () => {
+        closeConfirmDialog()
+        await deleteSymptom(id)
+        hapticFeedback.notification('success')
+      },
+    })
   }
 
   return (
@@ -298,25 +355,28 @@ export function Home() {
         {activePeriod ? (
           <button
             onClick={handleEndPeriod}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 transition-opacity"
+            disabled={cyclesLoading}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            <Check size={18} />
+            {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
             {i18n.language === 'ru' ? 'Месячные закончились' : 'Period ended'}
           </button>
         ) : isPeriodStartedToday ? (
           <button
             onClick={handleCancelPeriod}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 transition-colors border border-[var(--tg-theme-hint-color,#d1d5db)]/30"
+            disabled={cyclesLoading}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 transition-colors border border-[var(--tg-theme-hint-color,#d1d5db)]/30 disabled:opacity-60"
           >
-            <X size={18} />
+            {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
             {i18n.language === 'ru' ? 'Отменить начало месячных' : 'Cancel period start'}
           </button>
         ) : (
           <button
             onClick={handleStartPeriod}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+            disabled={cyclesLoading}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
           >
-            <Droplets size={18} />
+            {cyclesLoading ? <Spinner size={20} /> : <Droplets size={18} />}
             {i18n.language === 'ru' ? 'Месячные начались' : 'Period started'}
           </button>
         )}
@@ -438,8 +498,10 @@ export function Home() {
               </button>
               <button
                 onClick={handleUpdateCycle}
-                className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90"
+                disabled={cyclesLoading}
+                className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
               >
+                {cyclesLoading && <Spinner size={18} />}
                 {i18n.language === 'ru' ? 'Сохранить' : 'Save'}
               </button>
             </div>
@@ -503,13 +565,26 @@ export function Home() {
 
             <button
               onClick={handleSaveSymptoms}
-              className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+              disabled={symptomsLoading}
+              className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
             >
+              {symptomsLoading && <Spinner size={18} />}
               {t('symptoms.save')}
             </button>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        destructive={confirmDialog.destructive}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+      />
     </div>
   )
 }

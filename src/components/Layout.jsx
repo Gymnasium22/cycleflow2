@@ -11,9 +11,11 @@ export function Layout({ children, activeTab, onTabChange }) {
 
 import { Home, CalendarDays, BarChart3, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useTelegram } from '../context/TelegramContext'
 
 function BottomNav({ activeTab, onTabChange }) {
   const { t } = useTranslation()
+  const { hapticFeedback } = useTelegram()
 
   const navItems = [
     { id: 'home', icon: Home, label: t('nav.home') },
@@ -28,7 +30,10 @@ function BottomNav({ activeTab, onTabChange }) {
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => onTabChange(item.id)}
+            onClick={() => {
+              hapticFeedback.impact('light')
+              onTabChange(item.id)
+            }}
             className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all duration-200 ${
               activeTab === item.id
                 ? 'text-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10'

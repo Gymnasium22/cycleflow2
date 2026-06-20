@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
   const { webApp, user: telegramUser, ready, initData } = useTelegram()
   const telegramUserFromInitData = useMemo(() => parseTelegramUserFromInitData(initData), [initData])
   const effectiveTelegramUser = telegramUser || telegramUserFromInitData
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   console.log('[Auth] Effective telegram user:', {
     fromContext: telegramUser?.id,
     fromInitData: telegramUserFromInitData?.id,
@@ -44,6 +45,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const loadProfile = useCallback(async (userId) => {
@@ -79,6 +81,7 @@ export function AuthProvider({ children }) {
       first_name: effectiveTelegramUser?.first_name ?? overrides.first_name ?? null,
       last_name: effectiveTelegramUser?.last_name ?? overrides.last_name ?? null,
       language_code: effectiveTelegramUser?.language_code ?? overrides.language_code ?? 'ru',
+      timezone: overrides.timezone ?? userTimezone,
       cycle_length: overrides.cycle_length ?? DEFAULT_CYCLE_LENGTH,
       period_length: overrides.period_length ?? DEFAULT_PERIOD_LENGTH,
       ...overrides,
@@ -111,6 +114,7 @@ export function AuthProvider({ children }) {
   }, [effectiveTelegramUser])
 
   const updateProfile = useCallback(async (updates) => {
+    setIsLoading(true)
     if (!session?.user?.id) {
       const existing = getStoredFallbackProfile()
       const fallbackProfile = {
@@ -126,6 +130,7 @@ export function AuthProvider({ children }) {
       }
       setProfile(fallbackProfile)
       localStorage.setItem(FALLBACK_PROFILE_KEY, JSON.stringify(fallbackProfile))
+      setIsLoading(false)
       return fallbackProfile
     }
 
@@ -134,6 +139,9 @@ export function AuthProvider({ children }) {
     const payload = { id: userId, ...updates }
     if (telegramId && !('telegram_id' in updates)) {
       payload.telegram_id = telegramId
+    }
+    if (!('timezone' in updates) && !profile?.timezone) {
+      payload.timezone = userTimezone
     }
 
     const { data, error } = await supabase
@@ -145,10 +153,12 @@ export function AuthProvider({ children }) {
     if (error) {
       console.error('[Auth] Profile upsert error:', error)
       setProfile((prev) => (prev ? { ...prev, ...updates } : { ...updates }))
+      setIsLoading(false)
       return
     }
 
     setProfile(data)
+    setIsLoading(false)
     return data
   }, [session, effectiveTelegramUser, profile])
 
@@ -381,7 +391,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, error, updateProfile, createProfile, logout }}>
+    <AuthContext.Provider value={{ session, profile, loading, isLoading, error, updateProfile, createProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )

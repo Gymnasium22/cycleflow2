@@ -29,6 +29,7 @@ export function useSettings() {
   const { session } = useAuth()
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const isAuthenticated = !!session?.user?.id
@@ -75,31 +76,44 @@ export function useSettings() {
   }, [fetchSettings])
 
   async function updateSettings(updates) {
+    setIsLoading(true)
     const newSettings = { ...(settings || DEFAULT_SETTINGS), ...updates }
 
     if (!isAuthenticated) {
       setStoredSettings(newSettings)
       setSettings(newSettings)
+      setIsLoading(false)
       return newSettings
     }
 
-    if (!session?.user?.id || !settings?.id) return
-
-    const { data, error } = await supabase
-      .from('settings')
-      .update(updates)
-      .eq('id', settings.id)
-      .select()
-      .single()
-
-    if (error) {
-      setError(error)
-      return null
+    if (!session?.user?.id || !settings?.id) {
+      setIsLoading(false)
+      return
     }
 
-    setSettings(data)
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('settings')
+        .update(updates)
+        .eq('id', settings.id)
+        .select()
+        .single()
+
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return null
+      }
+
+      setSettings(data)
+      setIsLoading(false)
+      return data
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
+      return null
+    }
   }
 
-  return { settings, loading, error, updateSettings, refetch: fetchSettings }
+  return { settings, loading, isLoading, error, updateSettings, refetch: fetchSettings }
 }

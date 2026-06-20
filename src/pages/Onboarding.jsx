@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Heart, ArrowRight, Calendar, Droplets, Bell } from 'lucide-react'
+import { Spinner } from '../components/Spinner'
+import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import { useSettings } from '../hooks/useSettings'
@@ -26,8 +28,10 @@ export function Onboarding() {
   const [ovulationReminderDays, setOvulationReminderDays] = useState(1)
   const [notifyTime, setNotifyTime] = useState('09:00')
   const [saving, setSaving] = useState(false)
+  const { hapticFeedback } = useTelegram()
 
   async function handleFinish() {
+    hapticFeedback.impact('light')
     setSaving(true)
 
     await updateProfile({
@@ -52,6 +56,7 @@ export function Onboarding() {
       notify_time: notifyTime,
     })
 
+    hapticFeedback.notification('success')
     setSaving(false)
   }
 
@@ -288,6 +293,7 @@ export function Onboarding() {
                 disabled={saving}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
+                {saving && <Spinner size={18} />}
                 {saving ? t.saving : t.start}
               </button>
             </div>

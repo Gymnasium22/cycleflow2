@@ -42,7 +42,31 @@ function getAverageCycleLength(cycles: any[]): number {
   return Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
 }
 
-serve(async () => {
+function getLocalTime(timezone: string): { hour: number; minute: number } {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(new Date())
+  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '00', 10)
+  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '00', 10)
+  return { hour, minute }
+}
+
+function formatLocalTime(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+serve(async (req) => {
+  const cronSecret = Deno.env.get('CRON_SECRET')
+  const requestSecret = req.headers.get('x-cron-secret')
+
+  if (cronSecret && requestSecret !== cronSecret) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+  }
+
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN')
   if (!botToken) {
     return new Response(JSON.stringify({ error: 'Bot token not configured' }), { status: 500 })
@@ -61,7 +85,7 @@ serve(async () => {
     .from('settings')
     .select(`
       *,
-      profiles:user_id (telegram_id, language_code, cycle_length, period_length)
+      profiles:user_id (telegram_id, language_code, cycle_length, period_length, timezone)
     `)
 
   if (settingsError) {
@@ -73,6 +97,15 @@ serve(async () => {
   for (const setting of settings || []) {
     const profile = setting.profiles as any
     if (!profile?.telegram_id) continue
+
+    const timezone = profile.timezone || 'UTC'
+    const localTime = getLocalTime(timezone)
+    const notifyTime = setting.notify_time || '09:00'
+    const [notifyHour, notifyMinute] = notifyTime.split(':').map(Number)
+
+    // Only send notifications within 15-minute window of configured time
+    const isTimeMatch = localTime.hour === notifyHour && localTime.minute >= notifyMinute && localTime.minute < notifyMinute + 15
+    if (!isTimeMatch) continue
 
     // Get all cycles for user to calculate averages
     const { data: cycles } = await supabaseAdmin
