@@ -51,14 +51,21 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get('SB_URL') ?? ''
   const serviceRoleKey = Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
 
-  // Create client with user auth to get user id from JWT
+  // Get user auth from JWT
   const authHeader = req.headers.get('Authorization') || ''
+  const accessToken = authHeader.replace('Bearer ', '').trim()
   const anonKey = Deno.env.get('SB_ANON_KEY') ?? ''
-  const supabaseClient = createClient(supabaseUrl, anonKey, {
-    global: { headers: { Authorization: authHeader } },
+
+  console.log('[delete-all-data] Auth details:', {
+    hasAuthHeader: !!authHeader,
+    accessTokenPrefix: accessToken.slice(0, 20),
+    anonKeyPrefix: anonKey.slice(0, 20),
   })
 
-  const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+  const supabaseClient = createClient(supabaseUrl, anonKey)
+  const { data: { user }, error: userError } = await supabaseClient.auth.getUser(accessToken)
+
+  console.log('[delete-all-data] getUser result:', { hasUser: !!user, error: userError?.message })
 
   if (userError || !user) {
     return jsonResponse({ error: 'Unauthorized' }, 401, origin)
