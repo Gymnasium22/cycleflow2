@@ -65,61 +65,75 @@ ALTER TABLE symptoms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 -- Политики для profiles
+DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
 CREATE POLICY "Users can read own profile"
   ON profiles FOR SELECT
   USING (id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile"
   ON profiles FOR INSERT
   WITH CHECK (id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile"
   ON profiles FOR UPDATE
   USING (id = auth.uid());
 
 -- Политики для cycles
+DROP POLICY IF EXISTS "Users can read own cycles" ON cycles;
 CREATE POLICY "Users can read own cycles"
   ON cycles FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert own cycles" ON cycles;
 CREATE POLICY "Users can insert own cycles"
   ON cycles FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own cycles" ON cycles;
 CREATE POLICY "Users can update own cycles"
   ON cycles FOR UPDATE
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own cycles" ON cycles;
 CREATE POLICY "Users can delete own cycles"
   ON cycles FOR DELETE
   USING (user_id = auth.uid());
 
 -- Политики для symptoms
+DROP POLICY IF EXISTS "Users can read own symptoms" ON symptoms;
 CREATE POLICY "Users can read own symptoms"
   ON symptoms FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert own symptoms" ON symptoms;
 CREATE POLICY "Users can insert own symptoms"
   ON symptoms FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own symptoms" ON symptoms;
 CREATE POLICY "Users can update own symptoms"
   ON symptoms FOR UPDATE
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own symptoms" ON symptoms;
 CREATE POLICY "Users can delete own symptoms"
   ON symptoms FOR DELETE
   USING (user_id = auth.uid());
 
 -- Политики для settings
+DROP POLICY IF EXISTS "Users can read own settings" ON settings;
 CREATE POLICY "Users can read own settings"
   ON settings FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can insert own settings" ON settings;
 CREATE POLICY "Users can insert own settings"
   ON settings FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own settings" ON settings;
 CREATE POLICY "Users can update own settings"
   ON settings FOR UPDATE
   USING (user_id = auth.uid());
@@ -133,18 +147,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_cycles_updated_at ON cycles;
 CREATE TRIGGER update_cycles_updated_at
   BEFORE UPDATE ON cycles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_symptoms_updated_at ON symptoms;
 CREATE TRIGGER update_symptoms_updated_at
   BEFORE UPDATE ON symptoms
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
 CREATE TRIGGER update_settings_updated_at
   BEFORE UPDATE ON settings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
