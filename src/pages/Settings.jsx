@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
@@ -20,6 +20,9 @@ export function Settings() {
   const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
   const [notifyPeriod, setNotifyPeriod] = useState(settings?.notify_period ?? true)
   const [notifyOvulation, setNotifyOvulation] = useState(settings?.notify_ovulation ?? false)
+  const [periodReminderDays, setPeriodReminderDays] = useState(settings?.period_reminder_days ?? 2)
+  const [ovulationReminderDays, setOvulationReminderDays] = useState(settings?.ovulation_reminder_days ?? 1)
+  const [notifyTime, setNotifyTime] = useState(settings?.notify_time ?? '09:00')
   const [saved, setSaved] = useState(false)
 
   const debounceRef = useRef(null)
@@ -43,6 +46,9 @@ export function Settings() {
     if (settings) {
       setNotifyPeriod(settings.notify_period ?? true)
       setNotifyOvulation(settings.notify_ovulation ?? false)
+      setPeriodReminderDays(settings.period_reminder_days ?? 2)
+      setOvulationReminderDays(settings.ovulation_reminder_days ?? 1)
+      setNotifyTime(settings.notify_time ?? '09:00')
     }
   }, [settings])
 
@@ -65,15 +71,23 @@ export function Settings() {
   // Auto-save notification settings with debounce
   useEffect(() => {
     if (!settings) return
-    if (notifyPeriod === (settings.notify_period ?? true) && notifyOvulation === (settings.notify_ovulation ?? false)) {
-      return
-    }
+    const isUnchanged =
+      notifyPeriod === (settings.notify_period ?? true) &&
+      notifyOvulation === (settings.notify_ovulation ?? false) &&
+      periodReminderDays === (settings.period_reminder_days ?? 2) &&
+      ovulationReminderDays === (settings.ovulation_reminder_days ?? 1) &&
+      notifyTime === (settings.notify_time ?? '09:00')
+
+    if (isUnchanged) return
 
     if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
     notifyDebounceRef.current = setTimeout(() => {
       updateSettings({
         notify_period: notifyPeriod,
         notify_ovulation: notifyOvulation,
+        period_reminder_days: periodReminderDays,
+        ovulation_reminder_days: ovulationReminderDays,
+        notify_time: notifyTime,
       })
       showSavedMessage()
     }, 400)
@@ -81,7 +95,7 @@ export function Settings() {
     return () => {
       if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
     }
-  }, [notifyPeriod, notifyOvulation, settings, updateSettings, showSavedMessage])
+  }, [notifyPeriod, notifyOvulation, periodReminderDays, ovulationReminderDays, notifyTime, settings, updateSettings, showSavedMessage])
 
   const handleLanguageChange = (lang) => {
     setLanguage(lang)
@@ -99,17 +113,15 @@ export function Settings() {
     setPeriodLength(value)
   }
 
-  const handleNotificationChange = (key, value) => {
-    if (key === 'notifyPeriod') setNotifyPeriod(value)
-    if (key === 'notifyOvulation') setNotifyOvulation(value)
-  }
-
   async function saveAllSettings() {
     await Promise.all([
       updateProfile({ cycle_length: cycleLength, period_length: periodLength }),
       updateSettings({
         notify_period: notifyPeriod,
         notify_ovulation: notifyOvulation,
+        period_reminder_days: periodReminderDays,
+        ovulation_reminder_days: ovulationReminderDays,
+        notify_time: notifyTime,
       }),
     ])
     showSavedMessage()
@@ -139,6 +151,30 @@ export function Settings() {
       alert(i18n.language === 'ru' ? 'Ошибка экспорта' : 'Export failed')
     }
   }
+
+  const lang = i18n.language === 'ru' ? 'ru' : 'en'
+  const tLocal = {
+    ru: {
+      daysBeforePeriod: 'За сколько дней предупреждать о месячных',
+      daysBeforeOvulation: 'За сколько дней предупреждать об овуляции',
+      notifyTime: 'Время уведомлений',
+      saveAll: 'Сохранить все',
+      saved: '✓ Сохранено',
+      data: 'Данные',
+      exportData: 'Экспортировать данные (JSON)',
+      info: 'Уведомления работают через Telegram бота и Supabase Edge Functions. Убедитесь, что они настроены.',
+    },
+    en: {
+      daysBeforePeriod: 'Days before period to notify',
+      daysBeforeOvulation: 'Days before ovulation to notify',
+      notifyTime: 'Notification time',
+      saveAll: 'Save all',
+      saved: '✓ Saved',
+      data: 'Data',
+      exportData: 'Export data (JSON)',
+      info: 'Notifications work via Telegram bot and Supabase Edge Functions. Make sure they are configured.',
+    },
+  }[lang]
 
   return (
     <div className="space-y-6">
@@ -211,7 +247,7 @@ export function Settings() {
       </div>
 
       {/* Notifications */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Bell size={20} className="text-teal-500" />
           <span className="font-semibold">{t('settings.notifications')}</span>
@@ -222,45 +258,92 @@ export function Settings() {
           <input
             type="checkbox"
             checked={notifyPeriod}
-            onChange={(e) => handleNotificationChange('notifyPeriod', e.target.checked)}
+            onChange={(e) => setNotifyPeriod(e.target.checked)}
             className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
           />
         </label>
+
+        {notifyPeriod && (
+          <div className="space-y-2 pl-2">
+            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{tLocal.daysBeforePeriod}</label>
+            <input
+              type="range"
+              min="1"
+              max="7"
+              value={periodReminderDays}
+              onChange={(e) => setPeriodReminderDays(Number(e.target.value))}
+              className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
+            />
+            <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+              <span>1</span>
+              <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{periodReminderDays} {t('analytics.days')}</span>
+              <span>7</span>
+            </div>
+          </div>
+        )}
 
         <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
           <span className="text-sm font-medium">{t('settings.notifyOvulation')}</span>
           <input
             type="checkbox"
             checked={notifyOvulation}
-            onChange={(e) => handleNotificationChange('notifyOvulation', e.target.checked)}
+            onChange={(e) => setNotifyOvulation(e.target.checked)}
             className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
           />
         </label>
+
+        {notifyOvulation && (
+          <div className="space-y-2 pl-2">
+            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{tLocal.daysBeforeOvulation}</label>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={ovulationReminderDays}
+              onChange={(e) => setOvulationReminderDays(Number(e.target.value))}
+              className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
+            />
+            <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+              <span>1</span>
+              <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{ovulationReminderDays} {t('analytics.days')}</span>
+              <span>5</span>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">
+            <Clock size={14} />
+            {tLocal.notifyTime}
+          </label>
+          <input
+            type="time"
+            value={notifyTime}
+            onChange={(e) => setNotifyTime(e.target.value)}
+            className="w-full px-4 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-bg-color,#ffffff)] text-center"
+          />
+        </div>
       </div>
 
       {/* Data Export */}
       <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Download size={20} className="text-blue-500" />
-          <span className="font-semibold">{language === 'ru' ? 'Данные' : 'Data'}</span>
+          <span className="font-semibold">{tLocal.data}</span>
         </div>
         <button
           onClick={exportData}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
         >
           <Download size={18} />
-          {language === 'ru' ? 'Экспортировать данные (JSON)' : 'Export data (JSON)'}
+          {tLocal.exportData}
         </button>
       </div>
 
       {/* Info */}
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 text-amber-800">
         <Info size={20} className="shrink-0 mt-0.5" />
-        <p className="text-sm">
-          {language === 'ru'
-            ? 'Уведомления работают через Telegram бота и Supabase Edge Functions. Убедитесь, что они настроены.'
-            : 'Notifications work via Telegram bot and Supabase Edge Functions. Make sure they are configured.'}
-        </p>
+        <p className="text-sm">{tLocal.info}</p>
       </div>
 
       {/* Save button and confirmation */}
@@ -269,11 +352,11 @@ export function Settings() {
           onClick={saveAllSettings}
           className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
         >
-          {language === 'ru' ? 'Сохранить все' : 'Save all'}
+          {tLocal.saveAll}
         </button>
         {saved && (
           <p className="text-center text-sm text-green-600 font-medium">
-            {language === 'ru' ? '✓ Сохранено' : '✓ Saved'}
+            {tLocal.saved}
           </p>
         )}
       </div>

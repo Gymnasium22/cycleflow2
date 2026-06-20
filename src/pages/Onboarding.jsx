@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Heart, ArrowRight, Calendar, Droplets } from 'lucide-react'
+import { Heart, ArrowRight, Calendar, Droplets, Bell } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
+import { useSettings } from '../hooks/useSettings'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
@@ -12,12 +13,18 @@ export function Onboarding() {
   const { i18n } = useTranslation()
   const { updateProfile } = useAuth()
   const { addCycle } = useCycles()
+  const { updateSettings } = useSettings()
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
 
   const [step, setStep] = useState(1)
   const [cycleLength, setCycleLength] = useState(DEFAULT_CYCLE_LENGTH)
   const [periodLength, setPeriodLength] = useState(DEFAULT_PERIOD_LENGTH)
   const [lastPeriodDate, setLastPeriodDate] = useState('')
+  const [notifyPeriod, setNotifyPeriod] = useState(true)
+  const [notifyOvulation, setNotifyOvulation] = useState(false)
+  const [periodReminderDays, setPeriodReminderDays] = useState(2)
+  const [ovulationReminderDays, setOvulationReminderDays] = useState(1)
+  const [notifyTime, setNotifyTime] = useState('09:00')
   const [saving, setSaving] = useState(false)
 
   async function handleFinish() {
@@ -26,6 +33,7 @@ export function Onboarding() {
     await updateProfile({
       cycle_length: cycleLength,
       period_length: periodLength,
+      onboarding_completed: true,
     })
 
     if (lastPeriodDate) {
@@ -36,19 +44,34 @@ export function Onboarding() {
       })
     }
 
+    await updateSettings({
+      notify_period: notifyPeriod,
+      notify_ovulation: notifyOvulation,
+      period_reminder_days: periodReminderDays,
+      ovulation_reminder_days: ovulationReminderDays,
+      notify_time: notifyTime,
+    })
+
     setSaving(false)
   }
 
   const t = {
     ru: {
       welcome: 'Добро пожаловать в Cicle',
-      subtitle: 'Давайте настроим приложение под вас. Всего пара шагов.',
+      subtitle: 'Давайте настроим приложение под вас. Всего несколько шагов.',
       cycleLength: 'Длина вашего цикла',
       cycleLengthHint: 'От первого дня месячных до следующих',
       periodLength: 'Длительность месячных',
       periodLengthHint: 'Сколько дней обычно длится менструация',
       lastPeriod: 'Дата последних месячных',
       lastPeriodHint: 'Можно указать примерную дату или пропустить',
+      notifications: 'Напоминания',
+      notificationsHint: 'Настройте, когда получать уведомления',
+      notifyPeriod: 'Напоминать о месячных',
+      notifyOvulation: 'Напоминать об овуляции',
+      daysBeforePeriod: 'За сколько дней предупреждать о месячных',
+      daysBeforeOvulation: 'За сколько дней предупреждать об овуляции',
+      notifyTime: 'Время уведомлений',
       skip: 'Пропустить',
       days: 'дней',
       next: 'Далее',
@@ -58,13 +81,20 @@ export function Onboarding() {
     },
     en: {
       welcome: 'Welcome to Cicle',
-      subtitle: "Let's set up the app for you. Just a couple of steps.",
+      subtitle: "Let's set up the app for you. Just a few steps.",
       cycleLength: 'Your cycle length',
       cycleLengthHint: 'From the first day of period to the next one',
       periodLength: 'Period duration',
       periodLengthHint: 'How many days does your period usually last',
       lastPeriod: 'Last period date',
       lastPeriodHint: 'You can skip this if unsure',
+      notifications: 'Notifications',
+      notificationsHint: 'Choose when to receive reminders',
+      notifyPeriod: 'Period reminders',
+      notifyOvulation: 'Ovulation reminders',
+      daysBeforePeriod: 'Days before period to notify',
+      daysBeforeOvulation: 'Days before ovulation to notify',
+      notifyTime: 'Notification time',
       skip: 'Skip',
       days: 'days',
       next: 'Next',
@@ -88,7 +118,7 @@ export function Onboarding() {
 
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2">
-          {[1, 2, 3].map((s) => (
+          {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all ${
@@ -163,6 +193,97 @@ export function Onboarding() {
                 {t.back}
               </button>
               <button
+                onClick={() => setStep(4)}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+              >
+                {t.next}
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Notifications */}
+        {step === 4 && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <Bell size={24} className="text-teal-500" />
+                <h2 className="text-lg font-semibold text-center">{t.notifications}</h2>
+              </div>
+              <p className="text-sm text-center text-[var(--tg-theme-hint-color,#6b7280)]">{t.notificationsHint}</p>
+            </div>
+
+            <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
+              <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
+                <span className="text-sm font-medium">{t.notifyPeriod}</span>
+                <input
+                  type="checkbox"
+                  checked={notifyPeriod}
+                  onChange={(e) => setNotifyPeriod(e.target.checked)}
+                  className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
+                />
+              </label>
+
+              {notifyPeriod && (
+                <div className="space-y-2 pl-2">
+                  <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t.daysBeforePeriod}</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="7"
+                    value={periodReminderDays}
+                    onChange={(e) => setPeriodReminderDays(Number(e.target.value))}
+                    className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
+                  />
+                  <div className="text-center text-sm font-semibold">{periodReminderDays} {t.days}</div>
+                </div>
+              )}
+
+              <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
+                <span className="text-sm font-medium">{t.notifyOvulation}</span>
+                <input
+                  type="checkbox"
+                  checked={notifyOvulation}
+                  onChange={(e) => setNotifyOvulation(e.target.checked)}
+                  className="w-5 h-5 accent-[var(--tg-theme-button-color,#e11d48)]"
+                />
+              </label>
+
+              {notifyOvulation && (
+                <div className="space-y-2 pl-2">
+                  <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t.daysBeforeOvulation}</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    value={ovulationReminderDays}
+                    onChange={(e) => setOvulationReminderDays(Number(e.target.value))}
+                    className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
+                  />
+                  <div className="text-center text-sm font-semibold">{ovulationReminderDays} {t.days}</div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t.notifyTime}</label>
+                <input
+                  type="time"
+                  value={notifyTime}
+                  onChange={(e) => setNotifyTime(e.target.value)}
+                  className="w-full px-4 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-bg-color,#ffffff)] text-center"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(3)}
+                className="flex-1 py-3.5 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75 transition-opacity"
+              >
+                {t.back}
+              </button>
+              <button
                 onClick={handleFinish}
                 disabled={saving}
                 className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -170,14 +291,6 @@ export function Onboarding() {
                 {saving ? t.saving : t.start}
               </button>
             </div>
-
-            <button
-              onClick={handleFinish}
-              disabled={saving}
-              className="w-full text-sm text-[var(--tg-theme-hint-color,#6b7280)] hover:text-[var(--tg-theme-text-color,#111827)] transition-colors"
-            >
-              {t.skip}
-            </button>
           </div>
         )}
       </div>

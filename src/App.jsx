@@ -25,8 +25,8 @@ function AppContent() {
     return <Loading />
   }
 
-  // Show onboarding for new users without a profile
-  if (!profile) {
+  // Show onboarding for new users who haven't completed setup
+  if (!profile || profile.onboarding_completed !== true) {
     return <Onboarding />
   }
 

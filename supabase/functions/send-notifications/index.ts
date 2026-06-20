@@ -46,6 +46,7 @@ serve(async () => {
 
     const cycleLength = lastCycle.cycle_length || profile.cycle_length || 28
     const periodReminderDays = setting.period_reminder_days || 2
+    const ovulationReminderDays = setting.ovulation_reminder_days || 1
 
     const lastStart = new Date(lastCycle.start_date)
     lastStart.setHours(0, 0, 0, 0)
@@ -75,10 +76,10 @@ serve(async () => {
     }
 
     // Ovulation notification
-    if (setting.notify_ovulation && daysUntilOvulation === 0) {
+    if (setting.notify_ovulation && daysUntilOvulation === ovulationReminderDays) {
       const message = lang === 'en'
-        ? `✨ Ovulation is expected today. This is your most fertile day.`
-        : `✨ Овуляция ожидается сегодня. Это ваш самый фертильный день.`
+        ? `✨ Ovulation is expected in ${daysUntilOvulation} day${daysUntilOvulation === 1 ? '' : 's'}. This is your most fertile time.`
+        : `✨ Овуляция ожидается через ${daysUntilOvulation} ${daysUntilOvulation === 1 ? 'день' : 'дня'}. Это ваше самое фертильное время.`
 
       notifications.push(sendMessage(botToken, profile.telegram_id, message))
     }

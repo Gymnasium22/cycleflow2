@@ -153,6 +153,7 @@ serve(async (req) => {
         first_name: firstName,
         last_name: lastName,
         language_code: languageCode,
+        onboarding_completed: false,
       }, { onConflict: 'id' })
 
       // Create or upsert default settings

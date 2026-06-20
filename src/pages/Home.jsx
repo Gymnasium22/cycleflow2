@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2 } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
@@ -66,21 +66,16 @@ export function Home() {
   const [editPeriodLength, setEditPeriodLength] = useState(periodLength)
 
   const lastCycle = cycles[0]
-  const lastPeriodStart = lastCycle?.start_date || getDemoDate()
+  const lastPeriodStart = lastCycle?.start_date || null
 
-  function getDemoDate() {
-    const d = new Date()
-    d.setDate(d.getDate() - 10)
-    return d.toISOString().split('T')[0]
-  }
-
-  const cycleDay = getCycleDay(lastPeriodStart, cycleLength)
-  const phase = getCurrentPhase(cycleDay, periodLength, cycleLength)
-  const phaseInfo = phaseConfig[phase]
-  const nextPeriod = getNextPeriodDate(lastPeriodStart, cycleLength)
-  const ovulation = getOvulationDate(lastPeriodStart, cycleLength)
-  const daysUntilPeriod = getDaysUntil(nextPeriod)
-  const daysUntilOvulation = getDaysUntil(ovulation)
+  const hasCycles = cycles.length > 0
+  const cycleDay = lastPeriodStart ? getCycleDay(lastPeriodStart, cycleLength) : null
+  const phase = cycleDay ? getCurrentPhase(cycleDay, periodLength, cycleLength) : null
+  const phaseInfo = phase ? phaseConfig[phase] : null
+  const nextPeriod = lastPeriodStart ? getNextPeriodDate(lastPeriodStart, cycleLength) : null
+  const ovulation = lastPeriodStart ? getOvulationDate(lastPeriodStart, cycleLength) : null
+  const daysUntilPeriod = nextPeriod ? getDaysUntil(nextPeriod) : null
+  const daysUntilOvulation = ovulation ? getDaysUntil(ovulation) : null
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
 
   const isPeriodStartedToday = lastCycle?.start_date === todayStr
@@ -181,66 +176,84 @@ export function Home() {
         <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">{t('home.today')}: {formatDate(new Date(), locale)}</p>
       </header>
 
-      {/* Main cycle card */}
-      <div className={`relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br ${phaseInfo.gradient} shadow-xl`}>
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10 blur-xl" />
+      {hasCycles && phaseInfo ? (
+        <>
+          {/* Main cycle card */}
+          <div className={`relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br ${phaseInfo.gradient} shadow-xl`}>
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10 blur-xl" />
 
-        <div className="relative flex items-center justify-between">
-          <div>
-            <p className="text-white/80 text-sm font-medium uppercase tracking-wider">{t('home.dayOfCycle')}</p>
-            <p className="text-6xl font-bold mt-1">{cycleDay}</p>
-            <p className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm`}>
-              {t(`home.phase.${phaseInfo.key}`)}
-            </p>
-          </div>
+            <div className="relative flex items-center justify-between">
+              <div>
+                <p className="text-white/80 text-sm font-medium uppercase tracking-wider">{t('home.dayOfCycle')}</p>
+                <p className="text-6xl font-bold mt-1">{cycleDay}</p>
+                <p className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm`}>
+                  {t(`home.phase.${phaseInfo.key}`)}
+                </p>
+              </div>
 
-          <div className="relative w-32 h-32">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="8" />
-              <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
-                stroke="white"
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={`${(cycleDay / cycleLength) * 264} 264`}
-                className="transition-all duration-1000 ease-out"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-white/90">
-              {cycleLength} {t('analytics.days')}
+              <div className="relative w-32 h-32">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="8" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="42"
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(cycleDay / cycleLength) * 264} 264`}
+                    className="transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-white/90">
+                  {cycleLength} {t('analytics.days')}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Forecast cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl p-4 bg-rose-500/10 border border-rose-500/10">
-          <div className="flex items-center gap-2 text-rose-600 mb-2">
-            <Droplets size={18} />
-            <span className="text-xs font-semibold uppercase tracking-wide">{t('home.nextPeriod')}</span>
+          {/* Forecast cards */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-2xl p-4 bg-rose-500/10 border border-rose-500/10">
+              <div className="flex items-center gap-2 text-rose-600 mb-2">
+                <Droplets size={18} />
+                <span className="text-xs font-semibold uppercase tracking-wide">{t('home.nextPeriod')}</span>
+              </div>
+              <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{formatDate(nextPeriod, locale)}</p>
+              <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
+                {i18n.language === 'ru' ? `через ${daysUntilPeriod} дн.` : `in ${daysUntilPeriod} days`}
+              </p>
+            </div>
+
+            <div className="rounded-2xl p-4 bg-violet-500/10 border border-violet-500/10">
+              <div className="flex items-center gap-2 text-violet-600 mb-2">
+                <Sparkles size={18} />
+                <span className="text-xs font-semibold uppercase tracking-wide">{t('home.ovulation')}</span>
+              </div>
+              <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{formatDate(ovulation, locale)}</p>
+              <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
+                {i18n.language === 'ru' ? `через ${daysUntilOvulation} дн.` : `in ${daysUntilOvulation} days`}
+              </p>
+            </div>
           </div>
-          <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{formatDate(nextPeriod, locale)}</p>
-          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
-            {i18n.language === 'ru' ? `через ${daysUntilPeriod} дн.` : `in ${daysUntilPeriod} days`}
+        </>
+      ) : (
+        <div className="rounded-3xl p-8 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-rose-400 to-violet-500 flex items-center justify-center text-white shadow-lg">
+            <Heart size={32} />
+          </div>
+          <h2 className="text-xl font-bold">
+            {i18n.language === 'ru' ? 'Пока нет данных' : 'No data yet'}
+          </h2>
+          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">
+            {i18n.language === 'ru'
+              ? 'Нажмите кнопку ниже, когда начнутся месячные, или введите данные вручную.'
+              : 'Tap the button below when your period starts, or enter data manually.'}
           </p>
         </div>
-
-        <div className="rounded-2xl p-4 bg-violet-500/10 border border-violet-500/10">
-          <div className="flex items-center gap-2 text-violet-600 mb-2">
-            <Sparkles size={18} />
-            <span className="text-xs font-semibold uppercase tracking-wide">{t('home.ovulation')}</span>
-          </div>
-          <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{formatDate(ovulation, locale)}</p>
-          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
-            {i18n.language === 'ru' ? `через ${daysUntilOvulation} дн.` : `in ${daysUntilOvulation} days`}
-          </p>
-        </div>
-      </div>
+      )}
 
       {/* Quick actions */}
       <div className="space-y-3">

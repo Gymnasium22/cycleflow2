@@ -1,3 +1,6 @@
+-- Add missing columns for existing tables
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
+
 -- Профили пользователей, созданные на основе Telegram
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -8,6 +11,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   language_code TEXT DEFAULT 'ru',
   cycle_length INTEGER DEFAULT 28,
   period_length INTEGER DEFAULT 5,
+  onboarding_completed BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
