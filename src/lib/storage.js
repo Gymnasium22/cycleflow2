@@ -1,8 +1,6 @@
 // Storage adapter for Supabase Auth.
 // Uses Telegram CloudStorage when available, otherwise falls back to localStorage.
 
-const SUPABASE_STORAGE_KEY = 'sb-cicle-auth-token'
-
 function getWebApp() {
   return typeof window !== 'undefined' ? window.Telegram?.WebApp : null
 }
@@ -10,6 +8,28 @@ function getWebApp() {
 function hasCloudStorage() {
   const tg = getWebApp()
   return !!(tg && tg.CloudStorage)
+}
+
+function withTimeout(promise, ms, fallback) {
+  return new Promise((resolve) => {
+    let settled = false
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        console.warn('[Storage] CloudStorage timeout, using fallback')
+        resolve(fallback)
+      }
+    }, ms)
+
+    Promise.resolve(promise).then((value) => {
+      if (!settled) {
+        settled = true
+        clearTimeout(timer)
+        resolve(value)
+      }
+    })
+  })
 }
 
 const localStorageAdapter = {
@@ -94,22 +114,40 @@ const cloudStorageAdapter = {
   },
 }
 
+const STORAGE_TIMEOUT_MS = 2000
+
 // Dynamic adapter: chooses CloudStorage at runtime when Telegram WebApp is ready.
 export const authStorage = {
   getItem(key) {
-    return hasCloudStorage() ? cloudStorageAdapter.getItem(key) : localStorageAdapter.getItem(key)
+    if (!hasCloudStorage()) {
+      return localStorageAdapter.getItem(key)
+    }
+    return withTimeout(
+      cloudStorageAdapter.getItem(key),
+      STORAGE_TIMEOUT_MS,
+      localStorageAdapter.getItem(key)
+    )
   },
   setItem(key, value) {
-    return hasCloudStorage() ? cloudStorageAdapter.setItem(key, value) : localStorageAdapter.setItem(key, value)
+    if (!hasCloudStorage()) {
+      localStorageAdapter.setItem(key, value)
+      return
+    }
+    return withTimeout(
+      cloudStorageAdapter.setItem(key, value),
+      STORAGE_TIMEOUT_MS,
+      undefined
+    )
   },
   removeItem(key) {
-    return hasCloudStorage() ? cloudStorageAdapter.removeItem(key) : localStorageAdapter.removeItem(key)
+    if (!hasCloudStorage()) {
+      localStorageAdapter.removeItem(key)
+      return
+    }
+    return withTimeout(
+      cloudStorageAdapter.removeItem(key),
+      STORAGE_TIMEOUT_MS,
+      undefined
+    )
   },
-}
-
-// Helper to inspect current storage (for debugging)
-export async function debugAuthStorage() {
-  const value = await authStorage.getItem(SUPABASE_STORAGE_KEY)
-  console.log('[Storage] Current auth token exists:', !!value)
-  return value
 }
