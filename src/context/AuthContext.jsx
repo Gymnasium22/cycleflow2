@@ -289,6 +289,8 @@ export function AuthProvider({ children }) {
         // 2. Telegram auth if WebApp and initData are available
         if (webApp && initData) {
           console.log('[Auth] Attempting Telegram auth...')
+          console.log('[Auth] initData length:', initData.length)
+          console.log('[Auth] initData preview:', initData.slice(0, 200))
           const userId = await signInWithTelegram(initData)
           console.log('[Auth] Telegram auth success, userId:', userId)
           const loaded = await loadProfile(userId)
