@@ -68,7 +68,16 @@ serve(async (req) => {
   console.log('[delete-all-data] getUser result:', { hasUser: !!user, error: userError?.message })
 
   if (userError || !user) {
-    return jsonResponse({ error: 'Unauthorized' }, 401, origin)
+    console.error('[delete-all-data] Unauthorized:', userError?.message, userError?.name, userError?.status)
+    return jsonResponse(
+      {
+        error: 'Unauthorized',
+        details: userError?.message || 'No active session',
+        hint: 'SB_ANON_KEY configured: ' + !!anonKey,
+      },
+      401,
+      origin
+    )
   }
 
   const userId = user.id

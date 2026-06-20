@@ -281,6 +281,10 @@ export function AuthProvider({ children }) {
     }
 
     if (!response.ok) {
+      console.error('[Auth] telegram-auth error response:', data)
+      if (data.debug) {
+        console.error('[Auth] telegram-auth debug info:', JSON.stringify(data.debug, null, 2))
+      }
       throw new Error(data.error || `Auth failed: ${response.status} ${response.statusText}`)
     }
 

@@ -31,6 +31,165 @@ function jsonResponse(body: unknown, status: number, origin: string | null) {
   })
 }
 
+function sortPairs(pairs: [string, string][]): [string, string][] {
+  return [...pairs].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+function getDecodedParams(initData: string): [string, string][] {
+  const params = new URLSearchParams(initData)
+  const result: [string, string][] = []
+  params.forEach((value, key) => result.push([key, value]))
+  return result
+}
+
+function getRawParams(initData: string): [string, string][] {
+  if (!initData) return []
+  return initData.split('&').map((pair) => {
+    const idx = pair.indexOf('=')
+    if (idx === -1) return [pair, '']
+    return [pair.slice(0, idx), pair.slice(idx + 1)]
+  })
+}
+
+async function computeHmac(dataCheckString: string, botToken: string): Promise<string> {
+  const secretKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(botToken),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const secret = await crypto.subtle.sign('HMAC', secretKey, new TextEncoder().encode('WebAppData'))
+  const validationKey = await crypto.subtle.importKey(
+    'raw',
+    secret,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const signature = await crypto.subtle.sign('HMAC', validationKey, new TextEncoder().encode(dataCheckString))
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+function hexToBuffer(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16)
+  }
+  return bytes
+}
+
+function base64UrlToBuffer(input: string): Uint8Array {
+  const padding = '='.repeat((4 - (input.length % 4)) % 4)
+  const base64 = input.replace(/-/g, '+').replace(/_/g, '/') + padding
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+async function validateThirdParty(
+  initData: string,
+  botId: number,
+  useRaw: boolean,
+  isTest: boolean
+): Promise<{ valid: boolean; dataCheckString: string; error?: string }> {
+  try {
+    const params = useRaw ? getRawParams(initData) : getDecodedParams(initData)
+    const hash = params.find(([k]) => k === 'hash')?.[1] || ''
+    const signature = params.find(([k]) => k === 'signature')?.[1] || ''
+
+    if (!signature) {
+      return { valid: false, dataCheckString: '', error: 'No signature' }
+    }
+
+    const pairs = sortPairs(
+      params.filter(([k]) => k !== 'hash' && k !== 'signature')
+    )
+    const dataCheckString = `${botId}:WebAppData\n${pairs.map(([k, v]) => `${k}=${v}`).join('\n')}`
+
+    const publicKeyHex = isTest
+      ? '40055058a4ee38156a06562e52eece92a771bcd8346a8c4615cb7376eddf72ec'
+      : 'e7bf03a2fa4602af4580703d88dda5bb59f32ed8b02a56c187fe7d34caed242d'
+
+    const publicKey = await crypto.subtle.importKey(
+      'raw',
+      hexToBuffer(publicKeyHex),
+      { name: 'Ed25519' },
+      false,
+      ['verify']
+    )
+
+    const verified = await crypto.subtle.verify(
+      'Ed25519',
+      publicKey,
+      base64UrlToBuffer(signature),
+      new TextEncoder().encode(dataCheckString)
+    )
+
+    return { valid: verified, dataCheckString }
+  } catch (err) {
+    return { valid: false, dataCheckString: '', error: err.message }
+  }
+}
+
+async function tryHashStrategies(
+  initData: string,
+  botToken: string
+): Promise<{
+  valid: boolean
+  strategy: string
+  hash: string
+  attempts: { name: string; matched: boolean; computedHash: string; receivedHash: string; dataCheckString: string }[]
+}> {
+  const strategies = [
+    { name: 'decoded', raw: false, exclude: [] },
+    { name: 'raw', raw: true, exclude: [] },
+    { name: 'decoded-no-signature', raw: false, exclude: ['signature'] },
+    { name: 'raw-no-signature', raw: true, exclude: ['signature'] },
+    { name: 'decoded-no-chat', raw: false, exclude: ['chat_instance', 'chat_type'] },
+    { name: 'raw-no-chat', raw: true, exclude: ['chat_instance', 'chat_type'] },
+    { name: 'decoded-no-sig-chat', raw: false, exclude: ['signature', 'chat_instance', 'chat_type'] },
+    { name: 'raw-no-sig-chat', raw: true, exclude: ['signature', 'chat_instance', 'chat_type'] },
+    { name: 'decoded-minimal', raw: false, exclude: [], only: ['auth_date', 'query_id', 'user'] },
+    { name: 'raw-minimal', raw: true, exclude: [], only: ['auth_date', 'query_id', 'user'] },
+  ]
+
+  const attempts: { name: string; matched: boolean; computedHash: string; dataCheckString: string }[] = []
+  let matchedStrategy = ''
+  let matchedHash = ''
+
+  for (const strategy of strategies) {
+    const params = strategy.raw ? getRawParams(initData) : getDecodedParams(initData)
+    const hashEntry = params.find(([k]) => k === 'hash')
+    const receivedHash = hashEntry ? decodeURIComponent(hashEntry[1]) : ''
+
+    let filtered = params.filter(([k]) => k !== 'hash' && !strategy.exclude.includes(k))
+    if ('only' in strategy && strategy.only) {
+      filtered = filtered.filter(([k]) => strategy.only.includes(k))
+    }
+
+    const pairs = sortPairs(filtered)
+    const dataCheckString = pairs.map(([k, v]) => `${k}=${v}`).join('\n')
+    const computedHash = await computeHmac(dataCheckString, botToken)
+    const matched = computedHash === receivedHash
+
+    attempts.push({ name: strategy.name, matched, computedHash, receivedHash, dataCheckString })
+
+    if (matched) {
+      matchedStrategy = strategy.name
+      matchedHash = hash
+      break
+    }
+  }
+
+  return { valid: !!matchedStrategy, strategy: matchedStrategy, hash: matchedHash, attempts }
+}
+
 serve(async (req) => {
   const origin = req.headers.get('origin')
 
@@ -63,112 +222,76 @@ serve(async (req) => {
   if (!botToken) {
     return jsonResponse({ error: 'Bot token not configured' }, 500, origin)
   }
-  console.log('[telegram-auth] Using bot token source:', Deno.env.get('TELEGRAM_BOT_TOKEN') ? 'TELEGRAM_BOT_TOKEN' : 'BOT_TOKEN')
+
+  const botId = parseInt(botToken.split(':')[0], 10)
+  console.log('[telegram-auth] Bot token source:', Deno.env.get('TELEGRAM_BOT_TOKEN') ? 'TELEGRAM_BOT_TOKEN' : 'BOT_TOKEN')
+  console.log('[telegram-auth] Bot ID:', botId)
+  console.log('[telegram-auth] initData length:', initData.length)
+  console.log('[telegram-auth] initData preview:', initData.slice(0, 300))
 
   try {
-    // 1. Parse and validate Telegram initData
-    async function computeHmac(dataCheckString: string): Promise<string> {
-      const secretKey = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(botToken),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-      )
-      const secret = await crypto.subtle.sign('HMAC', secretKey, new TextEncoder().encode('WebAppData'))
-      const validationKey = await crypto.subtle.importKey(
-        'raw',
-        secret,
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-      )
-      const signature = await crypto.subtle.sign('HMAC', validationKey, new TextEncoder().encode(dataCheckString))
-      return Array.from(new Uint8Array(signature))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('')
-    }
+    // 1. Try hash-based validation with multiple strategies
+    const hashResult = await tryHashStrategies(initData, botToken)
+    console.log('[telegram-auth] Hash validation attempts:', hashResult.attempts.map((a) => ({ name: a.name, matched: a.matched })))
 
-    function parseInitData(data: string, useRawValues: boolean, excludeKeys: string[] = []) {
-      const pairs = data.split('&')
-      let hash: string | null = null
-      const entries: [string, string][] = []
+    let validationSource: 'hash' | 'signature' | null = null
 
-      for (const pair of pairs) {
-        const eqIndex = pair.indexOf('=')
-        if (eqIndex === -1) continue
-        const key = pair.slice(0, eqIndex)
-        const rawValue = pair.slice(eqIndex + 1)
-        if (key === 'hash') {
-          hash = decodeURIComponent(rawValue)
-        } else if (!excludeKeys.includes(key)) {
-          entries.push([key, useRawValues ? rawValue : decodeURIComponent(rawValue)])
+    if (hashResult.valid) {
+      validationSource = 'hash'
+      console.log('[telegram-auth] Hash matched using strategy:', hashResult.strategy)
+    } else if (botId) {
+      // 2. Fallback to third-party signature validation
+      console.log('[telegram-auth] Hash validation failed, trying third-party signature validation...')
+      for (const useRaw of [false, true]) {
+        for (const isTest of [false, true]) {
+          const sigResult = await validateThirdParty(initData, botId, useRaw, isTest)
+          console.log('[telegram-auth] Signature validation:', { useRaw, isTest, valid: sigResult.valid, error: sigResult.error })
+          if (sigResult.valid) {
+            validationSource = 'signature'
+            break
+          }
         }
-      }
-
-      entries.sort(([a], [b]) => a.localeCompare(b))
-      const dataCheckString = entries.map(([key, value]) => `${key}=${value}`).join('\n')
-      return { hash: hash || '', dataCheckString, entries }
-    }
-
-    // Try multiple validation strategies
-    const strategies = [
-      { name: 'decoded', useRaw: false, exclude: [] as string[] },
-      { name: 'raw', useRaw: true, exclude: [] as string[] },
-      { name: 'decoded-no-signature', useRaw: false, exclude: ['signature'] as string[] },
-      { name: 'raw-no-signature', useRaw: true, exclude: ['signature'] as string[] },
-    ]
-
-    let validation = parseInitData(initData, false, [])
-    let computedHash = await computeHmac(validation.dataCheckString)
-    let matchedStrategy = 'decoded'
-
-    for (const strategy of strategies) {
-      validation = parseInitData(initData, strategy.useRaw, strategy.exclude)
-      computedHash = await computeHmac(validation.dataCheckString)
-
-      console.log(`[telegram-auth] Validation data (${strategy.name}):`, {
-        botTokenLength: botToken.length,
-        hashLength: validation.hash.length,
-        dataCheckStringLength: validation.dataCheckString.length,
-        dataCheckStringPreview: validation.dataCheckString.slice(0, 200),
-        entries: validation.entries.map(([k]) => k),
-        computedHash,
-        matched: computedHash === validation.hash,
-      })
-
-      if (computedHash === validation.hash) {
-        matchedStrategy = strategy.name
-        break
+        if (validationSource === 'signature') break
       }
     }
 
-    if (computedHash !== validation.hash) {
-      console.error('[telegram-auth] Hash mismatch', {
-        computedHash,
-        hash: validation.hash,
+    if (!validationSource) {
+      console.error('[telegram-auth] All validation strategies failed', {
         botTokenLength: botToken.length,
         botTokenPrefix: botToken.slice(0, 15),
         initDataLength: initData.length,
-        initDataPreview: initData.slice(0, 300),
-        dataCheckString: validation.dataCheckString,
-        lastStrategy: matchedStrategy,
+        initDataPreview: initData.slice(0, 500),
+        attempts: hashResult.attempts,
       })
-      return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
+      return jsonResponse(
+        {
+          error: 'Invalid Telegram hash',
+          debug: {
+            botTokenLength: botToken.length,
+            botTokenPrefix: botToken.slice(0, 15),
+            initDataLength: initData.length,
+            initDataPreview: initData.slice(0, 1000),
+            attempts: hashResult.attempts.map((a) => ({
+              name: a.name,
+              matched: a.matched,
+              computedHash: a.computedHash,
+              receivedHash: a.receivedHash,
+            })),
+          },
+        },
+        403,
+        origin
+      )
     }
 
-    console.log('[telegram-auth] Hash matched using strategy:', matchedStrategy)
-
-    // Re-parse with URLSearchParams for convenient access to user/auth_date
+    // 3. Parse user data using decoded values
     const params = new URLSearchParams(initData)
-
     const authDate = parseInt(params.get('auth_date') || '0', 10)
     const now = Math.floor(Date.now() / 1000)
     if (now - authDate > 3600) {
       return jsonResponse({ error: 'initData expired' }, 403, origin)
     }
 
-    // 2. Parse user data
     const userData = JSON.parse(params.get('user') || '{}')
     const telegramId = userData.id
     const username = userData.username || null
@@ -180,17 +303,17 @@ serve(async (req) => {
       return jsonResponse({ error: 'User data missing' }, 400, origin)
     }
 
-    // 3. Generate deterministic user id and password
+    // 4. Generate deterministic user id and password
     const userUuid = await generateUuidFromString(`telegram:${telegramId}`)
     const password = await generatePassword(telegramId, botToken)
     const email = `${telegramId}@telegram.local`
 
-    // 4. Admin client
+    // 5. Admin client
     const supabaseUrl = Deno.env.get('SB_URL') ?? ''
     const serviceRoleKey = Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
-    // 5. Create or update auth user
+    // 6. Create or update auth user
     const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(userUuid)
 
     if (!existingUser.user) {
@@ -212,23 +335,21 @@ serve(async (req) => {
         return jsonResponse({ error: createError.message }, 500, origin)
       }
 
-      // Create or upsert profile
-      await supabaseAdmin.from('profiles').upsert({
-        id: userUuid,
-        telegram_id: telegramId,
-        username,
-        first_name: firstName,
-        last_name: lastName,
-        language_code: languageCode,
-        onboarding_completed: false,
-      }, { onConflict: 'id' })
+      await supabaseAdmin.from('profiles').upsert(
+        {
+          id: userUuid,
+          telegram_id: telegramId,
+          username,
+          first_name: firstName,
+          last_name: lastName,
+          language_code: languageCode,
+          onboarding_completed: false,
+        },
+        { onConflict: 'id' }
+      )
 
-      // Create or upsert default settings
-      await supabaseAdmin.from('settings').upsert({
-        user_id: userUuid,
-      }, { onConflict: 'user_id' })
+      await supabaseAdmin.from('settings').upsert({ user_id: userUuid }, { onConflict: 'user_id' })
     } else {
-      // Update password and metadata
       await supabaseAdmin.auth.admin.updateUserById(userUuid, {
         password,
         user_metadata: {
@@ -240,28 +361,24 @@ serve(async (req) => {
         },
       })
 
-      // Upsert profile (handles case where profile was missing)
-      await supabaseAdmin.from('profiles').upsert({
-        id: userUuid,
-        telegram_id: telegramId,
-        username,
-        first_name: firstName,
-        last_name: lastName,
-        language_code: languageCode,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
+      await supabaseAdmin.from('profiles').upsert(
+        {
+          id: userUuid,
+          telegram_id: telegramId,
+          username,
+          first_name: firstName,
+          last_name: lastName,
+          language_code: languageCode,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      )
 
-      // Upsert settings
-      await supabaseAdmin.from('settings').upsert({
-        user_id: userUuid,
-      }, { onConflict: 'user_id' })
+      await supabaseAdmin.from('settings').upsert({ user_id: userUuid }, { onConflict: 'user_id' })
     }
 
-    // 6. Sign in to get session tokens
-    const supabaseClient = createClient(
-      supabaseUrl,
-      Deno.env.get('SB_ANON_KEY') ?? ''
-    )
+    // 7. Sign in to get session tokens
+    const supabaseClient = createClient(supabaseUrl, Deno.env.get('SB_ANON_KEY') ?? '')
 
     const { data: sessionData, error: signInError } = await supabaseClient.auth.signInWithPassword({
       email,
@@ -272,21 +389,26 @@ serve(async (req) => {
       return jsonResponse({ error: signInError?.message || 'Failed to create session' }, 500, origin)
     }
 
-    return jsonResponse({
-      success: true,
-      session: {
-        access_token: sessionData.session.access_token,
-        refresh_token: sessionData.session.refresh_token,
-        expires_at: sessionData.session.expires_at,
+    return jsonResponse(
+      {
+        success: true,
+        validationSource,
+        session: {
+          access_token: sessionData.session.access_token,
+          refresh_token: sessionData.session.refresh_token,
+          expires_at: sessionData.session.expires_at,
+        },
+        user: {
+          id: userUuid,
+          telegram_id: telegramId,
+          username,
+          first_name: firstName,
+          language_code: languageCode,
+        },
       },
-      user: {
-        id: userUuid,
-        telegram_id: telegramId,
-        username,
-        first_name: firstName,
-        language_code: languageCode,
-      },
-    }, 200, origin)
+      200,
+      origin
+    )
   } catch (err) {
     console.error('Telegram auth error:', err)
     return jsonResponse({ error: err.message }, 500, origin)

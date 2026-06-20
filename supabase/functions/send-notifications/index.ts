@@ -63,19 +63,28 @@ serve(async (req) => {
   const cronSecret = Deno.env.get('CRON_SECRET')
   const requestSecret = req.headers.get('x-cron-secret')
 
+  console.log('[send-notifications] Received request', { hasCronSecret: !!cronSecret, hasRequestSecret: !!requestSecret })
+
   if (cronSecret && requestSecret !== cronSecret) {
+    console.warn('[send-notifications] Unauthorized request')
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }
 
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN')
   if (!botToken) {
+    console.error('[send-notifications] Bot token not configured')
     return new Response(JSON.stringify({ error: 'Bot token not configured' }), { status: 500 })
   }
 
-  const supabaseAdmin = createClient(
-    Deno.env.get('SB_URL') ?? '',
-    Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
-  )
+  const supabaseUrl = Deno.env.get('SB_URL') ?? ''
+  const serviceRoleKey = Deno.env.get('SB_SERVICE_ROLE_KEY') ?? ''
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('[send-notifications] Supabase credentials not configured')
+    return new Response(JSON.stringify({ error: 'Supabase credentials not configured' }), { status: 500 })
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -89,8 +98,11 @@ serve(async (req) => {
     `)
 
   if (settingsError) {
+    console.error('[send-notifications] Settings fetch error:', settingsError)
     return new Response(JSON.stringify({ error: settingsError.message }), { status: 500 })
   }
+
+  console.log('[send-notifications] Fetched settings:', { count: settings?.length || 0 })
 
   const notifications = []
 
@@ -161,7 +173,8 @@ serve(async (req) => {
     }
   }
 
-  await Promise.all(notifications)
+  const results = await Promise.all(notifications)
+  console.log('[send-notifications] Sent notifications:', { count: notifications.length, results })
 
   return new Response(
     JSON.stringify({ success: true, sent: notifications.length }),
@@ -170,13 +183,25 @@ serve(async (req) => {
 })
 
 async function sendMessage(botToken: string, chatId: number, text: string) {
-  return fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: 'HTML',
-    }),
-  })
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+      }),
+    })
+    const data = await response.json()
+    if (!response.ok || !data.ok) {
+      console.error('[send-notifications] Telegram send error:', { chatId, error: data })
+    } else {
+      console.log('[send-notifications] Telegram message sent:', { chatId })
+    }
+    return { chatId, ok: data.ok, error: data.description }
+  } catch (err) {
+    console.error('[send-notifications] Telegram send exception:', { chatId, error: err.message })
+    return { chatId, ok: false, error: err.message }
+  }
 }
