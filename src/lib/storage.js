@@ -1,5 +1,6 @@
 // Storage adapter for Supabase Auth.
-// Uses Telegram CloudStorage when available, otherwise falls back to localStorage.
+// Primary storage is localStorage (fast, synchronous).
+// Telegram CloudStorage is used as a backup for cross-session persistence.
 
 function getWebApp() {
   return typeof window !== 'undefined' ? window.Telegram?.WebApp : null
@@ -61,26 +62,25 @@ const cloudStorageAdapter = {
     return new Promise((resolve) => {
       const tg = getWebApp()
       if (!tg?.CloudStorage) {
-        resolve(localStorageAdapter.getItem(key))
+        resolve(null)
         return
       }
       try {
         tg.CloudStorage.getItem(key, (err, value) => {
           if (err || value === null || value === undefined || value === '') {
-            resolve(localStorageAdapter.getItem(key))
+            resolve(null)
           } else {
             resolve(value)
           }
         })
       } catch {
-        resolve(localStorageAdapter.getItem(key))
+        resolve(null)
       }
     })
   },
   setItem(key, value) {
     return new Promise((resolve) => {
       const tg = getWebApp()
-      localStorageAdapter.setItem(key, value)
       if (!tg?.CloudStorage) {
         resolve()
         return
@@ -100,7 +100,6 @@ const cloudStorageAdapter = {
   removeItem(key) {
     return new Promise((resolve) => {
       const tg = getWebApp()
-      localStorageAdapter.removeItem(key)
       if (!tg?.CloudStorage) {
         resolve()
         return
@@ -116,38 +115,59 @@ const cloudStorageAdapter = {
 
 const STORAGE_TIMEOUT_MS = 2000
 
-// Dynamic adapter: chooses CloudStorage at runtime when Telegram WebApp is ready.
+async function syncFromCloudStorage(key) {
+  if (!hasCloudStorage()) return
+  const cloudValue = await withTimeout(
+    cloudStorageAdapter.getItem(key),
+    STORAGE_TIMEOUT_MS,
+    null
+  )
+  if (cloudValue && !localStorageAdapter.getItem(key)) {
+    localStorageAdapter.setItem(key, cloudValue)
+  }
+}
+
+// Sync from CloudStorage on startup in background
+if (typeof window !== 'undefined') {
+  try {
+    syncFromCloudStorage('sb-eofhvkiidqyxkrpimwer-auth-token')
+    syncFromCloudStorage('sb-eofhvkiidqyxkrpimwer-auth-token-code-verifier')
+  } catch {
+    // ignore
+  }
+}
+
 export const authStorage = {
   getItem(key) {
+    // Primary: localStorage (instant)
+    const localValue = localStorageAdapter.getItem(key)
+    if (localValue) {
+      return localValue
+    }
+
+    // Fallback: CloudStorage with timeout
     if (!hasCloudStorage()) {
-      return localStorageAdapter.getItem(key)
+      return null
     }
     return withTimeout(
       cloudStorageAdapter.getItem(key),
       STORAGE_TIMEOUT_MS,
-      localStorageAdapter.getItem(key)
+      null
     )
   },
   setItem(key, value) {
-    if (!hasCloudStorage()) {
-      localStorageAdapter.setItem(key, value)
-      return
+    // Always save to localStorage immediately
+    localStorageAdapter.setItem(key, value)
+
+    // Backup to CloudStorage in background
+    if (hasCloudStorage()) {
+      cloudStorageAdapter.setItem(key, value).catch(() => {})
     }
-    return withTimeout(
-      cloudStorageAdapter.setItem(key, value),
-      STORAGE_TIMEOUT_MS,
-      undefined
-    )
   },
   removeItem(key) {
-    if (!hasCloudStorage()) {
-      localStorageAdapter.removeItem(key)
-      return
+    localStorageAdapter.removeItem(key)
+    if (hasCloudStorage()) {
+      cloudStorageAdapter.removeItem(key).catch(() => {})
     }
-    return withTimeout(
-      cloudStorageAdapter.removeItem(key),
-      STORAGE_TIMEOUT_MS,
-      undefined
-    )
   },
 }
