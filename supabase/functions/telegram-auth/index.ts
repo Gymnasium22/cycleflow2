@@ -88,7 +88,7 @@ serve(async (req) => {
         .join('')
     }
 
-    function parseInitData(data: string, useRawValues: boolean) {
+    function parseInitData(data: string, useRawValues: boolean, excludeKeys: string[] = []) {
       const pairs = data.split('&')
       let hash: string | null = null
       const entries: [string, string][] = []
@@ -100,7 +100,7 @@ serve(async (req) => {
         const rawValue = pair.slice(eqIndex + 1)
         if (key === 'hash') {
           hash = decodeURIComponent(rawValue)
-        } else {
+        } else if (!excludeKeys.includes(key)) {
           entries.push([key, useRawValues ? rawValue : decodeURIComponent(rawValue)])
         }
       }
@@ -110,35 +110,44 @@ serve(async (req) => {
       return { hash: hash || '', dataCheckString, entries }
     }
 
-    // Try decoded values first (standard Telegram docs), then raw values as fallback
-    let validation = parseInitData(initData, false)
+    // Try multiple validation strategies
+    const strategies = [
+      { name: 'decoded', useRaw: false, exclude: [] as string[] },
+      { name: 'raw', useRaw: true, exclude: [] as string[] },
+      { name: 'decoded-no-signature', useRaw: false, exclude: ['signature'] as string[] },
+      { name: 'raw-no-signature', useRaw: true, exclude: ['signature'] as string[] },
+    ]
+
+    let validation = parseInitData(initData, false, [])
     let computedHash = await computeHmac(validation.dataCheckString)
+    let matchedStrategy = 'decoded'
 
-    console.log('[telegram-auth] Validation data (decoded):', {
-      botTokenLength: botToken.length,
-      hashLength: validation.hash.length,
-      dataCheckStringLength: validation.dataCheckString.length,
-      dataCheckStringPreview: validation.dataCheckString.slice(0, 200),
-      entries: validation.entries.map(([k]) => k),
-      computedHash,
-    })
-
-    if (computedHash !== validation.hash) {
-      validation = parseInitData(initData, true)
+    for (const strategy of strategies) {
+      validation = parseInitData(initData, strategy.useRaw, strategy.exclude)
       computedHash = await computeHmac(validation.dataCheckString)
 
-      console.log('[telegram-auth] Validation data (raw):', {
+      console.log(`[telegram-auth] Validation data (${strategy.name}):`, {
+        botTokenLength: botToken.length,
+        hashLength: validation.hash.length,
         dataCheckStringLength: validation.dataCheckString.length,
         dataCheckStringPreview: validation.dataCheckString.slice(0, 200),
         entries: validation.entries.map(([k]) => k),
         computedHash,
+        matched: computedHash === validation.hash,
       })
+
+      if (computedHash === validation.hash) {
+        matchedStrategy = strategy.name
+        break
+      }
     }
 
     if (computedHash !== validation.hash) {
       console.error('[telegram-auth] Hash mismatch', { computedHash, hash: validation.hash })
       return jsonResponse({ error: 'Invalid Telegram hash' }, 403, origin)
     }
+
+    console.log('[telegram-auth] Hash matched using strategy:', matchedStrategy)
 
     // Re-parse with URLSearchParams for convenient access to user/auth_date
     const params = new URLSearchParams(initData)
