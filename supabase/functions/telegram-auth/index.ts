@@ -72,6 +72,14 @@ serve(async (req) => {
     const entries = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b))
     const dataCheckString = entries.map(([key, value]) => `${key}=${value}`).join('\n')
 
+    console.log('[telegram-auth] Validation data:', {
+      botTokenLength: botToken.length,
+      hashLength: hash?.length,
+      dataCheckStringLength: dataCheckString.length,
+      dataCheckStringPreview: dataCheckString.slice(0, 200),
+      entries: entries.map(([k]) => k),
+    })
+
     const secretKey = await crypto.subtle.importKey(
       'raw',
       new TextEncoder().encode(botToken),
