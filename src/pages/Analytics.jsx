@@ -55,7 +55,7 @@ export function Analytics() {
       color: 'text-teal-600',
       bg: 'bg-teal-500/10',
     },
-    ...(stats?.cycleVariation !== null
+    ...((stats?.cycleVariation ?? null) !== null
       ? [
           {
             icon: AlertCircle,
