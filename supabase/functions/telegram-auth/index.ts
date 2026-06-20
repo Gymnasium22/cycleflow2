@@ -58,10 +58,11 @@ serve(async (req) => {
     return jsonResponse({ error: 'initData is required' }, 400, origin)
   }
 
-  const botToken = Deno.env.get('BOT_TOKEN')
+  const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN')
   if (!botToken) {
     return jsonResponse({ error: 'Bot token not configured' }, 500, origin)
   }
+  console.log('[telegram-auth] Using bot token source:', Deno.env.get('TELEGRAM_BOT_TOKEN') ? 'TELEGRAM_BOT_TOKEN' : 'BOT_TOKEN')
 
   try {
     // 1. Parse and validate Telegram initData
