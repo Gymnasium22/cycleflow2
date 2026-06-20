@@ -139,8 +139,8 @@ export function Settings() {
       await supabase.auth.signOut()
       window.location.reload()
     } catch (err) {
-      console.error('Delete all data error:', err)
-      alert(i18n.language === 'ru' ? 'Ошибка при удалении данных' : 'Error deleting data')
+      console.error('Delete all data error:', err?.message, err?.stack, JSON.stringify(err), err)
+      alert((i18n.language === 'ru' ? 'Ошибка при удалении данных: ' : 'Error deleting data: ') + (err?.message || JSON.stringify(err) || 'Unknown error'))
       setIsDeleting(false)
     }
   }

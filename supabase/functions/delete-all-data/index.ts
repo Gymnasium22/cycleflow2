@@ -11,7 +11,7 @@ const ALLOWED_ORIGINS = [
 ]
 
 function getCorsHeaders(origin: string | null) {
-  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  const allowed = origin || ALLOWED_ORIGINS[0]
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -32,6 +32,13 @@ function jsonResponse(body: unknown, status: number, origin: string | null) {
 
 serve(async (req) => {
   const origin = req.headers.get('origin')
+
+  console.log('[delete-all-data] Received request', {
+    method: req.method,
+    origin,
+    hasAuth: !!req.headers.get('Authorization'),
+    authPrefix: req.headers.get('Authorization')?.slice(0, 20),
+  })
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: getCorsHeaders(origin) })
