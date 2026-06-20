@@ -251,9 +251,12 @@ export function AuthProvider({ children }) {
 
       try {
         setError(null)
+        console.log('[Auth] Starting auth flow...', { hasWebApp: !!webApp, hasInitData: !!initData })
 
         // 1. Check existing session
-        const { data: existingSession } = await supabase.auth.getSession()
+        const { data: existingSession, error: sessionError } = await supabase.auth.getSession()
+        console.log('[Auth] Existing session check:', { hasSession: !!existingSession?.session, error: sessionError?.message })
+
         if (existingSession?.session) {
           setSession(existingSession.session)
           const loaded = await loadProfile(existingSession.session.user.id)
@@ -268,7 +271,9 @@ export function AuthProvider({ children }) {
 
         // 2. Telegram auth if WebApp and initData are available
         if (webApp && initData) {
+          console.log('[Auth] Attempting Telegram auth...')
           const userId = await signInWithTelegram(initData)
+          console.log('[Auth] Telegram auth success, userId:', userId)
           const loaded = await loadProfile(userId)
           if (!loaded) {
             await createProfile(userId, {
