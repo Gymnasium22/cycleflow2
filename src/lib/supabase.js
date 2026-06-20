@@ -4,15 +4,11 @@ import { authStorage } from './storage'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-let realClient = null
-let mockClient = null
+let client
 
-function createRealClient() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return getMockClient()
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey, {
+if (supabaseUrl && supabaseAnonKey) {
+  console.log('[Supabase] Creating client with URL:', supabaseUrl)
+  client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       storage: authStorage,
       autoRefreshToken: true,
@@ -20,12 +16,9 @@ function createRealClient() {
       detectSessionInUrl: false,
     },
   })
-}
-
-function getMockClient() {
-  if (mockClient) return mockClient
-
-  mockClient = {
+} else {
+  // Development mock when env vars are not set
+  client = {
     auth: {
       getSession: async () => ({ data: { session: null }, error: null }),
       setSession: async () => ({ data: { session: null }, error: null }),
@@ -46,25 +39,6 @@ function getMockClient() {
       upsert: () => ({ error: null }),
     }),
   }
-
-  return mockClient
 }
 
-function getClient() {
-  if (!realClient) {
-    realClient = createRealClient()
-  }
-  return realClient
-}
-
-// Lazy proxy: the real Supabase client is created on first access.
-// This ensures Telegram WebApp (and CloudStorage) is available before auth storage is chosen.
-export const supabase = new Proxy(
-  {},
-  {
-    get(_target, prop) {
-      const client = getClient()
-      return client[prop]
-    },
-  }
-)
+export const supabase = client

@@ -271,7 +271,11 @@ export function AuthProvider({ children }) {
         console.log('[Auth] Starting auth flow...', { hasWebApp: !!webApp, hasInitData: !!initData })
 
         // 1. Check existing session
-        const { data: existingSession, error: sessionError } = await supabase.auth.getSession()
+        console.log('[Auth] About to call getSession...')
+        const { data: existingSession, error: sessionError } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout after 5s')), 5000)),
+        ])
         console.log('[Auth] Existing session check:', { hasSession: !!existingSession?.session, error: sessionError?.message })
 
         if (existingSession?.session) {
