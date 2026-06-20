@@ -60,7 +60,31 @@
    supabase functions deploy send-notifications
    ```
 
-## 7. Настрой уведомления (cron)
+## 7. Настрой автодеплой Edge Functions через GitHub Actions (рекомендуется)
+
+Чтобы не деплоить функции вручную каждый раз, настроим автодеплой при пуше в репозиторий.
+
+1. Получи **Supabase Access Token**:
+   - Зайди в [Supabase Dashboard](https://supabase.com/dashboard)
+   - Перейди в **Account Settings → Access Tokens**
+   - Нажми **New access token**, дай название и скопируй токен
+
+2. Добавь секреты в GitHub:
+   - Открой репозиторий на GitHub
+   - Перейди в **Settings → Secrets and variables → Actions**
+   - Нажми **New repository secret**
+   - Добавь два секрета:
+     - `SUPABASE_ACCESS_TOKEN` — токен из шага 1
+     - `SUPABASE_PROJECT_ID` — `eofhvkiidqyxkrpimwer`
+
+3. Готово. Теперь при каждом изменении файлов в `supabase/functions/` Edge Functions будут деплоиться автоматически.
+
+Чтобы задеплоить вручную прямо сейчас:
+- Перейди в репозиторий → **Actions**
+- Выбери workflow **Deploy Supabase Edge Functions**
+- Нажми **Run workflow**
+
+## 8. Настрой уведомления (cron)
 
 1. В Supabase Dashboard перейди в **Database → Extensions**
 2. Включи расширение `pg_cron`
@@ -77,7 +101,7 @@
    ```
    Замени URL и anon key на свои.
 
-## 8. Настрой фронтенд
+## 9. Настрой фронтенд
 
 1. В корне проекта создай файл `.env`:
    ```
@@ -86,7 +110,7 @@
    ```
 2. В `vite.config.js` замени `base: '/cycleflow2/'` на имя своего репозитория, если оно другое.
 
-## 9. Запушь на GitHub
+## 10. Запушь на GitHub
 
 1. Создай новый репозиторий на GitHub (без README, .gitignore и лицензии)
 2. В терминале:
@@ -96,7 +120,7 @@
    git push -u origin main
    ```
 
-## 10. Включи GitHub Pages
+## 11. Включи GitHub Pages
 
 1. На странице репозитория перейди в **Settings → Pages**
 2. В разделе **Source** выбери **GitHub Actions**
@@ -104,7 +128,7 @@
 4. Дождись окончания деплоя (можно посмотреть статус во вкладке **Actions**)
 5. Получи ссылку вида `https://твой_ник.github.io/имя_репо/`
 
-## 11. Подключи Mini App к боту (обязательно для авторизации)
+## 12. Подключи Mini App к боту (обязательно для авторизации)
 
 **Важно:** простая кнопка **Menu Button** не передаёт данные пользователя (`initData`) в полном объёме. Для полноценной авторизации нужно создать **Mini App** через BotFather.
 
@@ -130,7 +154,7 @@
 4. Введи название кнопки, например `🌸 Cicle`
 5. Введи URL задеплоенного приложения
 
-## 12. Разреши домен GitHub Pages
+## 13. Разреши домен GitHub Pages
 
 1. Отправь `/mybots` → выбери бота
 2. Нажми **Bot Settings → Domain**
@@ -144,7 +168,7 @@
    https://gymnasium22.github.io/cycleflow2/
    ```
 
-## 13. Проверь работу
+## 14. Проверь работу
 
 1. Открой бота в Telegram
 2. Нажми кнопку меню / Mini App
