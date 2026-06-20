@@ -1,9 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { TrendingUp, Clock, Calendar } from 'lucide-react'
+import { TrendingUp, Clock, Calendar, AlertCircle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import {
+  getAverageCycleLength,
+  getAveragePeriodLength,
+  getCycleStats,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
@@ -16,13 +19,9 @@ export function Analytics() {
   const fallbackCycle = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const fallbackPeriod = profile?.period_length || DEFAULT_PERIOD_LENGTH
 
-  const avgCycleLength = cycles.length > 0
-    ? Math.round(cycles.reduce((sum, c) => sum + (c.cycle_length || fallbackCycle), 0) / cycles.length)
-    : fallbackCycle
-
-  const avgPeriodLength = cycles.length > 0
-    ? Math.round(cycles.reduce((sum, c) => sum + (c.period_length || fallbackPeriod), 0) / cycles.length)
-    : fallbackPeriod
+  const avgCycleLength = getAverageCycleLength(cycles, fallbackCycle)
+  const avgPeriodLength = getAveragePeriodLength(cycles, fallbackPeriod)
+  const stats = getCycleStats(cycles)
 
   const chartData = cycles.length > 0
     ? [...cycles].reverse().map((cycle, index) => ({
@@ -34,7 +33,7 @@ export function Analytics() {
         { name: '1', cycle: fallbackCycle, period: fallbackPeriod },
       ]
 
-  const stats = [
+  const statCards = [
     {
       icon: Clock,
       label: t('analytics.averageCycle'),
@@ -56,6 +55,17 @@ export function Analytics() {
       color: 'text-teal-600',
       bg: 'bg-teal-500/10',
     },
+    ...(stats?.cycleVariation !== null
+      ? [
+          {
+            icon: AlertCircle,
+            label: i18n.language === 'ru' ? 'Разброс цикла' : 'Cycle variation',
+            value: `±${stats.cycleVariation} ${t('analytics.days')}`,
+            color: 'text-amber-600',
+            bg: 'bg-amber-500/10',
+          },
+        ]
+      : []),
   ]
 
   const cycleColors = ['#f43f5e', '#8b5cf6', '#14b8a6', '#f59e0b', '#6366f1']
@@ -66,7 +76,7 @@ export function Analytics() {
       <h1 className="text-2xl font-bold">{t('analytics.title')}</h1>
 
       <div className="grid grid-cols-1 gap-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <div key={stat.label} className="rounded-2xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
               <stat.icon size={24} />

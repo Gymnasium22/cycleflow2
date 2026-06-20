@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import {
   generateCalendarDays,
-  getCycleDay,
-  getCurrentPhase,
-  getOvulationDate,
+  getAverageCycleLength,
+  getAveragePeriodLength,
+  getPhaseForDate,
+  getCycleForDate,
+  daysBetween,
   isSameDay,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
@@ -29,13 +31,11 @@ export function Calendar() {
   const { cycles } = useCycles()
   const [currentDate, setCurrentDate] = useState(new Date())
 
-  const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
-  const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
+  const fallbackCycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
+  const fallbackPeriodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
 
-  const lastCycle = cycles[0]
-  const lastPeriod = lastCycle?.start_date || new Date().toISOString().split('T')[0]
-
-  const ovulation = useMemo(() => getOvulationDate(lastPeriod, cycleLength), [lastPeriod, cycleLength])
+  const avgCycleLength = useMemo(() => getAverageCycleLength(cycles, fallbackCycleLength), [cycles, fallbackCycleLength])
+  const avgPeriodLength = useMemo(() => getAveragePeriodLength(cycles, fallbackPeriodLength), [cycles, fallbackPeriodLength])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -48,35 +48,23 @@ export function Calendar() {
   function getDayType(date) {
     if (!date) return null
 
-    const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
+    const phase = getPhaseForDate(date, cycles, avgCycleLength, avgPeriodLength)
+    if (phase === 'ovulation') return 'ovulation'
 
-    const periodStart = new Date(lastPeriod)
-    periodStart.setHours(0, 0, 0, 0)
-
-    let checkDate = new Date(periodStart)
-    while (checkDate.getFullYear() < year + 1) {
-      for (let i = 0; i < periodLength; i++) {
-        const pDay = new Date(checkDate)
-        pDay.setDate(pDay.getDate() + i)
-        if (isSameDay(pDay, d)) return 'period'
+    // Fertile window: 5 days before ovulation
+    const cycle = getCycleForDate(date, cycles)
+    if (cycle) {
+      const cycleLength = cycle.cycle_length || avgCycleLength || DEFAULT_CYCLE_LENGTH
+      const start = new Date(cycle.start_date)
+      start.setHours(0, 0, 0, 0)
+      const ovulationDay = cycleLength - 14
+      const targetDay = daysBetween(start, date)
+      if (targetDay !== null && targetDay >= ovulationDay - 5 && targetDay < ovulationDay) {
+        return 'fertile'
       }
-      checkDate.setDate(checkDate.getDate() + cycleLength)
     }
 
-    if (isSameDay(d, ovulation)) return 'ovulation'
-
-    const fertileStart = new Date(ovulation)
-    fertileStart.setDate(fertileStart.getDate() - 5)
-    if (d >= fertileStart && d <= ovulation) return 'fertile'
-
-    const cycleDay = getCycleDay(lastPeriod, cycleLength)
-    if (cycleDay) {
-      const phase = getCurrentPhase(cycleDay, periodLength, cycleLength)
-      return phase
-    }
-
-    return null
+    return phase
   }
 
   const typeStyles = {

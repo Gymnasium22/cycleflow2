@@ -51,10 +51,14 @@ CREATE TABLE IF NOT EXISTS settings (
   notify_ovulation BOOLEAN DEFAULT false,
   notify_time TIME DEFAULT '09:00',
   period_reminder_days INTEGER DEFAULT 2,
+  ovulation_reminder_days INTEGER DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id)
 );
+
+-- Add ovulation_reminder_days for existing tables
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS ovulation_reminder_days INTEGER DEFAULT 1;
 
 -- Индексы для производительности
 CREATE INDEX IF NOT EXISTS idx_cycles_user_id ON cycles(user_id);

@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
   notify_ovulation: false,
   notify_time: '09:00',
   period_reminder_days: 2,
+  ovulation_reminder_days: 1,
 }
 
 export function useSettings() {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { parseDate } from '../utils/cycle'
 
 const STORAGE_KEY = 'cicle_cycles'
 
@@ -127,4 +128,21 @@ export function useCycles() {
   }
 
   return { cycles, loading, error, addCycle, updateCycle, deleteCycle, refetch: fetchCycles }
+}
+
+export function isPeriodActive(cycle) {
+  if (!cycle) return false
+  if (cycle.end_date) return false
+  const start = parseDate(cycle.start_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return start && start <= today
+}
+
+export function getActivePeriodDay(cycle) {
+  if (!isPeriodActive(cycle)) return null
+  const start = parseDate(cycle.start_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
 }

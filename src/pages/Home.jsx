@@ -1,14 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { useCycles } from '../hooks/useCycles'
+import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import {
-  getCycleDay,
-  getCurrentPhase,
-  getNextPeriodDate,
-  getOvulationDate,
+  getAverageCycleLength,
+  getAveragePeriodLength,
+  getNextPeriodDateFromHistory,
+  getOvulationDateFromHistory,
+  getPhaseForDate,
+  getCycleDayForDate,
+  getActualPeriodLength,
   formatDate,
   getDaysUntil,
   DEFAULT_CYCLE_LENGTH,
@@ -61,31 +64,43 @@ export function Home() {
   const [editingCycle, setEditingCycle] = useState(null)
   const [editDate, setEditDate] = useState('')
 
-  const cycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
-  const periodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
-  const [editPeriodLength, setEditPeriodLength] = useState(periodLength)
+  const fallbackCycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
+  const fallbackPeriodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
+
+  const avgCycleLength = getAverageCycleLength(cycles, fallbackCycleLength)
+  const avgPeriodLength = getAveragePeriodLength(cycles, fallbackPeriodLength)
+
+  const [editPeriodLength, setEditPeriodLength] = useState(fallbackPeriodLength)
 
   const lastCycle = cycles[0]
   const lastPeriodStart = lastCycle?.start_date || null
 
   const hasCycles = cycles.length > 0
-  const cycleDay = lastPeriodStart ? getCycleDay(lastPeriodStart, cycleLength) : null
-  const phase = cycleDay ? getCurrentPhase(cycleDay, periodLength, cycleLength) : null
+  const cycleDay = lastPeriodStart ? getCycleDayForDate(new Date(), lastPeriodStart, avgCycleLength) : null
+  const phase = hasCycles ? getPhaseForDate(new Date(), cycles, avgCycleLength, avgPeriodLength) : null
   const phaseInfo = phase ? phaseConfig[phase] : null
-  const nextPeriod = lastPeriodStart ? getNextPeriodDate(lastPeriodStart, cycleLength) : null
-  const ovulation = lastPeriodStart ? getOvulationDate(lastPeriodStart, cycleLength) : null
+  const nextPeriod = hasCycles ? getNextPeriodDateFromHistory(cycles, avgCycleLength) : null
+  const ovulation = hasCycles ? getOvulationDateFromHistory(cycles, avgCycleLength) : null
   const daysUntilPeriod = nextPeriod ? getDaysUntil(nextPeriod) : null
   const daysUntilOvulation = ovulation ? getDaysUntil(ovulation) : null
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
 
+  const activePeriod = isPeriodActive(lastCycle)
+  const activePeriodDay = activePeriod ? getActivePeriodDay(lastCycle) : null
   const isPeriodStartedToday = lastCycle?.start_date === todayStr
 
   async function handleStartPeriod() {
     await addCycle({
       start_date: todayStr,
-      period_length: periodLength,
-      cycle_length: cycleLength,
+      period_length: fallbackPeriodLength,
+      cycle_length: fallbackCycleLength,
     })
+  }
+
+  async function handleEndPeriod() {
+    if (confirm(i18n.language === 'ru' ? 'Отметить окончание месячных?' : 'Mark period as ended?')) {
+      await updateCycle(lastCycle.id, { end_date: todayStr })
+    }
   }
 
   async function handleCancelPeriod() {
@@ -141,7 +156,7 @@ export function Home() {
   function openEditCycle(cycle) {
     setEditingCycle(cycle)
     setEditDate(cycle.start_date)
-    setEditPeriodLength(cycle.period_length || periodLength)
+    setEditPeriodLength(cycle.period_length || fallbackPeriodLength)
     setShowEditCycle(true)
   }
 
@@ -154,7 +169,7 @@ export function Home() {
     setShowEditCycle(false)
     setEditingCycle(null)
     setEditDate('')
-    setEditPeriodLength(periodLength)
+    setEditPeriodLength(fallbackPeriodLength)
   }
 
   async function handleDeleteCycle(id) {
@@ -185,10 +200,16 @@ export function Home() {
 
             <div className="relative flex items-center justify-between">
               <div>
-                <p className="text-white/80 text-sm font-medium uppercase tracking-wider">{t('home.dayOfCycle')}</p>
-                <p className="text-6xl font-bold mt-1">{cycleDay}</p>
+                <p className="text-white/80 text-sm font-medium uppercase tracking-wider">
+                  {activePeriod
+                    ? (i18n.language === 'ru' ? 'День месячных' : 'Period day')
+                    : t('home.dayOfCycle')}
+                </p>
+                <p className="text-6xl font-bold mt-1">{activePeriod ? activePeriodDay : cycleDay}</p>
                 <p className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm`}>
-                  {t(`home.phase.${phaseInfo.key}`)}
+                  {activePeriod
+                    ? (i18n.language === 'ru' ? 'Месячные' : 'Menstruation')
+                    : t(`home.phase.${phaseInfo.key}`)}
                 </p>
               </div>
 
@@ -203,12 +224,12 @@ export function Home() {
                     stroke="white"
                     strokeWidth="8"
                     strokeLinecap="round"
-                    strokeDasharray={`${(cycleDay / cycleLength) * 264} 264`}
+                    strokeDasharray={`${((activePeriod ? activePeriodDay : cycleDay) / (activePeriod ? avgPeriodLength : avgCycleLength)) * 264} 264`}
                     className="transition-all duration-1000 ease-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-white/90">
-                  {cycleLength} {t('analytics.days')}
+                  {activePeriod ? avgPeriodLength : avgCycleLength} {t('analytics.days')}
                 </div>
               </div>
             </div>
@@ -274,7 +295,15 @@ export function Home() {
           <ChevronRight size={20} className="text-[var(--tg-theme-hint-color,#6b7280)]" />
         </button>
 
-        {isPeriodStartedToday ? (
+        {activePeriod ? (
+          <button
+            onClick={handleEndPeriod}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Check size={18} />
+            {i18n.language === 'ru' ? 'Месячные закончились' : 'Period ended'}
+          </button>
+        ) : isPeriodStartedToday ? (
           <button
             onClick={handleCancelPeriod}
             className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 transition-colors border border-[var(--tg-theme-hint-color,#d1d5db)]/30"
@@ -333,7 +362,9 @@ export function Home() {
                     {formatDate(new Date(cycle.start_date), locale)}
                   </p>
                   <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-                    {cycle.period_length} {i18n.language === 'ru' ? 'дн.' : 'days'}
+                    {cycle.end_date
+                      ? `${formatDate(new Date(cycle.end_date), locale)} · ${getActualPeriodLength(cycle)} ${i18n.language === 'ru' ? 'дн.' : 'days'}`
+                      : `${getActualPeriodLength(cycle)} ${i18n.language === 'ru' ? 'дн.' : 'days'}`}
                   </p>
                 </div>
                 <div className="flex gap-2">
