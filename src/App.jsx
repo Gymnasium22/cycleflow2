@@ -9,6 +9,7 @@ import { Calendar } from './pages/Calendar'
 import { Analytics } from './pages/Analytics'
 import { Settings } from './pages/Settings'
 import { Onboarding } from './pages/Onboarding'
+import { DebugPanel, initDebugLogging } from './components/DebugPanel'
 
 const TABS = {
   home: <Home />,
@@ -38,11 +39,14 @@ function AppContent() {
 }
 
 function App() {
+  initDebugLogging()
+
   return (
     <ErrorBoundary>
       <TelegramProvider>
         <AuthProvider>
           <AppContent />
+          <DebugPanel />
         </AuthProvider>
       </TelegramProvider>
     </ErrorBoundary>
