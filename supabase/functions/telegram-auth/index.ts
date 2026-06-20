@@ -44,6 +44,8 @@ serve(async (req) => {
     return jsonResponse({ error: 'Method not allowed' }, 405, origin)
   }
 
+  console.log('[telegram-auth] Received auth request')
+
   let initData: string | undefined
   try {
     const body = await req.json()
