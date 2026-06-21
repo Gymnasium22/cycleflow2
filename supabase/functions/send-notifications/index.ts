@@ -2,6 +2,34 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'
 
+const ALLOWED_ORIGINS = [
+  'https://gymnasium22.github.io',
+  'https://gymnasium22.github.io/cycleflow2',
+  'https://gymnasium22.github.io/cycleflow2/',
+  'http://localhost:5173',
+  'http://localhost:4173',
+]
+
+function getCorsHeaders(origin: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-cron-secret',
+    'Access-Control-Max-Age': '86400',
+  }
+}
+
+function jsonResponse(body: unknown, status: number, origin: string | null) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getCorsHeaders(origin),
+    },
+  })
+}
+
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
 function parseDate(input: string | Date): Date {
@@ -60,6 +88,15 @@ function formatLocalTime(hour: number, minute: number): string {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get('origin')
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: getCorsHeaders(origin),
+    })
+  }
+
   const cronSecret = Deno.env.get('CRON_SECRET')
   const requestSecret = req.headers.get('x-cron-secret')
   const url = new URL(req.url)
@@ -82,13 +119,13 @@ serve(async (req) => {
 
   if (!isUserAuthorized && !isCronAuthorized) {
     console.warn('[send-notifications] Unauthorized request')
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    return jsonResponse({ error: 'Unauthorized' }, 401, origin)
   }
 
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN')
   if (!botToken) {
     console.error('[send-notifications] Bot token not configured')
-    return new Response(JSON.stringify({ error: 'Bot token not configured' }), { status: 500 })
+    return jsonResponse({ error: 'Bot token not configured' }, 500, origin)
   }
 
   const supabaseUrl = Deno.env.get('SB_URL') ?? ''
@@ -96,7 +133,7 @@ serve(async (req) => {
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error('[send-notifications] Supabase credentials not configured')
-    return new Response(JSON.stringify({ error: 'Supabase credentials not configured' }), { status: 500 })
+    return jsonResponse({ error: 'Supabase credentials not configured' }, 500, origin)
   }
 
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
@@ -114,7 +151,7 @@ serve(async (req) => {
 
   if (settingsError) {
     console.error('[send-notifications] Settings fetch error:', settingsError)
-    return new Response(JSON.stringify({ error: settingsError.message }), { status: 500 })
+    return jsonResponse({ error: settingsError.message }, 500, origin)
   }
 
   console.log('[send-notifications] Fetched settings:', { count: settings?.length || 0 })
@@ -191,10 +228,7 @@ serve(async (req) => {
   const results = await Promise.all(notifications)
   console.log('[send-notifications] Sent notifications:', { count: notifications.length, results })
 
-  return new Response(
-    JSON.stringify({ success: true, sent: notifications.length }),
-    { status: 200 }
-  )
+  return jsonResponse({ success: true, sent: notifications.length }, 200, origin)
 })
 
 async function sendMessage(botToken: string, chatId: number, text: string) {
