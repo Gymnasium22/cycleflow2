@@ -262,7 +262,10 @@ export function AuthProvider({ children }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ initData: telegramInitData }),
+        body: JSON.stringify({
+        initData: telegramInitData,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      }),
       })
     } catch (networkErr) {
       console.error('[Auth] Network error calling telegram-auth:', networkErr)
@@ -342,6 +345,17 @@ export function AuthProvider({ children }) {
           const loaded = await loadProfile(userId)
           if (!loaded) {
             await createProfile(userId)
+          } else if (!loaded.timezone || loaded.timezone === 'UTC') {
+            // Auto-detect and fix missing/default timezone
+            const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+            if (detectedTimezone !== 'UTC') {
+              console.log('[Auth] Updating timezone from', loaded.timezone, 'to', detectedTimezone)
+              await supabase
+                .from('profiles')
+                .update({ timezone: detectedTimezone })
+                .eq('id', userId)
+              setProfile((prev) => (prev ? { ...prev, timezone: detectedTimezone } : prev))
+            }
           }
           await migrateFallbackData(userId)
           setLoading(false)

@@ -207,9 +207,11 @@ serve(async (req) => {
   console.log('[telegram-auth] Received auth request')
 
   let initData: string | undefined
+  let timezone: string | undefined
   try {
     const body = await req.json()
     initData = body.initData
+    timezone = body.timezone
   } catch {
     return jsonResponse({ error: 'Invalid JSON body' }, 400, origin)
   }
@@ -335,18 +337,20 @@ serve(async (req) => {
         return jsonResponse({ error: createError.message }, 500, origin)
       }
 
-      await supabaseAdmin.from('profiles').upsert(
-        {
-          id: userUuid,
-          telegram_id: telegramId,
-          username,
-          first_name: firstName,
-          last_name: lastName,
-          language_code: languageCode,
-          onboarding_completed: false,
-        },
-        { onConflict: 'id' }
-      )
+      const createProfilePayload: any = {
+        id: userUuid,
+        telegram_id: telegramId,
+        username,
+        first_name: firstName,
+        last_name: lastName,
+        language_code: languageCode,
+        onboarding_completed: false,
+      }
+      if (timezone) {
+        createProfilePayload.timezone = timezone
+      }
+
+      await supabaseAdmin.from('profiles').upsert(createProfilePayload, { onConflict: 'id' })
 
       await supabaseAdmin.from('settings').upsert({ user_id: userUuid }, { onConflict: 'user_id' })
     } else {
@@ -361,18 +365,20 @@ serve(async (req) => {
         },
       })
 
-      await supabaseAdmin.from('profiles').upsert(
-        {
-          id: userUuid,
-          telegram_id: telegramId,
-          username,
-          first_name: firstName,
-          last_name: lastName,
-          language_code: languageCode,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      )
+      const updateProfilePayload: any = {
+        id: userUuid,
+        telegram_id: telegramId,
+        username,
+        first_name: firstName,
+        last_name: lastName,
+        language_code: languageCode,
+        updated_at: new Date().toISOString(),
+      }
+      if (timezone) {
+        updateProfilePayload.timezone = timezone
+      }
+
+      await supabaseAdmin.from('profiles').upsert(updateProfilePayload, { onConflict: 'id' })
 
       await supabaseAdmin.from('settings').upsert({ user_id: userUuid }, { onConflict: 'user_id' })
     }

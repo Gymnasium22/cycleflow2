@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, Pill } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, Pill, MapPin } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -36,6 +36,7 @@ export function Settings() {
   const [language, setLanguage] = useState(i18n.language || 'ru')
   const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
   const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
+  const [timezone, setTimezone] = useState(profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
   const [notifyPeriod, setNotifyPeriod] = useState(settings?.notify_period ?? true)
   const [notifyOvulation, setNotifyOvulation] = useState(settings?.notify_ovulation ?? false)
   const [periodReminderDays, setPeriodReminderDays] = useState(settings?.period_reminder_days ?? 2)
@@ -62,6 +63,7 @@ export function Settings() {
     if (profile) {
       setCycleLength(profile.cycle_length || DEFAULT_CYCLE_LENGTH)
       setPeriodLength(profile.period_length || DEFAULT_PERIOD_LENGTH)
+      setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
     }
   }, [profile])
 
@@ -130,6 +132,14 @@ export function Settings() {
     showSavedMessage()
   }
 
+  function handleDetectTimezone() {
+    hapticFeedback.impact('light')
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    setTimezone(detected)
+    updateProfile({ timezone: detected })
+    showSavedMessage()
+  }
+
   async function deleteAllData() {
     setIsDeleting(true)
     hapticFeedback.notification('warning')
@@ -178,7 +188,7 @@ export function Settings() {
   async function saveAllSettings() {
     hapticFeedback.impact('light')
     await Promise.all([
-      updateProfile({ cycle_length: cycleLength, period_length: periodLength }),
+      updateProfile({ cycle_length: cycleLength, period_length: periodLength, timezone }),
       updateSettings({
         notify_period: notifyPeriod,
         notify_ovulation: notifyOvulation,
@@ -371,6 +381,30 @@ export function Settings() {
               {lang === 'ru' ? 'Русский' : 'English'}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Timezone */}
+      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
+          <MapPin size={20} className="text-blue-500" />
+          <span className="font-semibold">
+            {i18n.language === 'ru' ? 'Часовой пояс' : 'Timezone'}
+          </span>
+        </div>
+        <div className="space-y-2">
+          <p className="text-sm text-[var(--tg-theme-text-color,#111827)] font-medium">{timezone}</p>
+          <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+            {i18n.language === 'ru'
+              ? 'Используется для расчёта времени уведомлений. Если неверно — нажми кнопку ниже.'
+              : 'Used to calculate notification time. If incorrect, click the button below.'}
+          </p>
+          <button
+            onClick={handleDetectTimezone}
+            className="w-full py-2 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] text-sm font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
+          >
+            {i18n.language === 'ru' ? 'Определить автоматически' : 'Detect automatically'}
+          </button>
         </div>
       </div>
 
