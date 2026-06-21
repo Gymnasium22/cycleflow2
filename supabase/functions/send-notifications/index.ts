@@ -64,10 +64,11 @@ serve(async (req) => {
   const requestSecret = req.headers.get('x-cron-secret')
   const url = new URL(req.url)
   const querySecret = url.searchParams.get('secret')
-  const queryAccessToken = url.searchParams.get('access_token')
   const authHeader = req.headers.get('Authorization') || ''
-  const anonKey = Deno.env.get('SB_ANON_KEY') || ''
-  const isAnonAuthorized = anonKey && (authHeader === `Bearer ${anonKey}` || queryAccessToken === anonKey)
+  // Supabase gateway already validates the Authorization header.
+  // Any request reaching this function with a valid bearer token is treated as user-initiated.
+  const isUserAuthorized = authHeader.startsWith('Bearer ')
+  // Cron jobs must additionally provide the cron secret.
   const isCronAuthorized = cronSecret && (requestSecret === cronSecret || querySecret === cronSecret)
 
   console.log('[send-notifications] Received request', {
@@ -75,11 +76,11 @@ serve(async (req) => {
     hasCronSecret: !!cronSecret,
     hasRequestSecret: !!requestSecret,
     hasQuerySecret: !!querySecret,
-    isAnonAuthorized,
+    isUserAuthorized,
     isCronAuthorized,
   })
 
-  if (!isAnonAuthorized && !isCronAuthorized) {
+  if (!isUserAuthorized && !isCronAuthorized) {
     console.warn('[send-notifications] Unauthorized request')
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }
