@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Heart, Check } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
