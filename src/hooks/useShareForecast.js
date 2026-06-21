@@ -1,25 +1,14 @@
 import { useState, useCallback } from 'react'
-
-function dataUrlToBlob(dataUrl) {
-  const arr = dataUrl.split(',')
-  const mime = arr[0].match(/:(.*?);/)[1]
-  const bstr = atob(arr[1])
-  let n = bstr.length
-  const u8arr = new Uint8Array(n)
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n)
-  }
-  return new Blob([u8arr], { type: mime })
-}
+import { drawForecastCard, canvasToBlob } from '../utils/forecastCanvas'
 
 export function useShareForecast({ title, text, filename = 'cicle-forecast.png' } = {}) {
   const [isSharing, setIsSharing] = useState(false)
   const [error, setError] = useState(null)
 
   const share = useCallback(
-    async (cardElement) => {
-      if (!cardElement) {
-        setError('No card element')
+    async (data) => {
+      if (!data) {
+        setError('No data')
         return false
       }
 
@@ -27,15 +16,9 @@ export function useShareForecast({ title, text, filename = 'cicle-forecast.png' 
       setError(null)
 
       try {
-        const { toPng } = await import('html-to-image')
-        const dataUrl = await toPng(cardElement, {
-          width: 1080,
-          height: 1080,
-          pixelRatio: 1,
-          cacheBust: true,
-        })
-
-        const blob = dataUrlToBlob(dataUrl)
+        const canvas = document.createElement('canvas')
+        drawForecastCard(canvas, data)
+        const blob = await canvasToBlob(canvas)
         const file = new File([blob], filename, { type: 'image/png' })
 
         const shareData = {

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check, Share2 } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
@@ -8,7 +8,6 @@ import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import { useShareForecast } from '../hooks/useShareForecast'
-import { CycleShareCard } from '../components/CycleShareCard'
 import {
   getAverageCycleLength,
   getAveragePeriodLength,
@@ -63,7 +62,6 @@ export function Home() {
   const [selectedSymptoms, setSelectedSymptoms] = useState({})
   const [symptomNotes, setSymptomNotes] = useState('')
   const [editingSymptom, setEditingSymptom] = useState(null)
-  const shareCardRef = useRef(null)
 
   const shareTitle = i18n.language === 'ru' ? 'Мой прогноз Cicle' : 'My Cicle forecast'
   const shareText = i18n.language === 'ru'
@@ -87,9 +85,7 @@ export function Home() {
 
   function handleShareForecast() {
     hapticFeedback.impact('light')
-    if (shareCardRef.current) {
-      shareForecast(shareCardRef.current)
-    }
+    shareForecast({ profile, cycles, lang: i18n.language === 'ru' ? 'ru' : 'en' })
   }
 
   const lastCycle = cycles[0]
@@ -461,20 +457,6 @@ export function Home() {
           </div>
         </div>
       )}
-
-      {/* Hidden share card */}
-      <div
-        ref={shareCardRef}
-        style={{
-          position: 'absolute',
-          left: '-9999px',
-          top: '-9999px',
-          visibility: 'hidden',
-          pointerEvents: 'none',
-        }}
-      >
-        <CycleShareCard profile={profile} cycles={cycles} lang={i18n.language === 'ru' ? 'ru' : 'en'} />
-      </div>
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
