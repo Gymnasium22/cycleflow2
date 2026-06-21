@@ -87,19 +87,11 @@
 ## 8. Настрой уведомления (cron)
 
 1. В Supabase Dashboard перейди в **Database → Extensions**
-2. Включи расширение `pg_cron`
-3. Перейди в **SQL Editor** и выполни:
-   ```sql
-   SELECT cron.schedule(
-     'send-cycle-notifications',
-     '0 9 * * *',
-     $$ SELECT net.http_post(
-       url := 'https://your-project.supabase.co/functions/v1/send-notifications',
-       headers := '{"Content-Type": "application/json", "Authorization": "Bearer your-anon-key"}'::jsonb
-     ) $$
-   );
-   ```
-   Замени URL и anon key на свои.
+2. Включи расширения `pg_cron` и `pg_net`
+3. Перейди в **SQL Editor** и выполни файл `supabase/migrations/20240620_setup_notifications.sql` из репозитория:
+   - Замени `<CRON_SECRET>` на свой секрет
+   - Замени `<SB_ANON_KEY>` на anon key проекта
+4. Для диагностики используй `supabase/migrations/20240621_fix_notifications.sql` — он покажет статус расширений, список job'ов и их последние запуски.
 
 ## 9. Настрой фронтенд
 

@@ -11,14 +11,15 @@ ALTER TABLE settings
 ADD COLUMN IF NOT EXISTS ovulation_reminder_days INTEGER DEFAULT 1;
 
 -- Cron job: call send-notifications every 15 minutes
--- Replace <CRON_SECRET> with your actual secret before running
+-- Replace <CRON_SECRET> with your actual CRON_SECRET value
+-- Replace <SB_ANON_KEY> with your actual anon key
 -- Note: pg_cron jobs run in the UTC timezone by default
 SELECT cron.schedule(
   'send-telegram-notifications',
   '*/15 * * * *',
   $$ SELECT net.http_post(
     url := 'https://eofhvkiidqyxkrpimwer.supabase.co/functions/v1/send-notifications',
-    headers := '{"Content-Type": "application/json", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <SB_ANON_KEY>", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
     body := '{}'::jsonb
   ) AS request_id; $$
 );

@@ -64,16 +64,22 @@ serve(async (req) => {
   const requestSecret = req.headers.get('x-cron-secret')
   const url = new URL(req.url)
   const querySecret = url.searchParams.get('secret')
-  const effectiveSecret = requestSecret || querySecret
+  const queryAccessToken = url.searchParams.get('access_token')
+  const authHeader = req.headers.get('Authorization') || ''
+  const anonKey = Deno.env.get('SB_ANON_KEY') || ''
+  const isAnonAuthorized = anonKey && (authHeader === `Bearer ${anonKey}` || queryAccessToken === anonKey)
+  const isCronAuthorized = cronSecret && (requestSecret === cronSecret || querySecret === cronSecret)
 
   console.log('[send-notifications] Received request', {
     method: req.method,
     hasCronSecret: !!cronSecret,
     hasRequestSecret: !!requestSecret,
     hasQuerySecret: !!querySecret,
+    isAnonAuthorized,
+    isCronAuthorized,
   })
 
-  if (cronSecret && effectiveSecret !== cronSecret) {
+  if (!isAnonAuthorized && !isCronAuthorized) {
     console.warn('[send-notifications] Unauthorized request')
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }

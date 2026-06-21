@@ -28,12 +28,13 @@ SELECT cron.unschedule('send-cycle-notifications');
 
 -- 5. Schedule new notification job
 -- Replace <CRON_SECRET> with your actual CRON_SECRET value
+-- Replace <SB_ANON_KEY> with your actual anon key
 SELECT cron.schedule(
   'send-telegram-notifications',
   '*/15 * * * *',
   $$ SELECT net.http_post(
     url := 'https://eofhvkiidqyxkrpimwer.supabase.co/functions/v1/send-notifications',
-    headers := '{"Content-Type": "application/json", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <SB_ANON_KEY>", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
     body := '{}'::jsonb
   ) AS request_id; $$
 );
@@ -41,9 +42,10 @@ SELECT cron.schedule(
 -- 6. Verify the job was created
 SELECT * FROM cron.job;
 
--- 7. Manual test: call the function once (optional, requires CRON_SECRET)
+-- 7. Manual test: call the function once (optional)
+-- Replace <CRON_SECRET> and <SB_ANON_KEY> with actual values
 -- SELECT net.http_post(
 --   url := 'https://eofhvkiidqyxkrpimwer.supabase.co/functions/v1/send-notifications',
---   headers := '{"Content-Type": "application/json", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
+--   headers := '{"Content-Type": "application/json", "Authorization": "Bearer <SB_ANON_KEY>", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
 --   body := '{}'::jsonb
 -- );
