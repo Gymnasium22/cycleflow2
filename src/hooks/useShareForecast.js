@@ -1,5 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
-import { toPng } from 'html-to-image'
+import { useState, useCallback } from 'react'
 
 function dataUrlToBlob(dataUrl) {
   const arr = dataUrl.split(',')
@@ -28,6 +27,7 @@ export function useShareForecast({ title, text, filename = 'cicle-forecast.png' 
       setError(null)
 
       try {
+        const { toPng } = await import('html-to-image')
         const dataUrl = await toPng(cardElement, {
           width: 1080,
           height: 1080,
