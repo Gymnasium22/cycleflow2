@@ -255,8 +255,13 @@ serve(async (req) => {
     const notifyTime = setting.notify_time || '09:00'
     const [notifyHour, notifyMinute] = notifyTime.split(':').map(Number)
 
-    // Only send notifications within 15-minute window of configured time
-    const isTimeMatch = localTime.hour === notifyHour && localTime.minute >= notifyMinute && localTime.minute < notifyMinute + 15
+    // Compare total minutes of the day to handle hour boundaries (e.g. 09:55 -> 10:00)
+    const currentMinutes = localTime.hour * 60 + localTime.minute
+    const notifyMinutes = notifyHour * 60 + notifyMinute
+    let diffMinutes = currentMinutes - notifyMinutes
+    if (diffMinutes < -720) diffMinutes += 1440
+    if (diffMinutes > 720) diffMinutes -= 1440
+    const isTimeMatch = diffMinutes >= 0 && diffMinutes < 15
     if (!isTimeMatch) continue
 
     // Get all cycles for user to calculate averages
@@ -352,7 +357,15 @@ serve(async (req) => {
           const localDay = getLocalDayOfWeek(timezone)
           const localTime = getLocalTime(timezone)
           const [reminderHour, reminderMinute] = reminder.time.split(':').map(Number)
-          const isTimeMatch = localTime.hour === reminderHour && localTime.minute >= reminderMinute && localTime.minute < reminderMinute + 15
+
+          // Compare total minutes of the day to handle hour boundaries (e.g. 19:55 -> 20:00)
+          const currentMinutes = localTime.hour * 60 + localTime.minute
+          const reminderMinutes = reminderHour * 60 + reminderMinute
+          let diffMinutes = currentMinutes - reminderMinutes
+          if (diffMinutes < -720) diffMinutes += 1440
+          if (diffMinutes > 720) diffMinutes -= 1440
+          const isTimeMatch = diffMinutes >= 0 && diffMinutes < 15
+
           const localDate = getLocalDateString(timezone)
 
           console.log('[send-notifications] Reminder time check:', {
@@ -361,8 +374,9 @@ serve(async (req) => {
             localDay,
             daysOfWeek: reminder.days_of_week,
             dayMatches: reminder.days_of_week.includes(localDay),
-            localTime: `${localTime.hour}:${localTime.minute}`,
-            reminderTime: `${reminderHour}:${reminderMinute}`,
+            localTime: `${String(localTime.hour).padStart(2, '0')}:${String(localTime.minute).padStart(2, '0')}`,
+            reminderTime: `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`,
+            diffMinutes,
             isTimeMatch,
             localDate,
           })
