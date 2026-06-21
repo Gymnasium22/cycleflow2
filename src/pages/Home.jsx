@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check, Share2 } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
+import { useShareForecast } from '../hooks/useShareForecast'
+import { CycleShareCard } from '../components/CycleShareCard'
 import {
   getAverageCycleLength,
   getAveragePeriodLength,
@@ -61,6 +63,17 @@ export function Home() {
   const [selectedSymptoms, setSelectedSymptoms] = useState({})
   const [symptomNotes, setSymptomNotes] = useState('')
   const [editingSymptom, setEditingSymptom] = useState(null)
+  const shareCardRef = useRef(null)
+
+  const shareTitle = i18n.language === 'ru' ? 'Мой прогноз Cicle' : 'My Cicle forecast'
+  const shareText = i18n.language === 'ru'
+    ? `Мой цикл сегодня: ${phase ? t(`home.phase.${phaseInfo.key}`) : ''}`
+    : `My cycle today: ${phase ? t(`home.phase.${phaseInfo.key}`) : ''}`
+  const { share: shareForecast, isSharing: isSharingForecast } = useShareForecast({
+    title: shareTitle,
+    text: shareText,
+    filename: 'cicle-forecast.png',
+  })
 
   const fallbackCycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const fallbackPeriodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
@@ -71,6 +84,13 @@ export function Home() {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
 
   const { hapticFeedback } = useTelegram()
+
+  function handleShareForecast() {
+    hapticFeedback.impact('light')
+    if (shareCardRef.current) {
+      shareForecast(shareCardRef.current)
+    }
+  }
 
   const lastCycle = cycles[0]
   const lastPeriodStart = lastCycle?.start_date || null
@@ -249,6 +269,16 @@ export function Home() {
               </div>
             </div>
           </div>
+
+          {/* Share forecast */}
+          <button
+            onClick={handleShareForecast}
+            disabled={isSharingForecast}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors disabled:opacity-60"
+          >
+            {isSharingForecast ? <Spinner size={18} /> : <Share2 size={18} />}
+            {i18n.language === 'ru' ? 'Поделиться прогнозом' : 'Share forecast'}
+          </button>
 
           {/* Forecast cards */}
           <div className="grid grid-cols-2 gap-4">
@@ -431,6 +461,20 @@ export function Home() {
           </div>
         </div>
       )}
+
+      {/* Hidden share card */}
+      <div
+        ref={shareCardRef}
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+        }}
+      >
+        <CycleShareCard profile={profile} cycles={cycles} lang={i18n.language === 'ru' ? 'ru' : 'en'} />
+      </div>
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
