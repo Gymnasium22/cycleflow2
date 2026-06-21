@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2 } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -30,6 +30,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isTestingNotifications, setIsTestingNotifications] = useState(false)
 
   const { hapticFeedback } = useTelegram()
 
@@ -172,6 +173,24 @@ export function Settings() {
       }),
     ])
     showSavedMessage()
+  }
+
+  async function testNotifications() {
+    setIsTestingNotifications(true)
+    hapticFeedback.impact('light')
+    try {
+      const { data, error } = await supabase.functions.invoke('send-notifications', {
+        body: {},
+      })
+      if (error) throw error
+      alert((i18n.language === 'ru' ? 'Уведомления отправлены: ' : 'Notifications sent: ') + JSON.stringify(data))
+      hapticFeedback.notification('success')
+    } catch (err) {
+      console.error('Test notifications error:', err)
+      alert((i18n.language === 'ru' ? 'Ошибка отправки: ' : 'Send error: ') + (err?.message || JSON.stringify(err)))
+    } finally {
+      setIsTestingNotifications(false)
+    }
   }
 
   function exportData() {
@@ -379,6 +398,14 @@ export function Settings() {
           <Download size={20} className="text-blue-500" />
           <span className="font-semibold">{tLocal.data}</span>
         </div>
+        <button
+          onClick={testNotifications}
+          disabled={isTestingNotifications}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors disabled:opacity-60"
+        >
+          {isTestingNotifications ? <Spinner size={18} /> : <Send size={18} />}
+          {i18n.language === 'ru' ? 'Отправить тестовое уведомление' : 'Send test notification'}
+        </button>
         <button
           onClick={exportData}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
