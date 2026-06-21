@@ -102,21 +102,31 @@ function getLocalDateString(timezone: string): string {
 }
 
 function getLocalDayOfWeek(timezone: string): number {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    weekday: 'short',
-  })
-  const shortDay = formatter.format(new Date())
-  const map: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      weekday: 'short',
+    })
+    const parts = formatter.formatToParts(new Date())
+    const shortDay = parts.find((p) => p.type === 'weekday')?.value
+    const map: Record<string, number> = {
+      Sun: 0,
+      Mon: 1,
+      Tue: 2,
+      Wed: 3,
+      Thu: 4,
+      Fri: 5,
+      Sat: 6,
+    }
+    const day = map[shortDay ?? '']
+    if (day === undefined) {
+      console.error('[send-notifications] Unknown weekday:', shortDay, 'for timezone:', timezone)
+    }
+    return day ?? 0
+  } catch (err) {
+    console.error('[send-notifications] getLocalDayOfWeek error:', err.message)
+    return new Date().getDay()
   }
-  return map[shortDay] ?? 0
 }
 
 function getUserIdFromToken(authHeader: string): string | null {
@@ -172,9 +182,11 @@ serve(async (req) => {
   let requestBody: any = {}
   try {
     if (req.method !== 'GET') {
-      requestBody = await req.json()
+      const text = await req.text()
+      requestBody = text ? JSON.parse(text) : {}
     }
-  } catch {
+  } catch (err) {
+    console.warn('[send-notifications] Failed to parse request body:', err.message)
     requestBody = {}
   }
 
@@ -314,58 +326,102 @@ serve(async (req) => {
 
     if (remindersError) {
       console.error('[send-notifications] Medication reminders fetch error:', remindersError)
-    } else if (reminders && reminders.length > 0) {
-      for (const reminder of reminders) {
-        const profile = reminder.profiles as any
-        const medication = reminder.medications as any
-        if (!profile?.telegram_id || !medication) continue
-
-        const timezone = profile.timezone || 'UTC'
-        const localDay = getLocalDayOfWeek(timezone)
-        if (!reminder.days_of_week.includes(localDay)) continue
-
-        const localTime = getLocalTime(timezone)
-        const [reminderHour, reminderMinute] = reminder.time.split(':').map(Number)
-        const isTimeMatch = localTime.hour === reminderHour && localTime.minute >= reminderMinute && localTime.minute < reminderMinute + 15
-        if (!isTimeMatch) continue
-
-        const localDate = getLocalDateString(timezone)
-
-        // Check if already sent today for this reminder
-        const { data: existingLogs } = await supabaseAdmin
-          .from('medication_logs')
-          .select('id')
-          .eq('reminder_id', reminder.id)
-          .eq('scheduled_date', localDate)
-          .limit(1)
-
-        if (existingLogs && existingLogs.length > 0) continue
-
-        const lang = profile.language_code === 'en' ? 'en' : 'ru'
-        const dosage = medication.dosage ? ` (${medication.dosage})` : ''
-        const message = lang === 'en'
-          ? `💊 Reminder: ${medication.name}${dosage}. Don't forget to take it!`
-          : `💊 Напоминание: ${medication.name}${dosage}. Не забудь принять!`
-
-        notifications.push(
-          sendMessage(botToken, profile.telegram_id, message).then(async (result: any) => {
-            if (result.ok) {
-              const { error: logError } = await supabaseAdmin
-                .from('medication_logs')
-                .insert({
-                  reminder_id: reminder.id,
-                  medication_id: reminder.medication_id,
-                  user_id: reminder.user_id,
-                  scheduled_date: localDate,
-                  status: 'pending',
-                })
-              if (logError) {
-                console.error('[send-notifications] Failed to insert medication log:', logError)
-              }
-            }
-            return result
+    } else {
+      console.log('[send-notifications] Loaded medication reminders:', { count: reminders?.length || 0 })
+      if (reminders && reminders.length > 0) {
+        for (const reminder of reminders) {
+          const profile = reminder.profiles as any
+          const medication = reminder.medications as any
+          console.log('[send-notifications] Checking reminder:', {
+            reminderId: reminder.id,
+            medicationId: reminder.medication_id,
+            userId: reminder.user_id,
+            time: reminder.time,
+            days: reminder.days_of_week,
+            hasProfile: !!profile,
+            hasTelegramId: !!profile?.telegram_id,
+            hasMedication: !!medication,
           })
-        )
+
+          if (!profile?.telegram_id || !medication) {
+            console.warn('[send-notifications] Skipping reminder: missing profile or medication')
+            continue
+          }
+
+          const timezone = profile.timezone || 'UTC'
+          const localDay = getLocalDayOfWeek(timezone)
+          const localTime = getLocalTime(timezone)
+          const [reminderHour, reminderMinute] = reminder.time.split(':').map(Number)
+          const isTimeMatch = localTime.hour === reminderHour && localTime.minute >= reminderMinute && localTime.minute < reminderMinute + 15
+          const localDate = getLocalDateString(timezone)
+
+          console.log('[send-notifications] Reminder time check:', {
+            reminderId: reminder.id,
+            timezone,
+            localDay,
+            daysOfWeek: reminder.days_of_week,
+            dayMatches: reminder.days_of_week.includes(localDay),
+            localTime: `${localTime.hour}:${localTime.minute}`,
+            reminderTime: `${reminderHour}:${reminderMinute}`,
+            isTimeMatch,
+            localDate,
+          })
+
+          if (!reminder.days_of_week.includes(localDay)) continue
+          if (!isTimeMatch) continue
+
+          // Check if already sent today for this reminder
+          const { data: existingLogs, error: logsError } = await supabaseAdmin
+            .from('medication_logs')
+            .select('id')
+            .eq('reminder_id', reminder.id)
+            .eq('scheduled_date', localDate)
+            .limit(1)
+
+          if (logsError) {
+            console.error('[send-notifications] Medication logs check error:', logsError)
+          }
+
+          console.log('[send-notifications] Existing logs check:', {
+            reminderId: reminder.id,
+            localDate,
+            existingCount: existingLogs?.length || 0,
+          })
+
+          if (existingLogs && existingLogs.length > 0) continue
+
+          const lang = profile.language_code === 'en' ? 'en' : 'ru'
+          const dosage = medication.dosage ? ` (${medication.dosage})` : ''
+          const message = lang === 'en'
+            ? `💊 Reminder: ${medication.name}${dosage}. Don't forget to take it!`
+            : `💊 Напоминание: ${medication.name}${dosage}. Не забудь принять!`
+
+          console.log('[send-notifications] Sending medication reminder:', {
+            reminderId: reminder.id,
+            chatId: profile.telegram_id,
+            message,
+          })
+
+          notifications.push(
+            sendMessage(botToken, profile.telegram_id, message).then(async (result: any) => {
+              if (result.ok) {
+                const { error: logError } = await supabaseAdmin
+                  .from('medication_logs')
+                  .insert({
+                    reminder_id: reminder.id,
+                    medication_id: reminder.medication_id,
+                    user_id: reminder.user_id,
+                    scheduled_date: localDate,
+                    status: 'pending',
+                  })
+                if (logError) {
+                  console.error('[send-notifications] Failed to insert medication log:', logError)
+                }
+              }
+              return result
+            })
+          )
+        }
       }
     }
   } catch (err) {
