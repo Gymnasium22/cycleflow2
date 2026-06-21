@@ -10,6 +10,14 @@ ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC';
 ALTER TABLE settings
 ADD COLUMN IF NOT EXISTS ovulation_reminder_days INTEGER DEFAULT 1;
 
+-- Remove old notification job if exists
+DO $$
+BEGIN
+  PERFORM cron.unschedule('send-telegram-notifications');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Old job does not exist';
+END $$;
+
 -- Cron job: call send-notifications every 15 minutes
 -- Replace <CRON_SECRET> with your actual CRON_SECRET value
 -- Replace <SB_ANON_KEY> with your actual anon key

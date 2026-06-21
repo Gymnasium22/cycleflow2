@@ -23,8 +23,19 @@ ORDER BY start_time DESC
 LIMIT 10;
 
 -- 4. Unschedule existing notification jobs (if any)
-SELECT cron.unschedule('send-telegram-notifications');
-SELECT cron.unschedule('send-cycle-notifications');
+DO $$
+BEGIN
+  PERFORM cron.unschedule('send-telegram-notifications');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Job send-telegram-notifications does not exist or could not be unscheduled';
+END $$;
+
+DO $$
+BEGIN
+  PERFORM cron.unschedule('send-cycle-notifications');
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Job send-cycle-notifications does not exist or could not be unscheduled';
+END $$;
 
 -- 5. Schedule new notification job
 -- Replace <CRON_SECRET> with your actual CRON_SECRET value
