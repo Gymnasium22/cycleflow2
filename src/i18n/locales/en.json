@@ -44,7 +44,26 @@
     "notifications": "Notifications",
     "notifyPeriod": "Period reminders",
     "notifyOvulation": "Ovulation reminders",
-    "save": "Save"
+    "save": "Save",
+    "medications": {
+      "title": "Medications",
+      "add": "Add medication",
+      "edit": "Edit medication",
+      "name": "Name",
+      "dosage": "Dosage",
+      "color": "Color",
+      "reminders": "Reminders",
+      "time": "Time",
+      "days": "Days of week",
+      "addReminder": "Add time",
+      "history": "Intake history",
+      "noMedications": "No medications added",
+      "everyDay": "every day",
+      "taken": "Taken",
+      "skipped": "Skipped",
+      "pending": "Pending",
+      "emptyHistory": "No records for this month"
+    }
   },
   "symptoms": {
     "title": "Symptoms",

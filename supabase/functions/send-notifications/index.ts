@@ -87,6 +87,38 @@ function formatLocalTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+function getLocalDateString(timezone: string): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = formatter.formatToParts(new Date())
+  const year = parts.find((p) => p.type === 'year')?.value
+  const month = parts.find((p) => p.type === 'month')?.value
+  const day = parts.find((p) => p.type === 'day')?.value
+  return `${year}-${month}-${day}`
+}
+
+function getLocalDayOfWeek(timezone: string): number {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'short',
+  })
+  const shortDay = formatter.format(new Date())
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  }
+  return map[shortDay] ?? 0
+}
+
 function getUserIdFromToken(authHeader: string): string | null {
   try {
     const token = authHeader.replace('Bearer ', '').trim()
@@ -267,6 +299,77 @@ serve(async (req) => {
 
       notifications.push(sendMessage(botToken, profile.telegram_id, message))
     }
+  }
+
+  // --- Medication reminders ---
+  try {
+    const { data: reminders, error: remindersError } = await supabaseAdmin
+      .from('medication_reminders')
+      .select(`
+        *,
+        medications:medication_id (name, dosage, color),
+        profiles:user_id (telegram_id, language_code, timezone)
+      `)
+      .eq('enabled', true)
+
+    if (remindersError) {
+      console.error('[send-notifications] Medication reminders fetch error:', remindersError)
+    } else if (reminders && reminders.length > 0) {
+      for (const reminder of reminders) {
+        const profile = reminder.profiles as any
+        const medication = reminder.medications as any
+        if (!profile?.telegram_id || !medication) continue
+
+        const timezone = profile.timezone || 'UTC'
+        const localDay = getLocalDayOfWeek(timezone)
+        if (!reminder.days_of_week.includes(localDay)) continue
+
+        const localTime = getLocalTime(timezone)
+        const [reminderHour, reminderMinute] = reminder.time.split(':').map(Number)
+        const isTimeMatch = localTime.hour === reminderHour && localTime.minute >= reminderMinute && localTime.minute < reminderMinute + 15
+        if (!isTimeMatch) continue
+
+        const localDate = getLocalDateString(timezone)
+
+        // Check if already sent today for this reminder
+        const { data: existingLogs } = await supabaseAdmin
+          .from('medication_logs')
+          .select('id')
+          .eq('reminder_id', reminder.id)
+          .eq('scheduled_date', localDate)
+          .limit(1)
+
+        if (existingLogs && existingLogs.length > 0) continue
+
+        const lang = profile.language_code === 'en' ? 'en' : 'ru'
+        const dosage = medication.dosage ? ` (${medication.dosage})` : ''
+        const message = lang === 'en'
+          ? `💊 Reminder: ${medication.name}${dosage}. Don't forget to take it!`
+          : `💊 Напоминание: ${medication.name}${dosage}. Не забудь принять!`
+
+        notifications.push(
+          sendMessage(botToken, profile.telegram_id, message).then(async (result: any) => {
+            if (result.ok) {
+              const { error: logError } = await supabaseAdmin
+                .from('medication_logs')
+                .insert({
+                  reminder_id: reminder.id,
+                  medication_id: reminder.medication_id,
+                  user_id: reminder.user_id,
+                  scheduled_date: localDate,
+                  status: 'pending',
+                })
+              if (logError) {
+                console.error('[send-notifications] Failed to insert medication log:', logError)
+              }
+            }
+            return result
+          })
+        )
+      }
+    }
+  } catch (err) {
+    console.error('[send-notifications] Medication reminders error:', err.message)
   }
 
   const results = await Promise.all(notifications)
