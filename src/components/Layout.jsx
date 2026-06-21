@@ -9,17 +9,18 @@ export function Layout({ children, activeTab, onTabChange }) {
   )
 }
 
-import { Home, CalendarDays, BarChart3, Settings } from 'lucide-react'
+import { Home, CalendarDays, BarChart3, Settings, History } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useTelegram } from '../context/TelegramContext'
 
 function BottomNav({ activeTab, onTabChange }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { hapticFeedback } = useTelegram()
 
   const navItems = [
     { id: 'home', icon: Home, label: t('nav.home') },
     { id: 'calendar', icon: CalendarDays, label: t('nav.calendar') },
+    { id: 'history', icon: History, label: i18n.language === 'ru' ? 'История' : 'History' },
     { id: 'analytics', icon: BarChart3, label: t('nav.analytics') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ]

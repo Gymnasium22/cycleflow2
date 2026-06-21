@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Heart, Check } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -14,7 +14,6 @@ import {
   getOvulationDateFromHistory,
   getPhaseForDate,
   getCycleDayForDate,
-  getActualPeriodLength,
   formatDate,
   getDaysUntil,
   DEFAULT_CYCLE_LENGTH,
@@ -63,17 +62,11 @@ export function Home() {
   const [symptomNotes, setSymptomNotes] = useState('')
   const [editingSymptom, setEditingSymptom] = useState(null)
 
-  const [showEditCycle, setShowEditCycle] = useState(false)
-  const [editingCycle, setEditingCycle] = useState(null)
-  const [editDate, setEditDate] = useState('')
-
   const fallbackCycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const fallbackPeriodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
 
   const avgCycleLength = getAverageCycleLength(cycles, fallbackCycleLength)
   const avgPeriodLength = getAveragePeriodLength(cycles, fallbackPeriodLength)
-
-  const [editPeriodLength, setEditPeriodLength] = useState(fallbackPeriodLength)
 
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
 
@@ -189,41 +182,6 @@ export function Home() {
     setSelectedSymptoms({})
     setSymptomNotes('')
     hapticFeedback.notification('success')
-  }
-
-  function openEditCycle(cycle) {
-    hapticFeedback.impact('light')
-    setEditingCycle(cycle)
-    setEditDate(cycle.start_date)
-    setEditPeriodLength(cycle.period_length || fallbackPeriodLength)
-    setShowEditCycle(true)
-  }
-
-  async function handleUpdateCycle() {
-    if (!editingCycle || !editDate) return
-    await updateCycle(editingCycle.id, {
-      start_date: editDate,
-      period_length: editPeriodLength,
-    })
-    setShowEditCycle(false)
-    setEditingCycle(null)
-    setEditDate('')
-    setEditPeriodLength(fallbackPeriodLength)
-  }
-
-  async function handleDeleteCycle(id) {
-    openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Удалить запись' : 'Delete record',
-      message: i18n.language === 'ru' ? 'Удалить эту запись о цикле?' : 'Delete this cycle record?',
-      confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
-      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
-      destructive: true,
-      onConfirm: async () => {
-        closeConfirmDialog()
-        await deleteCycle(id)
-        hapticFeedback.notification('success')
-      },
-    })
   }
 
   async function handleDeleteSymptom(id) {
@@ -404,107 +362,6 @@ export function Home() {
                 </span>
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Recent cycles history */}
-      {cycles.length > 0 && (
-        <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
-          <p className="text-sm font-semibold mb-3 text-[var(--tg-theme-text-color,#111827)]">
-            {i18n.language === 'ru' ? 'История менструаций' : 'Period History'}
-          </p>
-          <div className="space-y-2">
-            {cycles.slice(0, 5).map((cycle) => (
-              <div key={cycle.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20">
-                <div className="text-sm">
-                  <p className="font-medium text-[var(--tg-theme-text-color,#111827)]">
-                    {formatDate(new Date(cycle.start_date), locale)}
-                  </p>
-                  <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-                    {cycle.end_date
-                      ? `${formatDate(new Date(cycle.end_date), locale)} · ${getActualPeriodLength(cycle)} ${i18n.language === 'ru' ? 'дн.' : 'days'}`
-                      : `${getActualPeriodLength(cycle)} ${i18n.language === 'ru' ? 'дн.' : 'days'}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => openEditCycle(cycle)}
-                    className="text-xs px-2 py-1 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20"
-                  >
-                    {i18n.language === 'ru' ? 'Изменить' : 'Edit'}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCycle(cycle.id)}
-                    className="text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20"
-                  >
-                    {i18n.language === 'ru' ? 'Удалить' : 'Delete'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Edit cycle modal */}
-      {showEditCycle && editingCycle && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">{i18n.language === 'ru' ? 'Изменить запись' : 'Edit record'}</h3>
-              <button onClick={() => setShowEditCycle(false)} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                {i18n.language === 'ru' ? 'Дата начала' : 'Start date'}
-              </label>
-              <input
-                type="date"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                {i18n.language === 'ru' ? 'Длительность' : 'Duration'}
-              </label>
-              <input
-                type="range"
-                min="2"
-                max="8"
-                value={editPeriodLength}
-                onChange={(e) => setEditPeriodLength(Number(e.target.value))}
-                className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
-              />
-              <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-                <span>2</span>
-                <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{editPeriodLength} {i18n.language === 'ru' ? 'дн.' : 'days'}</span>
-                <span>8</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowEditCycle(false)}
-                className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75"
-              >
-                {i18n.language === 'ru' ? 'Отмена' : 'Cancel'}
-              </button>
-              <button
-                onClick={handleUpdateCycle}
-                disabled={cyclesLoading}
-                className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {cyclesLoading && <Spinner size={18} />}
-                {i18n.language === 'ru' ? 'Сохранить' : 'Save'}
-              </button>
-            </div>
           </div>
         </div>
       )}

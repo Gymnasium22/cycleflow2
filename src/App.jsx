@@ -8,12 +8,14 @@ import { Home } from './pages/Home'
 import { Calendar } from './pages/Calendar'
 import { Analytics } from './pages/Analytics'
 import { Settings } from './pages/Settings'
+import { History } from './pages/History'
 import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
 
 const TABS = {
   home: <Home />,
   calendar: <Calendar />,
+  history: <History />,
   analytics: <Analytics />,
   settings: <Settings />,
 }
@@ -46,7 +48,7 @@ function App() {
       <TelegramProvider>
         <AuthProvider>
           <AppContent />
-          <DebugPanel />
+          {!import.meta.env.PROD && <DebugPanel />}
         </AuthProvider>
       </TelegramProvider>
     </ErrorBoundary>

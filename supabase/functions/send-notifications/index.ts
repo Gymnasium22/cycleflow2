@@ -62,10 +62,18 @@ function formatLocalTime(hour: number, minute: number): string {
 serve(async (req) => {
   const cronSecret = Deno.env.get('CRON_SECRET')
   const requestSecret = req.headers.get('x-cron-secret')
+  const url = new URL(req.url)
+  const querySecret = url.searchParams.get('secret')
+  const effectiveSecret = requestSecret || querySecret
 
-  console.log('[send-notifications] Received request', { hasCronSecret: !!cronSecret, hasRequestSecret: !!requestSecret })
+  console.log('[send-notifications] Received request', {
+    method: req.method,
+    hasCronSecret: !!cronSecret,
+    hasRequestSecret: !!requestSecret,
+    hasQuerySecret: !!querySecret,
+  })
 
-  if (cronSecret && requestSecret !== cronSecret) {
+  if (cronSecret && effectiveSecret !== cronSecret) {
     console.warn('[send-notifications] Unauthorized request')
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
   }
