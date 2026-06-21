@@ -87,6 +87,20 @@ function formatLocalTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+function getUserIdFromToken(authHeader: string): string | null {
+  try {
+    const token = authHeader.replace('Bearer ', '').trim()
+    if (!token) return null
+    const payloadBase64 = token.split('.')[1]
+    if (!payloadBase64) return null
+    const payload = JSON.parse(atob(payloadBase64))
+    return payload?.sub || null
+  } catch (err) {
+    console.error('[send-notifications] Failed to decode token:', err.message)
+    return null
+  }
+}
+
 serve(async (req) => {
   const origin = req.headers.get('origin')
 
@@ -121,6 +135,19 @@ serve(async (req) => {
     console.warn('[send-notifications] Unauthorized request')
     return jsonResponse({ error: 'Unauthorized' }, 401, origin)
   }
+
+  // Parse request body to detect test mode
+  let requestBody: any = {}
+  try {
+    if (req.method !== 'GET') {
+      requestBody = await req.json()
+    }
+  } catch {
+    requestBody = {}
+  }
+
+  const isTestMode = requestBody?.test === true
+  const testUserId = isTestMode && isUserAuthorized ? getUserIdFromToken(authHeader) : null
 
   const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN') || Deno.env.get('BOT_TOKEN')
   if (!botToken) {
@@ -157,6 +184,23 @@ serve(async (req) => {
   console.log('[send-notifications] Fetched settings:', { count: settings?.length || 0 })
 
   const notifications = []
+
+  // Test mode: send a test message to the current user regardless of time/settings
+  if (isTestMode && testUserId) {
+    const testSetting = settings?.find((s: any) => s.user_id === testUserId)
+    const testProfile = testSetting?.profiles as any
+    if (testProfile?.telegram_id) {
+      const lang = testProfile.language_code === 'en' ? 'en' : 'ru'
+      const message = lang === 'en'
+        ? '🔔 Test notification from CycleFlow. Everything is working!'
+        : '🔔 Тестовое уведомление от CycleFlow. Всё работает!'
+      notifications.push(sendMessage(botToken, testProfile.telegram_id, message))
+      console.log('[send-notifications] Test notification queued for user:', testUserId)
+    } else {
+      console.warn('[send-notifications] Test mode: no telegram_id for user:', testUserId)
+      return jsonResponse({ error: 'No telegram_id linked to this account' }, 400, origin)
+    }
+  }
 
   for (const setting of settings || []) {
     const profile = setting.profiles as any

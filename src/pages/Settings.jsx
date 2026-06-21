@@ -179,12 +179,44 @@ export function Settings() {
     setIsTestingNotifications(true)
     hapticFeedback.impact('light')
     try {
-      const { data, error } = await supabase.functions.invoke('send-notifications', {
-        body: {},
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token
+      if (!accessToken) {
+        throw new Error(i18n.language === 'ru'
+          ? 'Нет активной сессии. Перезайдите через Telegram.'
+          : 'No active session. Please log in via Telegram again.')
+      }
+
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notifications`
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ test: true }),
       })
-      if (error) throw error
-      alert((i18n.language === 'ru' ? 'Уведомления отправлены: ' : 'Notifications sent: ') + JSON.stringify(data))
+
+      const responseText = await response.text()
+      let responseData
+      try {
+        responseData = JSON.parse(responseText)
+      } catch {
+        responseData = { raw: responseText }
+      }
+
+      if (!response.ok) {
+        const isJwtError = responseText.includes('UNAUTHORIZED_LEGACY_JWT') || responseText.includes('Invalid JWT')
+        const message = isJwtError
+          ? (i18n.language === 'ru'
+              ? 'Ключ Supabase устарел. Обновите VITE_SUPABASE_ANON_KEY и SB_ANON_KEY, затем перезапустите cron job.'
+              : 'Supabase key expired. Update VITE_SUPABASE_ANON_KEY and SB_ANON_KEY, then restart the cron job.')
+          : (responseData?.error || responseData?.message || `HTTP ${response.status}`)
+        throw new Error(message)
+      }
+
       hapticFeedback.notification('success')
+      alert((i18n.language === 'ru' ? 'Уведомления отправлены: ' : 'Notifications sent: ') + JSON.stringify(responseData))
     } catch (err) {
       console.error('Test notifications error:', err)
       alert((i18n.language === 'ru' ? 'Ошибка отправки: ' : 'Send error: ') + (err?.message || JSON.stringify(err)))

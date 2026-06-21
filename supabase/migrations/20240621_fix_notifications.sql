@@ -1,5 +1,8 @@
 -- Diagnostics and fix for notification cron job
 -- Run this in Supabase SQL Editor
+-- IMPORTANT: Replace the placeholders below with your actual keys before running:
+--   <SB_ANON_KEY>  -> your Supabase Project API "anon public" key
+--   <CRON_SECRET>  -> your CRON_SECRET secret value (must match the Edge Function secret)
 
 -- 1. Check if required extensions are enabled
 SELECT * FROM pg_extension WHERE extname IN ('pg_cron', 'pg_net');
@@ -38,8 +41,7 @@ EXCEPTION WHEN OTHERS THEN
 END $$;
 
 -- 5. Schedule new notification job
--- Replace <CRON_SECRET> with your actual CRON_SECRET value
--- Replace <SB_ANON_KEY> with your actual anon key
+-- IMPORTANT: Replace <SB_ANON_KEY> and <CRON_SECRET> with actual values before running!
 SELECT cron.schedule(
   'send-telegram-notifications',
   '*/15 * * * *',
@@ -54,7 +56,7 @@ SELECT cron.schedule(
 SELECT * FROM cron.job;
 
 -- 7. Manual test: call the function once (optional)
--- Replace <CRON_SECRET> and <SB_ANON_KEY> with actual values
+-- IMPORTANT: Replace <SB_ANON_KEY> and <CRON_SECRET> with actual values before running!
 -- SELECT net.http_post(
 --   url := 'https://eofhvkiidqyxkrpimwer.supabase.co/functions/v1/send-notifications',
 --   headers := '{"Content-Type": "application/json", "Authorization": "Bearer <SB_ANON_KEY>", "X-Cron-Secret": "<CRON_SECRET>"}'::jsonb,
