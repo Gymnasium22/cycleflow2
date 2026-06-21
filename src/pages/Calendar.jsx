@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Droplets, Check, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Droplets, Check, Plus, CalendarDays } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useAuth } from '../context/AuthContext'
 import { useTelegram } from '../context/TelegramContext'
 import { useCycles, isPeriodActive } from '../hooks/useCycles'
+import { EmptyState } from '../components/EmptyState'
 import {
   generateCalendarDays,
   getAverageCycleLength,
@@ -218,6 +219,16 @@ export function Calendar() {
           </button>
         </div>
       </div>
+
+      {cycles.length === 0 && (
+        <EmptyState
+          icon={CalendarDays}
+          title={i18n.language === 'ru' ? 'Календарь пока пуст' : 'Calendar is empty'}
+          description={i18n.language === 'ru'
+            ? 'Отметьте первые месячные, чтобы увидеть фазы цикла и прогнозы.'
+            : 'Mark your first period to see cycle phases and forecasts.'}
+        />
+      )}
 
       <div className="rounded-3xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
         <div className="grid grid-cols-7 mb-2">

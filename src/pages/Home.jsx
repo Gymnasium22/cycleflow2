@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
+import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -281,19 +282,13 @@ export function Home() {
           </div>
         </>
       ) : (
-        <div className="rounded-3xl p-8 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-rose-400 to-violet-500 flex items-center justify-center text-white shadow-lg">
-            <Heart size={32} />
-          </div>
-          <h2 className="text-xl font-bold">
-            {i18n.language === 'ru' ? 'Пока нет данных' : 'No data yet'}
-          </h2>
-          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">
-            {i18n.language === 'ru'
-              ? 'Нажмите кнопку ниже, когда начнутся месячные, или введите данные вручную.'
-              : 'Tap the button below when your period starts, or enter data manually.'}
-          </p>
-        </div>
+        <EmptyState
+          icon={Heart}
+          title={i18n.language === 'ru' ? 'Пока нет данных' : 'No data yet'}
+          description={i18n.language === 'ru'
+            ? 'Нажмите кнопку ниже, когда начнутся месячные, или введите данные вручную.'
+            : 'Tap the button below when your period starts, or enter data manually.'}
+        />
       )}
 
       {/* Quick actions */}

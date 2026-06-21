@@ -45,6 +45,11 @@
     "notifyPeriod": "Period reminders",
     "notifyOvulation": "Ovulation reminders",
     "save": "Save",
+    "notifyTimeHint": "Notifications are sent within 15 minutes of the selected time",
+    "periodDaysHint": "For example, if set to 2, the message will arrive 2 days before the expected date",
+    "ovulationDaysHint": "For example, if set to 1, the message will arrive 1 day before ovulation",
+    "timezoneHint": "Used to calculate local notification time",
+    "medicationsHint": "Reminders arrive on selected days of the week at the specified time",
     "medications": {
       "title": "Medications",
       "add": "Add medication",

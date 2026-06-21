@@ -394,10 +394,9 @@ export function Settings() {
         </div>
         <div className="space-y-2">
           <p className="text-sm text-[var(--tg-theme-text-color,#111827)] font-medium">{timezone}</p>
-          <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-            {i18n.language === 'ru'
-              ? 'Используется для расчёта времени уведомлений. Если неверно — нажми кнопку ниже.'
-              : 'Used to calculate notification time. If incorrect, click the button below.'}
+          <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+            <Info size={12} className="shrink-0 mt-0.5" />
+            {t('settings.timezoneHint')}
           </p>
           <button
             onClick={handleDetectTimezone}
@@ -484,6 +483,10 @@ export function Settings() {
               <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{periodReminderDays} {t('analytics.days')}</span>
               <span>7</span>
             </div>
+            <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+              <Info size={12} className="shrink-0 mt-0.5" />
+              {t('settings.periodDaysHint')}
+            </p>
           </div>
         )}
 
@@ -513,6 +516,10 @@ export function Settings() {
               <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{ovulationReminderDays} {t('analytics.days')}</span>
               <span>5</span>
             </div>
+            <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+              <Info size={12} className="shrink-0 mt-0.5" />
+              {t('settings.ovulationDaysHint')}
+            </p>
           </div>
         )}
 
@@ -527,6 +534,10 @@ export function Settings() {
             onChange={(e) => setNotifyTime(e.target.value)}
             className="w-full px-4 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-bg-color,#ffffff)] text-center"
           />
+          <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+            <Info size={12} className="shrink-0 mt-0.5" />
+            {t('settings.notifyTimeHint')}
+          </p>
         </div>
       </div>
 
@@ -572,6 +583,10 @@ export function Settings() {
             {i18n.language === 'ru' ? 'Таблетки' : 'Medications'}
           </span>
         </div>
+        <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+          <Info size={12} className="shrink-0 mt-0.5" />
+          {t('settings.medicationsHint')}
+        </p>
         <MedicationList
           medications={medications}
           isLoading={medicationsLoading}

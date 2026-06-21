@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, Trash2, X, Calendar, Clock, FileText, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Calendar, Clock, FileText, ChevronRight, ClipboardList, FileX } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
 import { useCycles } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
+import { EmptyState } from '../components/EmptyState'
 import {
   formatDate,
   getActualPeriodLength,
@@ -153,9 +154,13 @@ export function History() {
         </div>
 
         {sortedCycles.length === 0 ? (
-          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] text-center py-4">
-            {i18n.language === 'ru' ? 'Пока нет записей' : 'No records yet'}
-          </p>
+          <EmptyState
+            icon={ClipboardList}
+            title={i18n.language === 'ru' ? 'Пока нет записей' : 'No records yet'}
+            description={i18n.language === 'ru'
+              ? 'Здесь будет история ваших циклов. Нажмите +, чтобы добавить первый.'
+              : 'Your cycle history will appear here. Tap + to add the first one.'}
+          />
         ) : (
           <div className="space-y-2">
             {sortedCycles.map((cycle) => (
@@ -233,9 +238,13 @@ export function History() {
         </div>
 
         {selectedSymptoms.length === 0 ? (
-          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] text-center py-4">
-            {i18n.language === 'ru' ? 'Нет записей за эту дату' : 'No records for this date'}
-          </p>
+          <EmptyState
+            icon={FileX}
+            title={i18n.language === 'ru' ? 'Нет записей' : 'No records'}
+            description={i18n.language === 'ru'
+              ? 'За выбранную дату нет симптомов. Добавьте их на главной странице.'
+              : 'No symptoms logged for this date. Add them from the home page.'}
+          />
         ) : (
           <div className="space-y-2">
             {selectedSymptoms.map((symptom) => (
