@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, Pill, MapPin } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, Pill, MapPin, Palette } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -34,6 +34,15 @@ export function Settings() {
   } = useMedications()
 
   const [language, setLanguage] = useState(i18n.language || 'ru')
+  const [theme, setTheme] = useState(() => localStorage.getItem('cicle_theme') || 'sakura')
+
+  const handleThemeChange = (newTheme) => {
+    hapticFeedback.impact('light')
+    setTheme(newTheme)
+    localStorage.setItem('cicle_theme', newTheme)
+    document.body.className = `theme-${newTheme}`
+    showSavedMessage()
+  }
   const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
   const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
   const [timezone, setTimezone] = useState(profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
@@ -379,6 +388,37 @@ export function Settings() {
               }`}
             >
               {lang === 'ru' ? 'Русский' : 'English'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Theme Selection */}
+      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
+          <Palette size={20} className="text-pink-500" />
+          <span className="font-semibold">
+            {i18n.language === 'ru' ? 'Тема оформления' : 'App Theme'}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: 'sakura', labelRu: '🌸 Сакура', labelEn: '🌸 Sakura', bg: 'from-rose-400 to-rose-600' },
+            { id: 'lavender', labelRu: '🔮 Лаванда', labelEn: '🔮 Lavender', bg: 'from-violet-400 to-violet-600' },
+            { id: 'teal', labelRu: '🌿 Мята', labelEn: '🌿 Mint Teal', bg: 'from-teal-400 to-teal-600' },
+            { id: 'midnight', labelRu: '🌌 Полночь', labelEn: '🌌 Midnight', bg: 'bg-[#0f172a]' }
+          ].map((tItem) => (
+            <button
+              key={tItem.id}
+              onClick={() => handleThemeChange(tItem.id)}
+              className={`py-3 px-4 rounded-xl text-xs font-bold transition-all relative overflow-hidden flex items-center justify-between border ${
+                theme === tItem.id
+                  ? 'border-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10 text-[var(--tg-theme-text-color,#111827)] shadow-sm'
+                  : 'border-[var(--tg-theme-hint-color,#d1d5db)]/20 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/10'
+              }`}
+            >
+              <span>{i18n.language === 'ru' ? tItem.labelRu : tItem.labelEn}</span>
+              <span className={`w-4 h-4 rounded-full bg-gradient-to-br ${tItem.bg} border border-white/20`} />
             </button>
           ))}
         </div>

@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SymptomPicker } from '../components/SymptomPicker'
+import { MedicationWidget } from '../components/MedicationWidget'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
@@ -63,6 +64,7 @@ export function Home() {
   const { symptoms, selections, saveCategorySelection, deleteCategory, isLoading: symptomsLoading } = useSymptoms(todayStr)
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
+  const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
 
   const { hapticFeedback } = useTelegram()
@@ -138,13 +140,14 @@ export function Home() {
     })
   }
 
-  function openSymptomPicker() {
+  function openSymptomPicker(category = null) {
     hapticFeedback.impact('light')
+    setSymptomPickerCategory(category)
     setShowSymptomPicker(true)
   }
 
-  async function handleSaveCategory(categoryId, selectedIds, intensity) {
-    await saveCategorySelection(categoryId, selectedIds, intensity)
+  async function handleSaveCategory(categoryId, selectedIds, intensity, comment) {
+    await saveCategorySelection(categoryId, selectedIds, intensity, comment)
     hapticFeedback.notification('success')
   }
 
@@ -210,10 +213,10 @@ export function Home() {
                     strokeWidth="8"
                     strokeLinecap="round"
                     strokeDasharray={`${((activePeriod ? activePeriodDay : cycleDay) / (activePeriod ? avgPeriodLength : avgCycleLength)) * 264} 264`}
-                    className="transition-all duration-1000 ease-out"
+                    className="drop-shadow-[0_0_8px_rgba(255,255,255,0.75)] transition-all duration-1000 ease-out"
                   />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-white/90">
+                <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white">
                   {activePeriod ? avgPeriodLength : avgCycleLength} {t('analytics.days')}
                 </div>
               </div>
@@ -222,7 +225,7 @@ export function Home() {
 
           {/* Forecast cards */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-2xl p-4 bg-rose-500/10 border border-rose-500/10">
+            <div className="rounded-3xl p-4 bg-rose-500/10 border border-rose-500/15 backdrop-blur-sm shadow-sm transition-all hover:scale-[1.02] active:scale-[0.99]">
               <div className="flex items-center gap-2 text-rose-600 mb-2">
                 <Droplets size={18} />
                 <span className="text-xs font-semibold uppercase tracking-wide">{t('home.nextPeriod')}</span>
@@ -233,7 +236,7 @@ export function Home() {
               </p>
             </div>
 
-            <div className="rounded-2xl p-4 bg-violet-500/10 border border-violet-500/10">
+            <div className="rounded-3xl p-4 bg-violet-500/10 border border-violet-500/15 backdrop-blur-sm shadow-sm transition-all hover:scale-[1.02] active:scale-[0.99]">
               <div className="flex items-center gap-2 text-violet-600 mb-2">
                 <Sparkles size={18} />
                 <span className="text-xs font-semibold uppercase tracking-wide">{t('home.ovulation')}</span>
@@ -255,15 +258,17 @@ export function Home() {
         />
       )}
 
+      <MedicationWidget />
+
       {/* Quick actions */}
       <div className="space-y-3">
         <h2 className="text-lg font-bold">{t('home.logSymptoms')}</h2>
         <button
           onClick={openSymptomPicker}
-          className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors text-left"
+          className="w-full flex items-center justify-between p-4 rounded-3xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]/80 hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 border border-[var(--tg-theme-hint-color,#d1d5db)]/10 shadow-sm transition-all duration-200 active:scale-[0.99] text-left"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center text-white">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center text-white shadow-md">
               <Calendar size={20} />
             </div>
             <div>
@@ -278,7 +283,7 @@ export function Home() {
           <button
             onClick={handleEndPeriod}
             disabled={cyclesLoading}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-teal-500 text-white font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-teal-500/15 disabled:opacity-60"
           >
             {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
             {i18n.language === 'ru' ? 'Месячные закончились' : 'Period ended'}
@@ -287,7 +292,7 @@ export function Home() {
           <button
             onClick={handleCancelPeriod}
             disabled={cyclesLoading}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 transition-colors border border-[var(--tg-theme-hint-color,#d1d5db)]/30 disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 border border-[var(--tg-theme-hint-color,#d1d5db)]/30 active:scale-[0.99] transition-all disabled:opacity-60"
           >
             {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
             {i18n.language === 'ru' ? 'Отменить начало месячных' : 'Cancel period start'}
@@ -296,7 +301,7 @@ export function Home() {
           <button
             onClick={handleStartPeriod}
             disabled={cyclesLoading}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-red-500/15 disabled:opacity-60"
           >
             {cyclesLoading ? <Spinner size={20} /> : <Droplets size={18} />}
             {i18n.language === 'ru' ? 'Месячные начались' : 'Period started'}
@@ -310,26 +315,38 @@ export function Home() {
           <p className="text-sm font-semibold mb-2 text-[var(--tg-theme-text-color,#111827)]">{t('symptoms.title')}</p>
           <div className="flex flex-wrap gap-2">
             {symptoms.map((s) => {
-              const selectedIds = (() => {
+              const parsedNotes = (() => {
                 try {
-                  const parsed = JSON.parse(s.notes || '[]')
-                  return Array.isArray(parsed) ? parsed : []
+                  const parsed = JSON.parse(s.notes || '{}')
+                  if (Array.isArray(parsed)) {
+                    return { selectedIds: parsed, comment: '' }
+                  }
+                  return {
+                    selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+                    comment: parsed.comment || '',
+                  }
                 } catch {
-                  return []
+                  return { selectedIds: [], comment: '' }
                 }
               })()
+              const selectedIds = parsedNotes.selectedIds
+              const comment = parsedNotes.comment
+
               const labels = selectedIds.map((id) => `${getOptionEmoji(s.symptom_type, id)} ${getOptionLabel(s.symptom_type, id, i18n.language)}`)
               if (s.intensity) {
                 labels.push(`${s.intensity}/3`)
               }
+              if (comment) {
+                labels.push(`💬 ${comment}`)
+              }
               return (
                 <button
                   key={s.id}
-                  onClick={() => openSymptomPicker()}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group hover:opacity-80 transition-opacity"
+                  onClick={() => openSymptomPicker(s.symptom_type)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group hover:opacity-80 transition-opacity text-left"
                 >
                   <span className="font-semibold">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
-                  <span>{labels.join(' · ') || '—'}</span>
+                  <span className="truncate max-w-[200px]">{labels.join(' · ') || '—'}</span>
                   <span
                     onClick={(e) => { e.stopPropagation(); handleDeleteSymptomCategory(s.symptom_type) }}
                     className="text-red-500 hover:text-red-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1"
@@ -346,7 +363,11 @@ export function Home() {
 
       <SymptomPicker
         isOpen={showSymptomPicker}
-        onClose={() => setShowSymptomPicker(false)}
+        onClose={() => {
+          setShowSymptomPicker(false)
+          setSymptomPickerCategory(null)
+        }}
+        defaultOpenCategory={symptomPickerCategory}
         initialSelections={selections}
         onSaveCategory={handleSaveCategory}
         onDeleteCategory={handleDeleteCategory}

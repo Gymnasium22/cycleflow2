@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { TelegramProvider } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -42,6 +42,11 @@ function AppContent() {
 
 function App() {
   initDebugLogging()
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('cicle_theme') || 'sakura'
+    document.body.className = `theme-${savedTheme}`
+  }, [])
 
   return (
     <ErrorBoundary>

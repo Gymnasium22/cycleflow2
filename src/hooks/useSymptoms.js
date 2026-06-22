@@ -19,10 +19,16 @@ function setStoredSymptoms(symptoms) {
 
 function parseNotes(notes) {
   try {
-    const parsed = JSON.parse(notes || '[]')
-    return Array.isArray(parsed) ? parsed : []
+    const parsed = JSON.parse(notes || '{}')
+    if (Array.isArray(parsed)) {
+      return { selectedIds: parsed, comment: '' }
+    }
+    return {
+      selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+      comment: parsed.comment || '',
+    }
   } catch {
-    return []
+    return { selectedIds: [], comment: '' }
   }
 }
 
@@ -66,8 +72,10 @@ export function useSymptoms(date) {
   const selections = useMemo(() => {
     const map = {}
     for (const s of symptoms) {
+      const parsed = parseNotes(s.notes)
       map[s.symptom_type] = {
-        selectedIds: parseNotes(s.notes),
+        selectedIds: parsed.selectedIds,
+        comment: parsed.comment,
         intensity: s.intensity || null,
       }
     }
@@ -78,17 +86,21 @@ export function useSymptoms(date) {
     return (
       selections[categoryId] || {
         selectedIds: [],
+        comment: '',
         intensity: null,
       }
     )
   }
 
-  async function saveCategorySelection(categoryId, selectedIds, intensity = null) {
+  async function saveCategorySelection(categoryId, selectedIds, intensity = null, comment = '') {
     if (!date) return null
     setIsLoading(true)
     setError(null)
 
-    const notes = JSON.stringify(selectedIds || [])
+    const notes = JSON.stringify({
+      selectedIds: selectedIds || [],
+      comment: comment || '',
+    })
     const payload = {
       date,
       symptom_type: categoryId,
@@ -204,7 +216,7 @@ export function useSymptoms(date) {
   }
 
   async function saveSymptom(symptom) {
-    return saveCategorySelection(symptom.symptom_type, symptom.selectedIds || [symptom.optionId].filter(Boolean), symptom.intensity)
+    return saveCategorySelection(symptom.symptom_type, symptom.selectedIds || [symptom.optionId].filter(Boolean), symptom.intensity, symptom.comment || '')
   }
 
   async function deleteSymptom(id) {

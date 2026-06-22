@@ -251,14 +251,23 @@ export function History() {
         ) : (
           <div className="space-y-2">
             {selectedSymptoms.map((symptom) => {
-              const selectedIds = (() => {
+              const parsedNotes = (() => {
                 try {
-                  const parsed = JSON.parse(symptom.notes || '[]')
-                  return Array.isArray(parsed) ? parsed : []
+                  const parsed = JSON.parse(symptom.notes || '{}')
+                  if (Array.isArray(parsed)) {
+                    return { selectedIds: parsed, comment: '' }
+                  }
+                  return {
+                    selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+                    comment: parsed.comment || '',
+                  }
                 } catch {
-                  return []
+                  return { selectedIds: [], comment: '' }
                 }
               })()
+              const selectedIds = parsedNotes.selectedIds
+              const comment = parsedNotes.comment
+
               const optionsText = selectedIds
                 .map((id) => `${getOptionEmoji(symptom.symptom_type, id)} ${getOptionLabel(symptom.symptom_type, id, i18n.language)}`)
                 .join(' · ')
@@ -267,7 +276,7 @@ export function History() {
                   key={symptom.id}
                   className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20"
                 >
-                  <div>
+                  <div className="flex-1 min-w-0 pr-2">
                     <p className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
                       {getCategoryLabel(symptom.symptom_type, i18n.language)}
                       {symptom.intensity ? ` · ${symptom.intensity}/3` : ''}
@@ -275,10 +284,15 @@ export function History() {
                     {optionsText && (
                       <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-1">{optionsText}</p>
                     )}
+                    {comment && (
+                      <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] font-medium italic mt-1 truncate">
+                        💬 {comment}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => handleDeleteSymptom(symptom)}
-                    className="p-2 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                    className="p-2 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 shrink-0"
                   >
                     <Trash2 size={14} />
                   </button>

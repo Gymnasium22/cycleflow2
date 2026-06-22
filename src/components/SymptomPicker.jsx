@@ -29,6 +29,7 @@ export function SymptomPicker({
   onSaveCategory,
   onDeleteCategory,
   loading,
+  defaultOpenCategory = null,
 }) {
   const { i18n } = useTranslation()
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
@@ -40,15 +41,15 @@ export function SymptomPicker({
   useEffect(() => {
     if (isOpen) {
       setDraft(JSON.parse(JSON.stringify(initialSelections)))
-      setOpenCategory(null)
+      setOpenCategory(defaultOpenCategory)
       setSavingCategory(null)
     }
-  }, [isOpen, initialSelections])
+  }, [isOpen, initialSelections, defaultOpenCategory])
 
   const toggleOption = useCallback((categoryId, optionId) => {
     setDraft((prev) => {
       const cat = SYMPTOM_CATEGORIES[categoryId]
-      const current = prev[categoryId] || { selectedIds: [], intensity: null }
+      const current = prev[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const selected = new Set(current.selectedIds)
 
       if (cat.mode === 'single') {
@@ -86,13 +87,23 @@ export function SymptomPicker({
     }))
   }, [])
 
+  const setComment = useCallback((categoryId, comment) => {
+    setDraft((prev) => ({
+      ...prev,
+      [categoryId]: {
+        ...(prev[categoryId] || { selectedIds: [] }),
+        comment,
+      },
+    }))
+  }, [])
+
   async function handleSaveCategory(categoryId) {
     const selection = draft[categoryId]
     const hasSelection = selection && selection.selectedIds.length > 0
 
     setSavingCategory(categoryId)
     if (hasSelection) {
-      await onSaveCategory(categoryId, selection.selectedIds, selection.intensity)
+      await onSaveCategory(categoryId, selection.selectedIds, selection.intensity, selection.comment || '')
     } else {
       await onDeleteCategory(categoryId)
     }
@@ -106,11 +117,15 @@ export function SymptomPicker({
   const changedCategories = useMemo(() => {
     const changed = new Set()
     for (const categoryId of SYMPTOM_CATEGORY_ORDER) {
-      const initial = initialSelections[categoryId] || { selectedIds: [], intensity: null }
-      const current = draft[categoryId] || { selectedIds: [], intensity: null }
+      const initial = initialSelections[categoryId] || { selectedIds: [], intensity: null, comment: '' }
+      const current = draft[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const initialIds = initial.selectedIds.slice().sort().join(',')
       const currentIds = current.selectedIds.slice().sort().join(',')
-      if (initialIds !== currentIds || initial.intensity !== current.intensity) {
+      if (
+        initialIds !== currentIds ||
+        initial.intensity !== current.intensity ||
+        (initial.comment || '') !== (current.comment || '')
+      ) {
         changed.add(categoryId)
       }
     }
@@ -243,6 +258,21 @@ export function SymptomPicker({
                             )
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {selection.selectedIds.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)]">
+                          {lang === 'ru' ? 'Заметка' : 'Note'}
+                        </p>
+                        <textarea
+                          value={selection.comment || ''}
+                          onChange={(e) => setComment(categoryId, e.target.value)}
+                          placeholder={lang === 'ru' ? 'Особенности этого симптома...' : 'Details about this symptom...'}
+                          rows={2}
+                          className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--tg-theme-hint-color,#d1d5db)]/30 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] resize-none focus:outline-none focus:border-[var(--tg-theme-button-color,#e11d48)]"
+                        />
                       </div>
                     )}
 
