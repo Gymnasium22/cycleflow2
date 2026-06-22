@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Droplets, Check, Plus, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, CalendarDays } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useAuth } from '../context/AuthContext'

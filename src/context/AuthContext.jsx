@@ -18,10 +18,26 @@ function parseTelegramUserFromInitData(initData) {
   }
 }
 
+const PROFILE_STORAGE_KEY = 'cicle_profile'
 const FALLBACK_PROFILE_KEY = 'cicle_fallback_profile'
 const FALLBACK_CYCLES_KEY = 'cicle_cycles'
 const FALLBACK_SYMPTOMS_KEY = 'cicle_symptoms'
 const FALLBACK_SETTINGS_KEY = 'cicle_settings'
+
+function getStoredProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function setStoredProfile(profile) {
+  if (profile) {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile))
+  }
+}
 
 function getStoredFallbackProfile() {
   try {
@@ -43,7 +59,7 @@ export function AuthProvider({ children }) {
     effective: effectiveTelegramUser?.id,
   })
   const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState(() => getStoredProfile())
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -65,6 +81,7 @@ export function AuthProvider({ children }) {
     }
 
     setProfile(data)
+    setStoredProfile(data)
     return data
   }, [])
 
@@ -106,10 +123,12 @@ export function AuthProvider({ children }) {
       }
 
       setProfile(upsertData)
+      setStoredProfile(upsertData)
       return upsertData
     }
 
     setProfile(data)
+    setStoredProfile(data)
     return data
   }, [effectiveTelegramUser])
 
@@ -158,6 +177,7 @@ export function AuthProvider({ children }) {
     }
 
     setProfile(data)
+    setStoredProfile(data)
     setIsLoading(false)
     return data
   }, [session, effectiveTelegramUser, profile])
@@ -405,6 +425,7 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
     setSession(null)
     setProfile(null)
+    localStorage.removeItem(PROFILE_STORAGE_KEY)
     localStorage.removeItem(FALLBACK_PROFILE_KEY)
   }, [])
 

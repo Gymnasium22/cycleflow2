@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -15,6 +15,15 @@ function getStoredSymptoms() {
 
 function setStoredSymptoms(symptoms) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(symptoms))
+}
+
+function parseNotes(notes) {
+  try {
+    const parsed = JSON.parse(notes || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }
 
 export function useSymptoms(date) {
@@ -40,6 +49,7 @@ export function useSymptoms(date) {
       .select('*')
       .eq('user_id', session.user.id)
       .eq('date', date)
+      .order('created_at', { ascending: true })
 
     if (error) {
       setError(error)
@@ -53,45 +63,70 @@ export function useSymptoms(date) {
     fetchSymptoms()
   }, [fetchSymptoms])
 
-  async function saveSymptom(symptom) {
-    if (!date) return
-    setIsLoading(true)
+  const selections = useMemo(() => {
+    const map = {}
+    for (const s of symptoms) {
+      map[s.symptom_type] = {
+        selectedIds: parseNotes(s.notes),
+        intensity: s.intensity || null,
+      }
+    }
+    return map
+  }, [symptoms])
 
-    const newSymptom = {
-      id: `local_${Date.now()}`,
+  function getCategorySelection(categoryId) {
+    return (
+      selections[categoryId] || {
+        selectedIds: [],
+        intensity: null,
+      }
+    )
+  }
+
+  async function saveCategorySelection(categoryId, selectedIds, intensity = null) {
+    if (!date) return null
+    setIsLoading(true)
+    setError(null)
+
+    const notes = JSON.stringify(selectedIds || [])
+    const payload = {
       date,
-      symptom_type: symptom.symptom_type,
-      intensity: symptom.intensity,
-      notes: symptom.notes || '',
+      symptom_type: categoryId,
+      intensity: intensity || null,
+      notes,
     }
 
     if (!isAuthenticated) {
       const all = getStoredSymptoms().filter(
-        (s) => !(s.date === date && s.symptom_type === symptom.symptom_type)
+        (s) => !(s.date === date && s.symptom_type === categoryId)
       )
-      const updated = [...all, newSymptom]
+      const record = {
+        id: `local_${Date.now()}`,
+        ...payload,
+      }
+      const updated = [...all, record]
       setStoredSymptoms(updated)
       setSymptoms(updated.filter((s) => s.date === date))
       setIsLoading(false)
-      return newSymptom
+      return record
     }
 
     try {
       const { data: existing } = await supabase
-      .from('symptoms')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .eq('date', date)
-      .eq('symptom_type', symptom.symptom_type)
-      .single()
-
-    if (existing) {
-      const { data, error } = await supabase
         .from('symptoms')
-        .update(symptom)
-        .eq('id', existing.id)
-        .select()
-        .single()
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('date', date)
+        .eq('symptom_type', categoryId)
+        .maybeSingle()
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from('symptoms')
+          .update(payload)
+          .eq('id', existing.id)
+          .select()
+          .single()
 
         if (error) {
           setError(error)
@@ -105,14 +140,13 @@ export function useSymptoms(date) {
       }
 
       const { data, error } = await supabase
-      .from('symptoms')
-      .insert({
-        user_id: session.user.id,
-        date,
-        ...symptom,
-      })
-      .select()
-      .single()
+        .from('symptoms')
+        .insert({
+          user_id: session.user.id,
+          ...payload,
+        })
+        .select()
+        .single()
 
       if (error) {
         setError(error)
@@ -128,6 +162,49 @@ export function useSymptoms(date) {
       setIsLoading(false)
       return null
     }
+  }
+
+  async function deleteCategory(categoryId) {
+    if (!date) return false
+    setIsLoading(true)
+    setError(null)
+
+    if (!isAuthenticated) {
+      const updated = getStoredSymptoms().filter(
+        (s) => !(s.date === date && s.symptom_type === categoryId)
+      )
+      setStoredSymptoms(updated)
+      setSymptoms(updated.filter((s) => s.date === date))
+      setIsLoading(false)
+      return true
+    }
+
+    try {
+      const { error } = await supabase
+        .from('symptoms')
+        .delete()
+        .eq('user_id', session.user.id)
+        .eq('date', date)
+        .eq('symptom_type', categoryId)
+
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return false
+      }
+
+      setSymptoms((prev) => prev.filter((s) => s.symptom_type !== categoryId))
+      setIsLoading(false)
+      return true
+    } catch (err) {
+      setError(err)
+      setIsLoading(false)
+      return false
+    }
+  }
+
+  async function saveSymptom(symptom) {
+    return saveCategorySelection(symptom.symptom_type, symptom.selectedIds || [symptom.optionId].filter(Boolean), symptom.intensity)
   }
 
   async function deleteSymptom(id) {
@@ -159,11 +236,16 @@ export function useSymptoms(date) {
 
   async function updateSymptom(id, updates) {
     setIsLoading(true)
-    if (!date) return
+    if (!date) return null
+
+    const payload = { ...updates }
+    if (updates.notes !== undefined) {
+      payload.notes = typeof updates.notes === 'string' ? updates.notes : JSON.stringify(updates.notes || [])
+    }
 
     if (!isAuthenticated) {
       const all = getStoredSymptoms()
-      const updated = all.map((s) => (s.id === id ? { ...s, ...updates } : s))
+      const updated = all.map((s) => (s.id === id ? { ...s, ...payload } : s))
       setStoredSymptoms(updated)
       setSymptoms(updated.filter((s) => s.date === date))
       setIsLoading(false)
@@ -172,11 +254,11 @@ export function useSymptoms(date) {
 
     try {
       const { data, error } = await supabase
-      .from('symptoms')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single()
+        .from('symptoms')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single()
 
       if (error) {
         setError(error)
@@ -194,5 +276,18 @@ export function useSymptoms(date) {
     }
   }
 
-  return { symptoms, loading, isLoading, error, saveSymptom, deleteSymptom, updateSymptom, refetch: fetchSymptoms }
+  return {
+    symptoms,
+    selections,
+    getCategorySelection,
+    saveCategorySelection,
+    deleteCategory,
+    saveSymptom,
+    deleteSymptom,
+    updateSymptom,
+    loading,
+    isLoading,
+    error,
+    refetch: fetchSymptoms,
+  }
 }

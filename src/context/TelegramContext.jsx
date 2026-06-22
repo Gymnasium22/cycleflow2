@@ -84,11 +84,37 @@ export function TelegramProvider({ children }) {
           }
 
           setWebApp(tg)
-          setInitData(tg.initData || null)
+          const initialInitData = tg.initData || null
+          setInitData(initialInitData)
           const tgUser = tg.initDataUnsafe?.user || null
           console.log('[Telegram] User from initDataUnsafe:', tgUser)
           setUser(tgUser)
           setThemeParams(tg.themeParams || {})
+
+          // Telegram WebView sometimes provides initData with a short delay.
+          // Poll for a few seconds to catch late initData updates.
+          if (!initialInitData) {
+            const pollStart = Date.now()
+            const pollInterval = setInterval(() => {
+              if (!isMounted) {
+                clearInterval(pollInterval)
+                return
+              }
+              const updatedInitData = tg.initData || null
+              if (updatedInitData) {
+                clearInterval(pollInterval)
+                console.log('[Telegram] initData appeared after polling')
+                setInitData(updatedInitData)
+                const updatedUser = tg.initDataUnsafe?.user || null
+                if (updatedUser) {
+                  setUser(updatedUser)
+                }
+              } else if (Date.now() - pollStart > 3000) {
+                clearInterval(pollInterval)
+                console.warn('[Telegram] initData still missing after 3s of polling')
+              }
+            }, 200)
+          }
 
           const params = tg.themeParams
           if (params) {

@@ -8,17 +8,19 @@ import { useCycles } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import { EmptyState } from '../components/EmptyState'
 import {
+  getCategoryLabel,
+  getOptionLabel,
+  getOptionEmoji,
+} from '../data/symptomCategories'
+import {
   formatDate,
   getActualPeriodLength,
   daysBetween,
-  DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
 
-const symptomTypes = ['mood', 'energy', 'pain', 'discharge']
-
 export function History() {
-  const { t, i18n } = useTranslation()
+  const { i18n } = useTranslation()
   const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
   const { hapticFeedback } = useTelegram()
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
@@ -108,11 +110,12 @@ export function History() {
   }
 
   function handleDeleteSymptom(symptom) {
+    const categoryName = getCategoryLabel(symptom.symptom_type, i18n.language)
     openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Удалить симптом' : 'Delete symptom',
+      title: i18n.language === 'ru' ? 'Удалить запись' : 'Delete record',
       message: i18n.language === 'ru'
-        ? `Удалить запись «${t(`symptoms.${symptom.symptom_type}`)}» за ${formatDate(new Date(symptom.date), locale)}?`
-        : `Delete «${t(`symptoms.${symptom.symptom_type}`)}» record for ${formatDate(new Date(symptom.date), locale)}?`,
+        ? `Удалить запись «${categoryName}» за ${formatDate(new Date(symptom.date), locale)}?`
+        : `Delete «${categoryName}» record for ${formatDate(new Date(symptom.date), locale)}?`,
       confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
       cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
       destructive: true,
@@ -247,27 +250,41 @@ export function History() {
           />
         ) : (
           <div className="space-y-2">
-            {selectedSymptoms.map((symptom) => (
-              <div
-                key={symptom.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20"
-              >
-                <div>
-                  <p className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                    {t(`symptoms.${symptom.symptom_type}`)}: {symptom.intensity}/5
-                  </p>
-                  {symptom.notes && (
-                    <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-1">{symptom.notes}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleDeleteSymptom(symptom)}
-                  className="p-2 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20"
+            {selectedSymptoms.map((symptom) => {
+              const selectedIds = (() => {
+                try {
+                  const parsed = JSON.parse(symptom.notes || '[]')
+                  return Array.isArray(parsed) ? parsed : []
+                } catch {
+                  return []
+                }
+              })()
+              const optionsText = selectedIds
+                .map((id) => `${getOptionEmoji(symptom.symptom_type, id)} ${getOptionLabel(symptom.symptom_type, id, i18n.language)}`)
+                .join(' · ')
+              return (
+                <div
+                  key={symptom.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20"
                 >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+                  <div>
+                    <p className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
+                      {getCategoryLabel(symptom.symptom_type, i18n.language)}
+                      {symptom.intensity ? ` · ${symptom.intensity}/3` : ''}
+                    </p>
+                    {optionsText && (
+                      <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-1">{optionsText}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSymptom(symptom)}
+                    className="p-2 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

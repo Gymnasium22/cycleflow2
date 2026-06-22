@@ -1,13 +1,19 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Pencil, Trash2, Heart, Check } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Trash2, Heart, Check } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { SymptomPicker } from '../components/SymptomPicker'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
+import {
+  getCategoryLabel,
+  getOptionLabel,
+  getOptionEmoji,
+} from '../data/symptomCategories'
 import {
   getAverageCycleLength,
   getAveragePeriodLength,
@@ -48,35 +54,24 @@ const phaseConfig = {
   },
 }
 
-const symptomTypes = ['mood', 'energy', 'pain', 'discharge']
-
 export function Home() {
   const { t, i18n } = useTranslation()
   const { profile } = useAuth()
   const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
-  const { symptoms, saveSymptom, deleteSymptom, updateSymptom, isLoading: symptomsLoading } = useSymptoms(todayStr)
+  const { symptoms, selections, saveCategorySelection, deleteCategory, isLoading: symptomsLoading } = useSymptoms(todayStr)
 
-  const [showSymptoms, setShowSymptoms] = useState(false)
-  const [selectedSymptoms, setSelectedSymptoms] = useState({})
-  const [symptomNotes, setSymptomNotes] = useState('')
-  const [editingSymptom, setEditingSymptom] = useState(null)
+  const [showSymptomPicker, setShowSymptomPicker] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
+
+  const { hapticFeedback } = useTelegram()
 
   const fallbackCycleLength = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
   const fallbackPeriodLength = profile?.period_length || DEFAULT_PERIOD_LENGTH
 
   const avgCycleLength = getAverageCycleLength(cycles, fallbackCycleLength)
   const avgPeriodLength = getAveragePeriodLength(cycles, fallbackPeriodLength)
-
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
-
-  const { hapticFeedback } = useTelegram()
-
-  function handleShareForecast() {
-    hapticFeedback.impact('light')
-    shareForecast({ profile, cycles, lang: i18n.language === 'ru' ? 'ru' : 'en' })
-  }
 
   const lastCycle = cycles[0]
   const lastPeriodStart = lastCycle?.start_date || null
@@ -143,64 +138,33 @@ export function Home() {
     })
   }
 
-  function openSymptomModal() {
+  function openSymptomPicker() {
     hapticFeedback.impact('light')
-    setEditingSymptom(null)
-    setSelectedSymptoms({})
-    setSymptomNotes('')
-    setShowSymptoms(true)
+    setShowSymptomPicker(true)
   }
 
-  function openEditSymptom(symptom) {
-    hapticFeedback.impact('light')
-    setEditingSymptom(symptom)
-    setSelectedSymptoms({ [symptom.symptom_type]: symptom.intensity })
-    setSymptomNotes(symptom.notes || '')
-    setShowSymptoms(true)
-  }
-
-  async function handleSaveSymptoms() {
-    if (editingSymptom) {
-      const type = editingSymptom.symptom_type
-      const intensity = selectedSymptoms[type]
-      if (intensity) {
-        await updateSymptom(editingSymptom.id, {
-          intensity,
-          notes: symptomNotes,
-        })
-      } else {
-        // Если интенсивность сброшена — удалить
-        await deleteSymptom(editingSymptom.id)
-      }
-    } else {
-      for (const [type, value] of Object.entries(selectedSymptoms)) {
-        if (value) {
-          await saveSymptom({
-            symptom_type: type,
-            intensity: value,
-            notes: symptomNotes,
-          })
-        }
-      }
-    }
-    setShowSymptoms(false)
-    setEditingSymptom(null)
-    setSelectedSymptoms({})
-    setSymptomNotes('')
+  async function handleSaveCategory(categoryId, selectedIds, intensity) {
+    await saveCategorySelection(categoryId, selectedIds, intensity)
     hapticFeedback.notification('success')
   }
 
-  async function handleDeleteSymptom(id) {
+  async function handleDeleteCategory(categoryId) {
+    await deleteCategory(categoryId)
+    hapticFeedback.notification('success')
+  }
+
+  async function handleDeleteSymptomCategory(categoryId) {
     openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Удалить симптом' : 'Delete symptom',
-      message: i18n.language === 'ru' ? 'Удалить этот симптом?' : 'Delete this symptom?',
+      title: i18n.language === 'ru' ? 'Удалить запись' : 'Delete record',
+      message: i18n.language === 'ru'
+        ? `Удалить запись «${getCategoryLabel(categoryId, i18n.language)}»?`
+        : `Delete «${getCategoryLabel(categoryId, i18n.language)}» record?`,
       confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
       cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
       destructive: true,
       onConfirm: async () => {
         closeConfirmDialog()
-        await deleteSymptom(id)
-        hapticFeedback.notification('success')
+        await handleDeleteCategory(categoryId)
       },
     })
   }
@@ -295,7 +259,7 @@ export function Home() {
       <div className="space-y-3">
         <h2 className="text-lg font-bold">{t('home.logSymptoms')}</h2>
         <button
-          onClick={openSymptomModal}
+          onClick={openSymptomPicker}
           className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors text-left"
         >
           <div className="flex items-center gap-3">
@@ -304,7 +268,7 @@ export function Home() {
             </div>
             <div>
               <p className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{t('symptoms.title')}</p>
-              <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t('symptoms.notes')}</p>
+              <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t('symptoms.hint')}</p>
             </div>
           </div>
           <ChevronRight size={20} className="text-[var(--tg-theme-hint-color,#6b7280)]" />
@@ -345,92 +309,49 @@ export function Home() {
         <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
           <p className="text-sm font-semibold mb-2 text-[var(--tg-theme-text-color,#111827)]">{t('symptoms.title')}</p>
           <div className="flex flex-wrap gap-2">
-            {symptoms.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => openEditSymptom(s)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group hover:opacity-80 transition-opacity"
-              >
-                <Pencil size={12} className="opacity-50 group-hover:opacity-100" />
-                <span>{t(`symptoms.${s.symptom_type}`)}: {s.intensity}/5</span>
-                <span
-                  onClick={(e) => { e.stopPropagation(); handleDeleteSymptom(s.id) }}
-                  className="text-red-500 hover:text-red-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1"
-                  title={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
-                >
-                  <Trash2 size={12} />
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Symptom modal (add / edit) */}
-      {showSymptoms && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold">
-                {editingSymptom
-                  ? (i18n.language === 'ru' ? 'Изменить самочувствие' : 'Edit symptom')
-                  : t('symptoms.title')}
-              </h3>
-              <button onClick={() => setShowSymptoms(false)} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
-                <X size={20} />
-              </button>
-            </div>
-
-            {symptomTypes.map((type) => {
-              // При редактировании показываем только тот тип, который редактируем
-              if (editingSymptom && editingSymptom.symptom_type !== type) return null
-
+            {symptoms.map((s) => {
+              const selectedIds = (() => {
+                try {
+                  const parsed = JSON.parse(s.notes || '[]')
+                  return Array.isArray(parsed) ? parsed : []
+                } catch {
+                  return []
+                }
+              })()
+              const labels = selectedIds.map((id) => `${getOptionEmoji(s.symptom_type, id)} ${getOptionLabel(s.symptom_type, id, i18n.language)}`)
+              if (s.intensity) {
+                labels.push(`${s.intensity}/3`)
+              }
               return (
-                <div key={type} className="space-y-2">
-                  <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t(`symptoms.${type}`)}</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((level) => (
-                      <button
-                        key={level}
-                        onClick={() => setSelectedSymptoms((prev) => ({ ...prev, [type]: level }))}
-                        className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                          selectedSymptoms[type] === level
-                            ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
-                            : 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
-                        }`}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <button
+                  key={s.id}
+                  onClick={() => openSymptomPicker()}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group hover:opacity-80 transition-opacity"
+                >
+                  <span className="font-semibold">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
+                  <span>{labels.join(' · ') || '—'}</span>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); handleDeleteSymptomCategory(s.symptom_type) }}
+                    className="text-red-500 hover:text-red-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1"
+                    title={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
+                  >
+                    <Trash2 size={12} />
+                  </span>
+                </button>
               )
             })}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                {i18n.language === 'ru' ? 'Заметки' : 'Notes'}
-              </label>
-              <textarea
-                value={symptomNotes}
-                onChange={(e) => setSymptomNotes(e.target.value)}
-                placeholder={i18n.language === 'ru' ? 'Что ещё чувствуете?' : 'Anything else?'}
-                rows={3}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-sm resize-none"
-              />
-            </div>
-
-            <button
-              onClick={handleSaveSymptoms}
-              disabled={symptomsLoading}
-              className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {symptomsLoading && <Spinner size={18} />}
-              {t('symptoms.save')}
-            </button>
           </div>
         </div>
       )}
+
+      <SymptomPicker
+        isOpen={showSymptomPicker}
+        onClose={() => setShowSymptomPicker(false)}
+        initialSelections={selections}
+        onSaveCategory={handleSaveCategory}
+        onDeleteCategory={handleDeleteCategory}
+        loading={symptomsLoading}
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

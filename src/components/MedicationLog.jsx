@@ -61,12 +61,6 @@ export function MedicationLog({ isOpen, onClose, lang }) {
     },
   }[lang]
 
-  const statusConfig = {
-    taken: { label: t.taken, icon: Check, class: 'bg-green-100 text-green-700' },
-    skipped: { label: t.skipped, icon: XCircle, class: 'bg-red-100 text-red-700' },
-    pending: { label: t.pending, icon: Circle, class: 'bg-amber-100 text-amber-700' },
-  }
-
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-4">
       <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
@@ -101,8 +95,6 @@ export function MedicationLog({ isOpen, onClose, lang }) {
         ) : (
           <div className="space-y-2">
             {logs.map((log) => {
-              const config = statusConfig[log.status] || statusConfig.pending
-              const Icon = config.icon
               const medicationName = log.medications?.name || ''
               const reminderTime = log.medication_reminders?.time || ''
               return (
