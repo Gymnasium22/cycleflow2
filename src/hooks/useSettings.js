@@ -75,6 +75,16 @@ export function useSettings() {
     fetchSettings()
   }, [fetchSettings])
 
+  // Reload when user signs in (e.g. delayed Telegram initData)
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'SIGNED_IN' && newSession?.user?.id) {
+        fetchSettings()
+      }
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [fetchSettings])
+
   async function updateSettings(updates) {
     setIsLoading(true)
     const newSettings = { ...(settings || DEFAULT_SETTINGS), ...updates }

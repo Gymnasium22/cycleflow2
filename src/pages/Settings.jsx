@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, Pill, MapPin, Palette } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, MapPin, Palette } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -8,30 +8,17 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
-import { useMedications } from '../hooks/useMedications'
-import { MedicationList } from '../components/MedicationList'
-import { MedicationLog } from '../components/MedicationLog'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
+import { applyTheme } from '../utils/theme'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
   const { profile, updateProfile, isLoading: profileLoading } = useAuth()
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings()
   const { cycles } = useCycles()
-  const {
-    medications,
-    isLoading: medicationsLoading,
-    addMedication,
-    updateMedication,
-    deleteMedication,
-    addReminder,
-    updateReminder,
-    deleteReminder,
-    toggleReminder,
-  } = useMedications()
 
   const [language, setLanguage] = useState(i18n.language || 'ru')
   const [theme, setTheme] = useState(() => localStorage.getItem('cicle_theme') || 'sakura')
@@ -40,7 +27,7 @@ export function Settings() {
     hapticFeedback.impact('light')
     setTheme(newTheme)
     localStorage.setItem('cicle_theme', newTheme)
-    document.body.className = `theme-${newTheme}`
+    applyTheme(newTheme)
     showSavedMessage()
   }
   const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
@@ -55,7 +42,6 @@ export function Settings() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isTestingNotifications, setIsTestingNotifications] = useState(false)
-  const [showMedicationLog, setShowMedicationLog] = useState(false)
 
   const { hapticFeedback } = useTelegram()
 
@@ -256,63 +242,6 @@ export function Settings() {
       alert((i18n.language === 'ru' ? 'Ошибка отправки: ' : 'Send error: ') + (err?.message || JSON.stringify(err)))
     } finally {
       setIsTestingNotifications(false)
-    }
-  }
-
-  async function handleSaveMedication(data) {
-    hapticFeedback.impact('light')
-    try {
-      if (data.id) {
-        await updateMedication(data.id, {
-          name: data.name,
-          dosage: data.dosage,
-          color: data.color,
-        })
-
-        const existingReminders = medications.find((m) => m.id === data.id)?.reminders || []
-        const existingIds = existingReminders.map((r) => r.id)
-        const newIds = data.reminders.map((r) => r.id).filter(Boolean)
-        const toDelete = existingIds.filter((id) => !newIds.includes(id))
-
-        for (const reminder of data.reminders) {
-          if (reminder.id) {
-            await updateReminder(reminder.id, {
-              time: reminder.time,
-              days_of_week: reminder.days_of_week,
-              enabled: reminder.enabled ?? true,
-            })
-          } else {
-            await addReminder(data.id, {
-              time: reminder.time,
-              days_of_week: reminder.days_of_week,
-              enabled: reminder.enabled ?? true,
-            })
-          }
-        }
-
-        for (const id of toDelete) {
-          await deleteReminder(id)
-        }
-      } else {
-        const created = await addMedication({
-          name: data.name,
-          dosage: data.dosage,
-          color: data.color,
-        })
-        if (created?.id) {
-          for (const reminder of data.reminders) {
-            await addReminder(created.id, {
-              time: reminder.time,
-              days_of_week: reminder.days_of_week,
-              enabled: reminder.enabled ?? true,
-            })
-          }
-        }
-      }
-      hapticFeedback.notification('success')
-    } catch (err) {
-      console.error('Save medication error:', err)
-      alert((i18n.language === 'ru' ? 'Ошибка сохранения: ' : 'Save error: ') + (err?.message || JSON.stringify(err)))
     }
   }
 
@@ -615,36 +544,7 @@ export function Settings() {
         </button>
       </div>
 
-      {/* Medications */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
-        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
-          <Pill size={20} className="text-emerald-500" />
-          <span className="font-semibold">
-            {i18n.language === 'ru' ? 'Таблетки' : 'Medications'}
-          </span>
-        </div>
-        <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-          <Info size={12} className="shrink-0 mt-0.5" />
-          {t('settings.medicationsHint')}
-        </p>
-        <MedicationList
-          medications={medications}
-          isLoading={medicationsLoading}
-          onSaveMedication={handleSaveMedication}
-          onDeleteMedication={deleteMedication}
-          onToggleReminder={toggleReminder}
-          onOpenHistory={() => setShowMedicationLog(true)}
-          lang={i18n.language === 'ru' ? 'ru' : 'en'}
-        />
-      </div>
-
-      <MedicationLog
-        isOpen={showMedicationLog}
-        onClose={() => setShowMedicationLog(false)}
-        lang={i18n.language === 'ru' ? 'ru' : 'en'}
-      />
-
-      {/* Info */}
+      {/* Info}
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 text-amber-800">
         <Info size={20} className="shrink-0 mt-0.5" />
         <p className="text-sm">{tLocal.info}</p>

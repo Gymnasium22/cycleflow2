@@ -11,6 +11,7 @@ import { Settings } from './pages/Settings'
 import { History } from './pages/History'
 import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
+import { applyTheme } from './utils/theme'
 
 const TABS = {
   home: <Home />,
@@ -45,7 +46,7 @@ function App() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('cicle_theme') || 'sakura'
-    document.body.className = `theme-${savedTheme}`
+    applyTheme(savedTheme)
   }, [])
 
   return (

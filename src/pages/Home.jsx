@@ -5,11 +5,13 @@ import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SymptomPicker } from '../components/SymptomPicker'
-import { MedicationWidget } from '../components/MedicationWidget'
+import { MedicationList } from '../components/MedicationList'
+import { MedicationLog } from '../components/MedicationLog'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
+import { useMedications } from '../hooks/useMedications'
 import {
   getCategoryLabel,
   getOptionLabel,
@@ -65,7 +67,17 @@ export function Home() {
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
   const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
+  const [showMedicationLog, setShowMedicationLog] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
+
+  const {
+    medications,
+    loading: medicationsLoading,
+    isLoading: medicationsSaving,
+    saveMedication,
+    deleteMedication,
+    toggleReminder,
+  } = useMedications()
 
   const { hapticFeedback } = useTelegram()
 
@@ -258,7 +270,18 @@ export function Home() {
         />
       )}
 
-      <MedicationWidget />
+      {/* Medications */}
+      <div className="space-y-3">
+        <MedicationList
+          medications={medications}
+          isLoading={medicationsLoading || medicationsSaving}
+          onSaveMedication={saveMedication}
+          onDeleteMedication={deleteMedication}
+          onToggleReminder={toggleReminder}
+          onOpenHistory={() => setShowMedicationLog(true)}
+          lang={i18n.language === 'ru' ? 'ru' : 'en'}
+        />
+      </div>
 
       {/* Quick actions */}
       <div className="space-y-3">
@@ -372,6 +395,12 @@ export function Home() {
         onSaveCategory={handleSaveCategory}
         onDeleteCategory={handleDeleteCategory}
         loading={symptomsLoading}
+      />
+
+      <MedicationLog
+        isOpen={showMedicationLog}
+        onClose={() => setShowMedicationLog(false)}
+        lang={i18n.language === 'ru' ? 'ru' : 'en'}
       />
 
       <ConfirmDialog

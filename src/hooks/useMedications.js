@@ -60,6 +60,16 @@ export function useMedications() {
     fetchMedications()
   }, [fetchMedications])
 
+  // Reload when user signs in (e.g. delayed Telegram initData)
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'SIGNED_IN' && newSession?.user?.id) {
+        fetchMedications()
+      }
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [fetchMedications])
+
   // Medication CRUD
   async function addMedication(medication) {
     setIsLoading(true)
@@ -324,6 +334,60 @@ export function useMedications() {
     return updateReminder(reminderId, { enabled })
   }
 
+  async function saveMedication(data) {
+    setIsLoading(true)
+    try {
+      let medication
+      if (data.id) {
+        medication = await updateMedication(data.id, {
+          name: data.name,
+          dosage: data.dosage,
+          color: data.color,
+        })
+        if (!medication) throw new Error('Failed to update medication')
+      } else {
+        medication = await addMedication({
+          name: data.name,
+          dosage: data.dosage,
+          color: data.color,
+        })
+        if (!medication) throw new Error('Failed to create medication')
+      }
+
+      const currentReminders = medications.find((m) => m.id === medication.id)?.reminders || []
+      const newReminderIds = new Set((data.reminders || []).map((r) => r.id).filter(Boolean))
+
+      for (const reminder of data.reminders || []) {
+        if (reminder.id) {
+          await updateReminder(reminder.id, {
+            time: reminder.time,
+            days_of_week: reminder.days_of_week,
+            enabled: reminder.enabled ?? true,
+          })
+        } else {
+          await addReminder(medication.id, {
+            time: reminder.time,
+            days_of_week: reminder.days_of_week,
+            enabled: reminder.enabled ?? true,
+          })
+        }
+      }
+
+      for (const existing of currentReminders) {
+        if (!newReminderIds.has(existing.id)) {
+          await deleteReminder(existing.id)
+        }
+      }
+
+      return medication
+    } catch (err) {
+      setError(err)
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return {
     medications,
     loading,
@@ -336,6 +400,7 @@ export function useMedications() {
     updateReminder,
     deleteReminder,
     toggleReminder,
+    saveMedication,
     refetch: fetchMedications,
   }
 }
