@@ -59,7 +59,7 @@ export const SYMPTOM_CATEGORIES = {
   },
   sex: {
     id: 'sex',
-    mode: 'single',
+    mode: 'multiple',
     hasIntensity: false,
     icon: Heart,
     labels: {
@@ -67,9 +67,10 @@ export const SYMPTOM_CATEGORIES = {
       en: 'Sex',
     },
     options: [
-      { id: 'protected', emoji: '🛡️', labels: { ru: 'Защищённый секс', en: 'Protected sex' } },
-      { id: 'unprotected', emoji: '💔', labels: { ru: 'Незащищённый секс', en: 'Unprotected sex' } },
-      { id: 'oral', emoji: '👄', labels: { ru: 'Оральный секс', en: 'Oral sex' } },
+      { id: 'protected', emoji: '🛡️', labels: { ru: 'Защищённый', en: 'Protected' } },
+      { id: 'unprotected', emoji: '💔', labels: { ru: 'Незащищённый', en: 'Unprotected' } },
+      { id: 'oral', emoji: '👄', labels: { ru: 'Оральный', en: 'Oral' } },
+      { id: 'anal', emoji: '🍑', labels: { ru: 'Анальный', en: 'Anal' } },
       { id: 'petting', emoji: '💋', labels: { ru: 'Петтинг', en: 'Petting' } },
       { id: 'masturbation', emoji: '✋', labels: { ru: 'Мастурбация', en: 'Masturbation' } },
       { id: 'orgasm', emoji: '✨', labels: { ru: 'Был оргазм', en: 'Had orgasm' } },

@@ -51,6 +51,16 @@ export function useSymptomHistory(startDate, endDate) {
     fetchSymptoms()
   }, [fetchSymptoms])
 
+  // Reload when user signs in (e.g. delayed Telegram initData)
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (event === 'SIGNED_IN' && newSession?.user?.id) {
+        fetchSymptoms()
+      }
+    })
+    return () => listener.subscription.unsubscribe()
+  }, [fetchSymptoms])
+
   async function deleteSymptom(id) {
     if (!isAuthenticated) {
       const all = getStoredSymptoms()

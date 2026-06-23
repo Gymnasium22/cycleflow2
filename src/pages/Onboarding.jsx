@@ -62,7 +62,7 @@ export function Onboarding() {
 
   const t = {
     ru: {
-      welcome: 'Добро пожаловать в Cicle',
+      welcome: 'Добро пожаловать в Колечко',
       subtitle: 'Давайте настроим приложение под вас. Всего несколько шагов.',
       cycleLength: 'Длина вашего цикла',
       cycleLengthHint: 'От первого дня месячных до следующих',
@@ -85,7 +85,7 @@ export function Onboarding() {
       saving: 'Сохранение...',
     },
     en: {
-      welcome: 'Welcome to Cicle',
+      welcome: 'Welcome to Kolechko',
       subtitle: "Let's set up the app for you. Just a few steps.",
       cycleLength: 'Your cycle length',
       cycleLengthHint: 'From the first day of period to the next one',
