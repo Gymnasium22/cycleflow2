@@ -36,11 +36,13 @@ function AppContent() {
     return () => clearTimeout(timer)
   }, [loading])
 
-  if (loading && !showReload) {
+  // Show full loading screen only when there's no cached profile yet
+  // (loading=true with no profile means this is genuinely a first load)
+  if (loading && !profile && !showReload) {
     return <HomeSkeleton />
   }
 
-  if (loading && showReload) {
+  if (loading && !profile && showReload) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full p-6 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)]">
         <HomeSkeleton />

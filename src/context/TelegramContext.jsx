@@ -3,7 +3,8 @@ import { createContext, useContext, useEffect, useState } from 'react'
 const TelegramContext = createContext(null)
 
 const TG_SCRIPT_URL = 'https://telegram.org/js/telegram-web-app.js'
-const INIT_DATA_TIMEOUT = 10000
+// How long to poll for initData before giving up and proceeding (3s is enough for Telegram)
+const INIT_DATA_TIMEOUT = 3000
 
 function loadTelegramScript() {
   return new Promise((resolve, reject) => {
@@ -132,21 +133,19 @@ export function TelegramProvider({ children }) {
               setReady(true)
             } else if (Date.now() - pollStart > INIT_DATA_TIMEOUT) {
               clearInterval(pollInterval)
-              console.warn('[Telegram] initData still missing after 10s')
+              console.warn('[Telegram] initData still missing after timeout')
 
-              // Try reload once if this is the first attempt
+              // Try a single clean reload once to get fresh initData
               if (!sessionStorage.getItem('cicle_reload_attempted')) {
                 sessionStorage.setItem('cicle_reload_attempted', '1')
                 console.log('[Telegram] Attempting reload to get fresh initData...')
-                // Force bypass cache by adding a random query param
-                const url = new URL(window.location.href)
-                url.searchParams.set('_tgr', Date.now().toString())
-                window.location.href = url.toString()
+                window.location.reload()
                 return
               }
 
+              // Already reloaded — proceed without initData (fallback/dev mode)
               console.warn('[Telegram] Already attempted reload, continuing in fallback mode')
-              setReady(true)
+              if (isMounted) setReady(true)
             }
           }, 100)
         } else {

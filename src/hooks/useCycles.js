@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { parseDate } from '../utils/cycle'
@@ -20,10 +20,12 @@ function setStoredCycles(cycles) {
 
 export function useCycles() {
   const { session } = useAuth()
-  const [cycles, setCycles] = useState([])
+  // Initialize with cached data immediately to avoid flash of empty state
+  const [cycles, setCycles] = useState(() => getStoredCycles())
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const fetchedForUserRef = useRef(null)
 
   const isAuthenticated = !!session?.user?.id
 
@@ -34,7 +36,12 @@ export function useCycles() {
       return
     }
 
-    setLoading(true)
+    // Don't show loading spinner if we already have cached data
+    const cached = getStoredCycles()
+    if (cached.length === 0) {
+      setLoading(true)
+    }
+
     const { data, error } = await supabase
       .from('cycles')
       .select('*')
@@ -43,25 +50,23 @@ export function useCycles() {
 
     if (error) {
       setError(error)
+      // Keep showing cached data on error
     } else {
-      setCycles(data || [])
+      const fresh = data || []
+      setCycles(fresh)
+      // Update local cache with fresh server data
+      setStoredCycles(fresh)
     }
     setLoading(false)
   }, [isAuthenticated, session?.user?.id])
 
   useEffect(() => {
+    // Prevent duplicate fetches for the same user
+    const userId = session?.user?.id || 'anonymous'
+    if (fetchedForUserRef.current === userId) return
+    fetchedForUserRef.current = userId
     fetchCycles()
-  }, [fetchCycles])
-
-  // Reload when user signs in (e.g. delayed Telegram initData)
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_IN' && newSession?.user?.id) {
-        fetchCycles()
-      }
-    })
-    return () => listener.subscription.unsubscribe()
-  }, [fetchCycles])
+  }, [fetchCycles, session?.user?.id])
 
   async function addCycle(cycle) {
     setIsLoading(true)
@@ -97,7 +102,11 @@ export function useCycles() {
         return null
       }
 
-      setCycles((prev) => [data, ...prev])
+      setCycles((prev) => {
+        const updated = [data, ...prev]
+        setStoredCycles(updated)
+        return updated
+      })
       setIsLoading(false)
       return data
     } catch (err) {
@@ -131,7 +140,11 @@ export function useCycles() {
         return null
       }
 
-      setCycles((prev) => prev.map((c) => (c.id === id ? data : c)))
+      setCycles((prev) => {
+        const updated = prev.map((c) => (c.id === id ? data : c))
+        setStoredCycles(updated)
+        return updated
+      })
       setIsLoading(false)
       return data
     } catch (err) {
@@ -158,7 +171,11 @@ export function useCycles() {
         setIsLoading(false)
         return false
       }
-      setCycles((prev) => prev.filter((c) => c.id !== id))
+      setCycles((prev) => {
+        const updated = prev.filter((c) => c.id !== id)
+        setStoredCycles(updated)
+        return updated
+      })
       setIsLoading(false)
       return true
     } catch (err) {

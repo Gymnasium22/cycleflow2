@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -23,10 +23,12 @@ function generateId() {
 
 export function useMedications() {
   const { session } = useAuth()
-  const [medications, setMedications] = useState([])
+  // Initialize with cached data immediately to avoid flash of empty state
+  const [medications, setMedications] = useState(() => getStoredMedications())
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const fetchedForUserRef = useRef(null)
 
   const isAuthenticated = !!session?.user?.id
   const userId = session?.user?.id
@@ -51,24 +53,19 @@ export function useMedications() {
     if (error) {
       setError(error)
     } else {
-      setMedications(data || [])
+      const fresh = data || []
+      setMedications(fresh)
+      setStoredMedications(fresh)
     }
     setLoading(false)
   }, [isAuthenticated, userId])
 
   useEffect(() => {
+    const userId = session?.user?.id || 'anonymous'
+    if (fetchedForUserRef.current === userId) return
+    fetchedForUserRef.current = userId
     fetchMedications()
-  }, [fetchMedications])
-
-  // Reload when user signs in (e.g. delayed Telegram initData)
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_IN' && newSession?.user?.id) {
-        fetchMedications()
-      }
-    })
-    return () => listener.subscription.unsubscribe()
-  }, [fetchMedications])
+  }, [fetchMedications, session?.user?.id])
 
   // Medication CRUD
   async function addMedication(medication) {

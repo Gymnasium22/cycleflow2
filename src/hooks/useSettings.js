@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -27,10 +27,12 @@ const DEFAULT_SETTINGS = {
 
 export function useSettings() {
   const { session } = useAuth()
-  const [settings, setSettings] = useState(null)
+  // Initialize from cache immediately
+  const [settings, setSettings] = useState(() => getStoredSettings() || null)
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const fetchedForUserRef = useRef(null)
 
   const isAuthenticated = !!session?.user?.id
 
@@ -61,29 +63,24 @@ export function useSettings() {
           setError(createError)
         } else {
           setSettings(newSettings)
+          setStoredSettings(newSettings)
         }
       } else {
         setError(error)
       }
     } else {
       setSettings(data)
+      setStoredSettings(data)
     }
     setLoading(false)
   }, [isAuthenticated, session?.user?.id])
 
   useEffect(() => {
+    const userId = session?.user?.id || 'anonymous'
+    if (fetchedForUserRef.current === userId) return
+    fetchedForUserRef.current = userId
     fetchSettings()
-  }, [fetchSettings])
-
-  // Reload when user signs in (e.g. delayed Telegram initData)
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_IN' && newSession?.user?.id) {
-        fetchSettings()
-      }
-    })
-    return () => listener.subscription.unsubscribe()
-  }, [fetchSettings])
+  }, [fetchSettings, session?.user?.id])
 
   async function updateSettings(updates) {
     setIsLoading(true)
@@ -116,6 +113,7 @@ export function useSettings() {
       }
 
       setSettings(data)
+      setStoredSettings(data)
       setIsLoading(false)
       return data
     } catch (err) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -34,10 +34,15 @@ function parseNotes(notes) {
 
 export function useSymptoms(date) {
   const { session } = useAuth()
-  const [symptoms, setSymptoms] = useState([])
+  // Initialize with cached data for the given date to avoid empty flash
+  const [symptoms, setSymptoms] = useState(() => {
+    if (!date) return []
+    return getStoredSymptoms().filter((s) => s.date === date)
+  })
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const fetchedKeyRef = useRef(null)
 
   const isAuthenticated = !!session?.user?.id
 
@@ -60,24 +65,22 @@ export function useSymptoms(date) {
     if (error) {
       setError(error)
     } else {
-      setSymptoms(data || [])
+      const fresh = data || []
+      setSymptoms(fresh)
+      // Update local cache: replace entries for this date with fresh data
+      const all = getStoredSymptoms().filter((s) => s.date !== date)
+      setStoredSymptoms([...all, ...fresh])
     }
     setLoading(false)
   }, [isAuthenticated, session?.user?.id, date])
 
   useEffect(() => {
+    // Prevent re-fetching the same date for the same user
+    const key = `${session?.user?.id || 'anon'}:${date}`
+    if (fetchedKeyRef.current === key) return
+    fetchedKeyRef.current = key
     fetchSymptoms()
-  }, [fetchSymptoms])
-
-  // Reload when user signs in (e.g. delayed Telegram initData)
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_IN' && newSession?.user?.id) {
-        fetchSymptoms()
-      }
-    })
-    return () => listener.subscription.unsubscribe()
-  }, [fetchSymptoms])
+  }, [fetchSymptoms, session?.user?.id, date])
 
   const selections = useMemo(() => {
     const map = {}
@@ -156,7 +159,12 @@ export function useSymptoms(date) {
           return null
         }
 
-        setSymptoms((prev) => prev.map((s) => (s.id === existing.id ? data : s)))
+        setSymptoms((prev) => {
+          const updated = prev.map((s) => (s.id === existing.id ? data : s))
+          const all = getStoredSymptoms().filter((s) => !(s.date === date && s.symptom_type === categoryId))
+          setStoredSymptoms([...all, data])
+          return updated
+        })
         setIsLoading(false)
         return data
       }
@@ -176,7 +184,12 @@ export function useSymptoms(date) {
         return null
       }
 
-      setSymptoms((prev) => [...prev, data])
+      setSymptoms((prev) => {
+        const updated = [...prev, data]
+        const all = getStoredSymptoms().filter((s) => !(s.date === date && s.symptom_type === categoryId))
+        setStoredSymptoms([...all, data])
+        return updated
+      })
       setIsLoading(false)
       return data
     } catch (err) {
@@ -215,7 +228,12 @@ export function useSymptoms(date) {
         return false
       }
 
-      setSymptoms((prev) => prev.filter((s) => s.symptom_type !== categoryId))
+      setSymptoms((prev) => {
+        const updated = prev.filter((s) => s.symptom_type !== categoryId)
+        const all = getStoredSymptoms().filter((s) => !(s.date === date && s.symptom_type === categoryId))
+        setStoredSymptoms(all)
+        return updated
+      })
       setIsLoading(false)
       return true
     } catch (err) {
@@ -246,7 +264,12 @@ export function useSymptoms(date) {
         setIsLoading(false)
         return false
       }
-      setSymptoms((prev) => prev.filter((s) => s.id !== id))
+      setSymptoms((prev) => {
+        const updated = prev.filter((s) => s.id !== id)
+        const all = getStoredSymptoms().filter((s) => s.id !== id)
+        setStoredSymptoms(all)
+        return updated
+      })
       setIsLoading(false)
       return true
     } catch (err) {

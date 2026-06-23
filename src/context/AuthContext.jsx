@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useTelegram } from './TelegramContext'
 import { DEFAULT_CYCLE_LENGTH, DEFAULT_PERIOD_LENGTH } from '../utils/cycle'
@@ -66,17 +66,20 @@ export function AuthProvider({ children }) {
   const telegramUserFromInitData = useMemo(() => parseTelegramUserFromInitData(initData), [initData])
   const effectiveTelegramUser = telegramUser || telegramUserFromInitData
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-  console.log('[Auth] Effective telegram user:', {
-    fromContext: telegramUser?.id,
-    fromInitData: telegramUserFromInitData?.id,
-    effective: effectiveTelegramUser?.id,
-  })
+
   const [session, setSession] = useState(null)
+  // Initialize profile from cache immediately — no empty screen on first render
   const [profile, setProfile] = useState(() => getStoredProfile())
-  const [loading, setLoading] = useState(true)
+  // If we have a cached profile, start with loading=false to show data instantly
+  const [loading, setLoading] = useState(() => !getStoredProfile())
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [authTimedOut, setAuthTimedOut] = useState(false)
+
+  // Track if authenticate has been called to prevent duplicate runs
+  const authCalledRef = useRef(false)
+  // Track if initial session check is done
+  const sessionCheckedRef = useRef(false)
 
   const loadProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
@@ -297,9 +300,9 @@ export function AuthProvider({ children }) {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
-        initData: telegramInitData,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-      }),
+          initData: telegramInitData,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        }),
       })
     } catch (networkErr) {
       console.error('[Auth] Network error calling telegram-auth:', networkErr)
@@ -342,16 +345,19 @@ export function AuthProvider({ children }) {
     return data.user.id
   }, [])
 
-  // Main auth flow
+  // Main auth flow — runs once when Telegram is ready
   useEffect(() => {
-    async function authenticate() {
-      if (!ready) return
+    if (!ready) return
+    // Prevent running authenticate twice if deps change slightly
+    if (authCalledRef.current) return
+    authCalledRef.current = true
 
+    async function authenticate() {
       try {
         setError(null)
         console.log('[Auth] Starting auth flow...', { hasWebApp: !!webApp, hasInitData: !!initData })
 
-        // 1. Check existing session
+        // 1. Check existing Supabase session
         console.log('[Auth] About to call getSession...')
         let existingSession = null
         let sessionError = null
@@ -366,6 +372,8 @@ export function AuthProvider({ children }) {
           sessionError = timeoutOrErr
         }
 
+        sessionCheckedRef.current = true
+
         if (sessionError) {
           console.error('[Auth] getSession error:', sessionError)
           clearSupabaseStorage()
@@ -375,6 +383,7 @@ export function AuthProvider({ children }) {
 
         if (existingSession?.session) {
           setSession(existingSession.session)
+          // Profile may already be set from cache — load fresh in background
           const loaded = await loadProfile(existingSession.session.user.id)
           if (!loaded) {
             await createProfile(existingSession.session.user.id)
@@ -387,7 +396,6 @@ export function AuthProvider({ children }) {
         if (webApp && initData && initData.length > 0) {
           console.log('[Auth] Attempting Telegram auth...')
           console.log('[Auth] initData length:', initData.length)
-          console.log('[Auth] initData preview:', initData.slice(0, 200))
           const userId = await signInWithTelegram(initData)
           console.log('[Auth] Telegram auth success, userId:', userId)
           const loaded = await loadProfile(userId)
@@ -410,7 +418,7 @@ export function AuthProvider({ children }) {
           return
         }
 
-        // 3. Fallback mode
+        // 3. Fallback mode (no Telegram context or initData)
         if (!webApp) {
           console.log('[Auth] No Telegram WebApp, fallback mode')
         } else if (!initData) {
@@ -432,27 +440,40 @@ export function AuthProvider({ children }) {
     }
 
     authenticate()
-  }, [ready, webApp, initData, telegramUser, loadProfile, createProfile, signInWithTelegram, migrateFallbackData])
+  // Only run when `ready` first becomes true — other deps are captured via refs/closures
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
 
-  // Safety timeout: if auth is still loading after 15s, force it to false
+  // Safety timeout: if auth is still loading after 12s, force it to false
   useEffect(() => {
     if (!loading) return
     const timer = setTimeout(() => {
-      console.warn('[Auth] Loading timeout reached after 15s, forcing loading=false')
+      console.warn('[Auth] Loading timeout reached after 12s, forcing loading=false')
       setLoading(false)
       setAuthTimedOut(true)
-    }, 15000)
+    }, 12000)
     return () => clearTimeout(timer)
   }, [loading])
 
-  // Listen for auth state changes
+  // Listen for Supabase auth state changes (token refresh, sign-in from another tab, etc.)
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('[Auth] onAuthStateChange:', event)
       setSession(newSession)
       if (newSession?.user?.id) {
-        const loaded = await loadProfile(newSession.user.id)
-        if (!loaded) {
-          await createProfile(newSession.user.id)
+        // Only load profile if we don't already have one for this user
+        const current = getStoredProfile()
+        if (!current || current.id !== newSession.user.id) {
+          const loaded = await loadProfile(newSession.user.id)
+          if (!loaded) {
+            await createProfile(newSession.user.id)
+          }
+        } else if (!profile) {
+          // Profile state was cleared, restore from cache
+          const loaded = await loadProfile(newSession.user.id)
+          if (!loaded) {
+            await createProfile(newSession.user.id)
+          }
         }
       }
     })
@@ -460,12 +481,13 @@ export function AuthProvider({ children }) {
     return () => {
       listener.subscription.unsubscribe()
     }
-  }, [loadProfile, createProfile])
+  }, [loadProfile, createProfile, profile])
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut()
     setSession(null)
     setProfile(null)
+    authCalledRef.current = false
     localStorage.removeItem(PROFILE_STORAGE_KEY)
     localStorage.removeItem(FALLBACK_PROFILE_KEY)
     sessionStorage.removeItem('cicle_reload_attempted')
