@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, CalendarDays, Heart } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useAuth } from '../context/AuthContext'
 import { useTelegram } from '../context/TelegramContext'
 import { useCycles, isPeriodActive } from '../hooks/useCycles'
+import { useSymptomHistory } from '../hooks/useSymptomHistory'
 import { EmptyState } from '../components/EmptyState'
 import {
   generateCalendarDays,
@@ -35,7 +36,37 @@ export function Calendar() {
   const { profile } = useAuth()
   const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
   const { hapticFeedback } = useTelegram()
+
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  const monthStartStr = useMemo(() => {
+    return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`
+  }, [currentDate])
+  const monthEndStr = useMemo(() => {
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+    return d.toISOString().split('T')[0]
+  }, [currentDate])
+  const { symptoms: monthSymptoms } = useSymptomHistory(monthStartStr, monthEndStr)
+
+  const sexDates = useMemo(() => {
+    const set = new Set()
+    for (const s of monthSymptoms) {
+      if (s.symptom_type !== 'sex') continue
+      const selectedIds = (() => {
+        try {
+          const parsed = JSON.parse(s.notes || '[]')
+          return Array.isArray(parsed) ? parsed : []
+        } catch {
+          return []
+        }
+      })()
+      if (selectedIds.length > 0 && !selectedIds.includes('none')) {
+        set.add(s.date)
+      }
+    }
+    return set
+  }, [monthSymptoms])
+
   const [selectedDate, setSelectedDate] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [showEditCycle, setShowEditCycle] = useState(false)
@@ -62,6 +93,9 @@ export function Calendar() {
 
   function getDayType(date) {
     if (!date) return null
+
+    // Defensive: real period dates always win over phase estimation
+    if (isPeriodDay(date)) return 'menstruation'
 
     const phase = getPhaseForDate(date, cycles, avgCycleLength, avgPeriodLength)
     if (phase === 'ovulation') return 'ovulation'
@@ -246,6 +280,8 @@ export function Calendar() {
             const isToday = isSameDay(date, new Date())
             const isSelected = selectedDate && isSameDay(date, selectedDate)
             const inPeriod = isPeriodDay(date)
+            const dateStr = date.toISOString().split('T')[0]
+            const hasSex = sexDates.has(dateStr)
 
             return (
               <button
@@ -260,6 +296,9 @@ export function Calendar() {
                 {date.getDate()}
                 {inPeriod && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current opacity-60" />
+                )}
+                {hasSex && (
+                  <Heart size={10} className="absolute top-1 right-1 fill-current opacity-90" />
                 )}
               </button>
             )
