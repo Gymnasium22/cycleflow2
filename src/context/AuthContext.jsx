@@ -76,6 +76,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [authTimedOut, setAuthTimedOut] = useState(false)
 
   const loadProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
@@ -433,6 +434,17 @@ export function AuthProvider({ children }) {
     authenticate()
   }, [ready, webApp, initData, telegramUser, loadProfile, createProfile, signInWithTelegram, migrateFallbackData])
 
+  // Safety timeout: if auth is still loading after 15s, force it to false
+  useEffect(() => {
+    if (!loading) return
+    const timer = setTimeout(() => {
+      console.warn('[Auth] Loading timeout reached after 15s, forcing loading=false')
+      setLoading(false)
+      setAuthTimedOut(true)
+    }, 15000)
+    return () => clearTimeout(timer)
+  }, [loading])
+
   // Listen for auth state changes
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
@@ -456,10 +468,11 @@ export function AuthProvider({ children }) {
     setProfile(null)
     localStorage.removeItem(PROFILE_STORAGE_KEY)
     localStorage.removeItem(FALLBACK_PROFILE_KEY)
+    sessionStorage.removeItem('cicle_reload_attempted')
   }, [])
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, isLoading, error, updateProfile, createProfile, logout }}>
+    <AuthContext.Provider value={{ session, profile, loading, isLoading, authTimedOut, error, updateProfile, createProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )

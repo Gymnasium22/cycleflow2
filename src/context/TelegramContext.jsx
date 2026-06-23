@@ -138,7 +138,10 @@ export function TelegramProvider({ children }) {
               if (!sessionStorage.getItem('cicle_reload_attempted')) {
                 sessionStorage.setItem('cicle_reload_attempted', '1')
                 console.log('[Telegram] Attempting reload to get fresh initData...')
-                window.location.reload()
+                // Force bypass cache by adding a random query param
+                const url = new URL(window.location.href)
+                url.searchParams.set('_tgr', Date.now().toString())
+                window.location.href = url.toString()
                 return
               }
 

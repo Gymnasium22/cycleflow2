@@ -23,10 +23,43 @@ const TABS = {
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('home')
-  const { loading, profile } = useAuth()
+  const [showReload, setShowReload] = useState(false)
+  const { loading, profile, authTimedOut, error } = useAuth()
 
-  if (loading) {
+  // Show reload button if loading takes too long (before auth timeout kicks in)
+  useEffect(() => {
+    if (!loading) {
+      setShowReload(false)
+      return
+    }
+    const timer = setTimeout(() => setShowReload(true), 8000)
+    return () => clearTimeout(timer)
+  }, [loading])
+
+  if (loading && !showReload) {
     return <HomeSkeleton />
+  }
+
+  if (loading && showReload) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full p-6 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)]">
+        <HomeSkeleton />
+        <div className="mt-6 text-center space-y-3">
+          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">
+            {error || 'Загрузка занимает слишком много времени...'}
+          </p>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem('cicle_reload_attempted')
+              window.location.reload()
+            }}
+            className="px-4 py-2 rounded-xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] text-sm font-semibold hover:opacity-90"
+          >
+            Перезагрузить приложение
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // Show onboarding for new users who haven't completed setup
