@@ -48,7 +48,11 @@ export function SymptomPicker({
   useEffect(() => {
     if (isOpen) {
       setDraft(JSON.parse(JSON.stringify(initialSelections)))
-      setActiveCategory(defaultOpenCategory || SYMPTOM_CATEGORY_ORDER[0])
+      const validOrder = SYMPTOM_CATEGORY_ORDER.filter((id) => SYMPTOM_CATEGORIES[id])
+      const initial = defaultOpenCategory && SYMPTOM_CATEGORIES[defaultOpenCategory]
+        ? defaultOpenCategory
+        : validOrder[0]
+      setActiveCategory(initial)
       setSavingCategory(null)
     }
   }, [isOpen, initialSelections, defaultOpenCategory])
@@ -145,6 +149,8 @@ export function SymptomPicker({
   if (!isOpen || !activeCategory) return null
 
   const category = SYMPTOM_CATEGORIES[activeCategory]
+  if (!category) return null
+
   const selection = draft[activeCategory] || { selectedIds: [], intensity: null, comment: '' }
 
   return (
@@ -173,6 +179,7 @@ export function SymptomPicker({
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             {SYMPTOM_CATEGORY_ORDER.map((categoryId) => {
               const cat = SYMPTOM_CATEGORIES[categoryId]
+              if (!cat) return null
               const Icon = cat.icon
               const isActive = activeCategory === categoryId
               const hasSelection = (draft[categoryId]?.selectedIds?.length || 0) > 0
