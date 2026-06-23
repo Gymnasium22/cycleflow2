@@ -191,7 +191,7 @@ export function SymptomPicker({
                   onClick={() => setActiveCategory(categoryId)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition-all ${
                     isActive
-                      ? `${colorClass} ring-2 ring-offset-1 ring-[var(--tg-theme-button-color,#e11d48)]/30`
+                      ? `${colorClass} ring-1 ring-inset ring-[var(--tg-theme-button-color,#e11d48)]/30`
                       : hasSelection
                       ? 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] border-[var(--tg-theme-hint-color,#d1d5db)]/20'
                       : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] border-[var(--tg-theme-hint-color,#d1d5db)]/20 hover:bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]'

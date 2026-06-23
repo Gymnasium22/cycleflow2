@@ -16,6 +16,7 @@ import {
   formatDate,
   getActualPeriodLength,
   daysBetween,
+  toISODateString,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
 
@@ -32,7 +33,7 @@ export function History() {
   const [periodLength, setPeriodLength] = useState(5)
   const [cycleNotes, setCycleNotes] = useState('')
 
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState(() => toISODateString(new Date()))
   const { symptoms: selectedSymptoms, deleteSymptom } = useSymptoms(selectedDate)
 
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
@@ -54,7 +55,7 @@ export function History() {
   function openAddCycle() {
     hapticFeedback.impact('light')
     setEditingCycle(null)
-    setStartDate(new Date().toISOString().split('T')[0])
+    setStartDate(toISODateString(new Date()))
     setEndDate('')
     setPeriodLength(fallbackPeriodLength)
     setCycleNotes('')

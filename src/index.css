@@ -83,6 +83,15 @@ body {
   border-radius: 10px;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Smooth transitions for theme changes and states */
 button, input, select, textarea, a {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);

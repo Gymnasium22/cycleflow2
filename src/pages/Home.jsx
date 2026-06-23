@@ -27,6 +27,7 @@ import {
   getCycleDayForDate,
   formatDate,
   getDaysUntil,
+  toISODateString,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
@@ -63,7 +64,7 @@ export function Home() {
   const { profile } = useAuth()
   const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const todayStr = useMemo(() => toISODateString(new Date()), [])
   const { symptoms, selections, saveCategorySelection, deleteCategory, isLoading: symptomsLoading } = useSymptoms(todayStr)
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)

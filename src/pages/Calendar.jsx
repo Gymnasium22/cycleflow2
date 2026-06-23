@@ -18,6 +18,7 @@ import {
   daysBetween,
   isSameDay,
   formatDate,
+  toISODateString,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
@@ -44,8 +45,8 @@ export function Calendar() {
     return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`
   }, [currentDate])
   const monthEndStr = useMemo(() => {
-    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
-    return d.toISOString().split('T')[0]
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+    return toISODateString(d)
   }, [currentDate])
   const { symptoms: monthSymptoms } = useSymptomHistory(monthStartStr, monthEndStr)
 
@@ -187,7 +188,7 @@ export function Calendar() {
 
   async function handleAddCycle() {
     if (!selectedDate) return
-    const dateStr = selectedDate.toISOString().split('T')[0]
+    const dateStr = toISODateString(selectedDate)
     await addCycle({
       start_date: dateStr,
       period_length: fallbackPeriodLength,
@@ -202,7 +203,7 @@ export function Calendar() {
     if (!selectedDate) return
     const activeCycle = cycles.find((c) => isPeriodActive(c))
     if (!activeCycle) return
-    const dateStr = selectedDate.toISOString().split('T')[0]
+    const dateStr = toISODateString(selectedDate)
     await updateCycle(activeCycle.id, { end_date: dateStr })
     setShowModal(false)
     setSelectedDate(null)
@@ -283,7 +284,7 @@ export function Calendar() {
             const isToday = isSameDay(date, new Date())
             const isSelected = selectedDate && isSameDay(date, selectedDate)
             const inPeriod = isPeriodDay(date)
-            const dateStr = date.toISOString().split('T')[0]
+            const dateStr = toISODateString(date)
             const hasSex = sexDates.has(dateStr)
 
             const cycleForDay = getCycleForDate(date, cycles)
@@ -301,13 +302,15 @@ export function Calendar() {
                   isSelected ? 'ring-2 ring-offset-2 ring-[var(--tg-theme-button-color,#e11d48)]' : ''
                 } ${inPeriod && !type ? 'bg-rose-100 text-rose-700' : ''}`}
               >
-                <span>{date.getDate()}</span>
-                {cycleDayNumber && cycleDayNumber > 0 && (
-                  <span className="text-[9px] font-medium opacity-70 leading-none mt-0.5">{cycleDayNumber}</span>
-                )}
-                {inPeriod && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current opacity-60" />
-                )}
+                <span className="leading-none">{date.getDate()}</span>
+                <div className="flex items-center justify-center gap-1 mt-0.5 h-3">
+                  {cycleDayNumber && cycleDayNumber > 0 && (
+                    <span className="text-[9px] font-medium opacity-70 leading-none">{cycleDayNumber}</span>
+                  )}
+                  {inPeriod && (
+                    <span className="w-1 h-1 rounded-full bg-current opacity-60" />
+                  )}
+                </div>
                 {hasSex && (
                   <Heart size={10} className="absolute top-1 right-1 fill-current opacity-90" />
                 )}

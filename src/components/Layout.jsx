@@ -35,7 +35,7 @@ function BottomNav({ activeTab, onTabChange }) {
               hapticFeedback.impact('light')
               onTabChange(item.id)
             }}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all duration-200 ${
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all duration-200 outline-none focus-visible:ring-0 ${
               activeTab === item.id
                 ? 'text-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10'
                 : 'text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'

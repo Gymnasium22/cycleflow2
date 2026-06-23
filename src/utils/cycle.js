@@ -31,6 +31,15 @@ export function isToday(date) {
   return isSameDay(date, new Date())
 }
 
+export function toISODateString(date) {
+  const d = typeof date === 'string' ? parseDate(date) : new Date(date)
+  if (!d || isNaN(d.getTime())) return ''
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function getActualPeriodLength(cycle, fallback = DEFAULT_PERIOD_LENGTH) {
   if (!cycle) return fallback
 
