@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 const TelegramContext = createContext(null)
 
 const TG_SCRIPT_URL = 'https://telegram.org/js/telegram-web-app.js'
-const INIT_DATA_TIMEOUT = 5000
+const INIT_DATA_TIMEOUT = 10000
 
 function loadTelegramScript() {
   return new Promise((resolve, reject) => {
@@ -95,7 +95,7 @@ export function TelegramProvider({ children }) {
           }
 
           setWebApp(tg)
-          const initialInitData = tg.initData || null
+          const initialInitData = tg.initData?.length > 0 ? tg.initData : null
           const initialUser = tg.initDataUnsafe?.user || null
           setInitData(initialInitData)
           setUser(initialUser)
@@ -122,7 +122,7 @@ export function TelegramProvider({ children }) {
               clearInterval(pollInterval)
               return
             }
-            const updatedInitData = tg.initData || null
+            const updatedInitData = tg.initData?.length > 0 ? tg.initData : null
             if (updatedInitData) {
               clearInterval(pollInterval)
               console.log('[Telegram] initData appeared after polling')
@@ -132,7 +132,17 @@ export function TelegramProvider({ children }) {
               setReady(true)
             } else if (Date.now() - pollStart > INIT_DATA_TIMEOUT) {
               clearInterval(pollInterval)
-              console.warn('[Telegram] initData still missing after 5s, continuing in fallback mode')
+              console.warn('[Telegram] initData still missing after 10s')
+
+              // Try reload once if this is the first attempt
+              if (!sessionStorage.getItem('cicle_reload_attempted')) {
+                sessionStorage.setItem('cicle_reload_attempted', '1')
+                console.log('[Telegram] Attempting reload to get fresh initData...')
+                window.location.reload()
+                return
+              }
+
+              console.warn('[Telegram] Already attempted reload, continuing in fallback mode')
               setReady(true)
             }
           }, 100)

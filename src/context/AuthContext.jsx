@@ -48,6 +48,19 @@ function getStoredFallbackProfile() {
   }
 }
 
+function clearSupabaseStorage() {
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key)
+      }
+    })
+    console.log('[Auth] Cleared Supabase localStorage keys')
+  } catch (err) {
+    console.warn('[Auth] Failed to clear Supabase storage:', err)
+  }
+}
+
 export function AuthProvider({ children }) {
   const { webApp, user: telegramUser, ready, initData } = useTelegram()
   const telegramUserFromInitData = useMemo(() => parseTelegramUserFromInitData(initData), [initData])
@@ -339,10 +352,24 @@ export function AuthProvider({ children }) {
 
         // 1. Check existing session
         console.log('[Auth] About to call getSession...')
-        const { data: existingSession, error: sessionError } = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout after 5s')), 5000)),
-        ])
+        let existingSession = null
+        let sessionError = null
+        try {
+          const result = await Promise.race([
+            supabase.auth.getSession(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout after 5s')), 5000)),
+          ])
+          existingSession = result.data
+          sessionError = result.error
+        } catch (timeoutOrErr) {
+          sessionError = timeoutOrErr
+        }
+
+        if (sessionError) {
+          console.error('[Auth] getSession error:', sessionError)
+          clearSupabaseStorage()
+        }
+
         console.log('[Auth] Existing session check:', { hasSession: !!existingSession?.session, error: sessionError?.message })
 
         if (existingSession?.session) {
@@ -356,7 +383,7 @@ export function AuthProvider({ children }) {
         }
 
         // 2. Telegram auth if WebApp and initData are available
-        if (webApp && initData) {
+        if (webApp && initData && initData.length > 0) {
           console.log('[Auth] Attempting Telegram auth...')
           console.log('[Auth] initData length:', initData.length)
           console.log('[Auth] initData preview:', initData.slice(0, 200))
@@ -386,7 +413,9 @@ export function AuthProvider({ children }) {
         if (!webApp) {
           console.log('[Auth] No Telegram WebApp, fallback mode')
         } else if (!initData) {
-          console.warn('[Auth] Telegram WebApp present but no initData')
+          console.warn('[Auth] Telegram WebApp present but initData is null after polling. Reload was attempted.')
+        } else if (initData.length === 0) {
+          console.warn('[Auth] Telegram WebApp present but initData is empty string.')
         }
 
         const savedProfile = getStoredFallbackProfile()
