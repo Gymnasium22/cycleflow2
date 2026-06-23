@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 const TelegramContext = createContext(null)
 
 const TG_SCRIPT_URL = 'https://telegram.org/js/telegram-web-app.js'
+const INIT_DATA_TIMEOUT = 5000
 
 function loadTelegramScript() {
   return new Promise((resolve, reject) => {
@@ -46,6 +47,18 @@ function waitForTelegramWebApp(timeout = 3000) {
   })
 }
 
+function applyThemeParams(params) {
+  if (!params) return
+  const root = document.documentElement
+  if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color)
+  if (params.text_color) root.style.setProperty('--tg-theme-text-color', params.text_color)
+  if (params.hint_color) root.style.setProperty('--tg-theme-hint-color', params.hint_color)
+  if (params.link_color) root.style.setProperty('--tg-theme-link-color', params.link_color)
+  if (params.button_color) root.style.setProperty('--tg-theme-button-color', params.button_color)
+  if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color)
+  if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
+}
+
 export function TelegramProvider({ children }) {
   const [webApp, setWebApp] = useState(null)
   const [user, setUser] = useState(null)
@@ -56,16 +69,14 @@ export function TelegramProvider({ children }) {
 
   useEffect(() => {
     let isMounted = true
+    let pollInterval = null
 
     async function init() {
       try {
-        // Ensure the Telegram script is loaded (index.html also includes it)
         await loadTelegramScript()
-
         if (!isMounted) return
 
         const tg = await waitForTelegramWebApp()
-
         if (!isMounted) return
 
         if (tg) {
@@ -85,62 +96,46 @@ export function TelegramProvider({ children }) {
 
           setWebApp(tg)
           const initialInitData = tg.initData || null
+          const initialUser = tg.initDataUnsafe?.user || null
           setInitData(initialInitData)
-          const tgUser = tg.initDataUnsafe?.user || null
-          console.log('[Telegram] User from initDataUnsafe:', tgUser)
-          setUser(tgUser)
+          setUser(initialUser)
           setThemeParams(tg.themeParams || {})
-
-          // Telegram WebView sometimes provides initData with a short delay.
-          // Poll for a few seconds to catch late initData updates.
-          if (!initialInitData) {
-            const pollStart = Date.now()
-            const pollInterval = setInterval(() => {
-              if (!isMounted) {
-                clearInterval(pollInterval)
-                return
-              }
-              const updatedInitData = tg.initData || null
-              if (updatedInitData) {
-                clearInterval(pollInterval)
-                console.log('[Telegram] initData appeared after polling')
-                setInitData(updatedInitData)
-                const updatedUser = tg.initDataUnsafe?.user || null
-                if (updatedUser) {
-                  setUser(updatedUser)
-                }
-              } else if (Date.now() - pollStart > 3000) {
-                clearInterval(pollInterval)
-                console.warn('[Telegram] initData still missing after 3s of polling')
-              }
-            }, 200)
-          }
-
-          const params = tg.themeParams
-          if (params) {
-            const root = document.documentElement
-            if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color)
-            if (params.text_color) root.style.setProperty('--tg-theme-text-color', params.text_color)
-            if (params.hint_color) root.style.setProperty('--tg-theme-hint-color', params.hint_color)
-            if (params.link_color) root.style.setProperty('--tg-theme-link-color', params.link_color)
-            if (params.button_color) root.style.setProperty('--tg-theme-button-color', params.button_color)
-            if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color)
-            if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
-          }
+          applyThemeParams(tg.themeParams)
 
           tg.onEvent('themeChanged', () => {
             if (!isMounted) return
             const updated = tg.themeParams
             setThemeParams(updated)
-            const root = document.documentElement
-            if (updated.bg_color) root.style.setProperty('--tg-theme-bg-color', updated.bg_color)
-            if (updated.text_color) root.style.setProperty('--tg-theme-text-color', updated.text_color)
-            if (updated.hint_color) root.style.setProperty('--tg-theme-hint-color', updated.hint_color)
-            if (updated.link_color) root.style.setProperty('--tg-theme-link-color', updated.link_color)
-            if (updated.button_color) root.style.setProperty('--tg-theme-button-color', updated.button_color)
-            if (updated.button_text_color) root.style.setProperty('--tg-theme-button-text-color', updated.button_text_color)
-            if (updated.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', updated.secondary_bg_color)
+            applyThemeParams(updated)
           })
+
+          if (initialInitData) {
+            if (isMounted) setReady(true)
+            return
+          }
+
+          // Telegram WebView sometimes provides initData with a short delay.
+          // Poll for it, but keep the app in loading state until we get it or timeout.
+          const pollStart = Date.now()
+          pollInterval = setInterval(() => {
+            if (!isMounted) {
+              clearInterval(pollInterval)
+              return
+            }
+            const updatedInitData = tg.initData || null
+            if (updatedInitData) {
+              clearInterval(pollInterval)
+              console.log('[Telegram] initData appeared after polling')
+              setInitData(updatedInitData)
+              const updatedUser = tg.initDataUnsafe?.user || null
+              if (updatedUser) setUser(updatedUser)
+              setReady(true)
+            } else if (Date.now() - pollStart > INIT_DATA_TIMEOUT) {
+              clearInterval(pollInterval)
+              console.warn('[Telegram] initData still missing after 5s, continuing in fallback mode')
+              setReady(true)
+            }
+          }, 100)
         } else {
           console.warn('[Telegram] WebApp not detected, running in fallback mode')
           try {
@@ -159,14 +154,12 @@ export function TelegramProvider({ children }) {
               language_code: 'ru',
             })
           }
+          if (isMounted) setReady(true)
         }
       } catch (err) {
         console.error('[Telegram] Init error:', err)
         if (isMounted) {
           setError(err.message)
-        }
-      } finally {
-        if (isMounted) {
           setReady(true)
         }
       }
@@ -176,6 +169,7 @@ export function TelegramProvider({ children }) {
 
     return () => {
       isMounted = false
+      if (pollInterval) clearInterval(pollInterval)
     }
   }, [])
 
