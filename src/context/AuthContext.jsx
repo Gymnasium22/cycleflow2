@@ -130,7 +130,7 @@ export function AuthProvider({ children }) {
     setProfile(data)
     setStoredProfile(data)
     return data
-  }, [effectiveTelegramUser])
+  }, [effectiveTelegramUser, userTimezone])
 
   const updateProfile = useCallback(async (updates) => {
     setIsLoading(true)
@@ -138,10 +138,10 @@ export function AuthProvider({ children }) {
       const existing = getStoredFallbackProfile()
       const fallbackProfile = {
         id: existing?.id || 'fallback-user',
-        telegram_id: existing?.telegram_id || telegramUser?.id || 123456,
-        username: existing?.username || telegramUser?.username || 'test_user',
-        first_name: existing?.first_name || telegramUser?.first_name || 'Test',
-        language_code: existing?.language_code || telegramUser?.language_code || localStorage.getItem('i18nextLng') || 'ru',
+        telegram_id: existing?.telegram_id || effectiveTelegramUser?.id || 123456,
+        username: existing?.username || effectiveTelegramUser?.username || 'test_user',
+        first_name: existing?.first_name || effectiveTelegramUser?.first_name || 'Test',
+        language_code: existing?.language_code || effectiveTelegramUser?.language_code || localStorage.getItem('i18nextLng') || 'ru',
         cycle_length: existing?.cycle_length ?? DEFAULT_CYCLE_LENGTH,
         period_length: existing?.period_length ?? DEFAULT_PERIOD_LENGTH,
         ...existing,
@@ -180,7 +180,7 @@ export function AuthProvider({ children }) {
     setStoredProfile(data)
     setIsLoading(false)
     return data
-  }, [session, effectiveTelegramUser, profile])
+  }, [session, effectiveTelegramUser, profile, userTimezone])
 
   const migrateFallbackData = useCallback(async (userId) => {
     try {

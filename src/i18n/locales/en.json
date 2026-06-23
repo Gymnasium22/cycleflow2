@@ -34,7 +34,18 @@
     "averagePeriod": "Average period",
     "cyclesCount": "Cycles logged",
     "days": "days",
-    "cycleHistory": "Cycle history"
+    "cycleHistory": "Cycle history",
+    "regularityIndex": "Regularity index",
+    "regularityRange": "Range",
+    "wellnessAndHabits": "Wellness & habits",
+    "topMood": "Top mood",
+    "topSymptom": "Top symptom",
+    "topActivity": "Top activity",
+    "daysWithSex": "Days with sex",
+    "medicationIntake": "Medication intake",
+    "takenTotal": "taken / total",
+    "often": "often",
+    "times": "times"
   },
   "settings": {
     "title": "Settings",

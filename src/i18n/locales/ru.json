@@ -34,7 +34,18 @@
     "averagePeriod": "Средняя менструация",
     "cyclesCount": "Записано циклов",
     "days": "дней",
-    "cycleHistory": "История циклов"
+    "cycleHistory": "История циклов",
+    "regularityIndex": "Индекс регулярности",
+    "regularityRange": "Разброс",
+    "wellnessAndHabits": "Самочувствие и привычки",
+    "topMood": "Частое настроение",
+    "topSymptom": "Частый симптом",
+    "topActivity": "Любимая активность",
+    "daysWithSex": "Дней с сексом",
+    "medicationIntake": "Приём таблеток",
+    "takenTotal": "принято / всего",
+    "often": "чаще",
+    "times": "раз"
   },
   "settings": {
     "title": "Настройки",

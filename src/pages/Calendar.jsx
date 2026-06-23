@@ -14,6 +14,7 @@ import {
   getAveragePeriodLength,
   getPhaseForDate,
   getCycleForDate,
+  getCycleDayForDate,
   daysBetween,
   isSameDay,
   formatDate,
@@ -55,7 +56,9 @@ export function Calendar() {
       const selectedIds = (() => {
         try {
           const parsed = JSON.parse(s.notes || '[]')
-          return Array.isArray(parsed) ? parsed : []
+          if (Array.isArray(parsed)) return parsed
+          if (parsed && Array.isArray(parsed.selectedIds)) return parsed.selectedIds
+          return []
         } catch {
           return []
         }
@@ -283,17 +286,25 @@ export function Calendar() {
             const dateStr = date.toISOString().split('T')[0]
             const hasSex = sexDates.has(dateStr)
 
+            const cycleForDay = getCycleForDate(date, cycles)
+            const cycleDayNumber = cycleForDay
+              ? getCycleDayForDate(date, cycleForDay.start_date, cycleForDay.cycle_length || avgCycleLength || DEFAULT_CYCLE_LENGTH)
+              : null
+
             return (
               <button
                 key={idx}
                 onClick={() => handleDayClick(date)}
-                className={`aspect-square flex items-center justify-center rounded-xl text-sm font-semibold transition-all relative ${
+                className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all relative ${
                   type ? typeStyles[type] : 'text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
                 } ${isToday && !type ? 'ring-2 ring-[var(--tg-theme-button-color,#e11d48)]' : ''} ${
                   isSelected ? 'ring-2 ring-offset-2 ring-[var(--tg-theme-button-color,#e11d48)]' : ''
                 } ${inPeriod && !type ? 'bg-rose-100 text-rose-700' : ''}`}
               >
-                {date.getDate()}
+                <span>{date.getDate()}</span>
+                {cycleDayNumber && cycleDayNumber > 0 && (
+                  <span className="text-[9px] font-medium opacity-70 leading-none mt-0.5">{cycleDayNumber}</span>
+                )}
                 {inPeriod && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current opacity-60" />
                 )}

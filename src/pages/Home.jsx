@@ -13,6 +13,7 @@ import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycle
 import { useSymptoms } from '../hooks/useSymptoms'
 import { useMedications } from '../hooks/useMedications'
 import {
+  SYMPTOM_CATEGORIES,
   getCategoryLabel,
   getOptionLabel,
   getOptionEmoji,
@@ -301,6 +302,23 @@ export function Home() {
           </div>
           <ChevronRight size={20} className="text-[var(--tg-theme-hint-color,#6b7280)]" />
         </button>
+
+        <div className="flex flex-wrap gap-2">
+          {['mood', 'symptoms', 'sex', 'activity'].map((catId) => {
+            const cat = SYMPTOM_CATEGORIES[catId]
+            const Icon = cat.icon
+            return (
+              <button
+                key={catId}
+                onClick={() => openSymptomPicker(catId)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] hover:border-[var(--tg-theme-button-color,#e11d48)]/30 transition-colors"
+              >
+                <Icon size={14} />
+                {getCategoryLabel(catId, i18n.language)}
+              </button>
+            )
+          })}
+        </div>
 
         {activePeriod ? (
           <button

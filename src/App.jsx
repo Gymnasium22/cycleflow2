@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { TelegramProvider } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { Loading } from './components/Loading'
+import { HomeSkeleton } from './components/HomeSkeleton'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
 import { Calendar } from './pages/Calendar'
@@ -26,7 +26,7 @@ function AppContent() {
   const { loading, profile } = useAuth()
 
   if (loading) {
-    return <Loading />
+    return <HomeSkeleton />
   }
 
   // Show onboarding for new users who haven't completed setup

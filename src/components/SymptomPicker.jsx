@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, ChevronDown, Check } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { Spinner } from './Spinner'
 import {
   SYMPTOM_CATEGORIES,
@@ -11,15 +11,22 @@ import {
 } from '../data/symptomCategories'
 
 const categoryColors = {
-  mood: 'bg-amber-100 text-amber-600',
-  symptoms: 'bg-rose-100 text-rose-600',
-  sex: 'bg-pink-100 text-pink-600',
-  discharge: 'bg-sky-100 text-sky-600',
-  digestion: 'bg-orange-100 text-orange-600',
-  pregnancy_test: 'bg-emerald-100 text-emerald-600',
-  ovulation_test: 'bg-violet-100 text-violet-600',
-  activity: 'bg-blue-100 text-blue-600',
-  other: 'bg-slate-100 text-slate-600',
+  mood: 'bg-amber-100 text-amber-600 border-amber-200',
+  symptoms: 'bg-rose-100 text-rose-600 border-rose-200',
+  sex: 'bg-pink-100 text-pink-600 border-pink-200',
+  discharge: 'bg-sky-100 text-sky-600 border-sky-200',
+  digestion: 'bg-orange-100 text-orange-600 border-orange-200',
+  pregnancy_test: 'bg-emerald-100 text-emerald-600 border-emerald-200',
+  ovulation_test: 'bg-violet-100 text-violet-600 border-violet-200',
+  activity: 'bg-blue-100 text-blue-600 border-blue-200',
+  other: 'bg-slate-100 text-slate-600 border-slate-200',
+}
+
+function getSelectedSummary(categoryId, selection, lang) {
+  if (!selection?.selectedIds?.length) return ''
+  return selection.selectedIds
+    .map((id) => `${getOptionEmoji(categoryId, id)} ${getOptionLabel(categoryId, id, lang)}`)
+    .join(' · ')
 }
 
 export function SymptomPicker({
@@ -35,13 +42,13 @@ export function SymptomPicker({
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
 
   const [draft, setDraft] = useState({})
-  const [openCategory, setOpenCategory] = useState(null)
+  const [activeCategory, setActiveCategory] = useState(null)
   const [savingCategory, setSavingCategory] = useState(null)
 
   useEffect(() => {
     if (isOpen) {
       setDraft(JSON.parse(JSON.stringify(initialSelections)))
-      setOpenCategory(defaultOpenCategory)
+      setActiveCategory(defaultOpenCategory || SYMPTOM_CATEGORY_ORDER[0])
       setSavingCategory(null)
     }
   }, [isOpen, initialSelections, defaultOpenCategory])
@@ -110,10 +117,6 @@ export function SymptomPicker({
     setSavingCategory(null)
   }
 
-  function handleClose() {
-    onClose()
-  }
-
   const changedCategories = useMemo(() => {
     const changed = new Set()
     for (const categoryId of SYMPTOM_CATEGORY_ORDER) {
@@ -136,159 +139,144 @@ export function SymptomPicker({
     for (const categoryId of changedCategories) {
       await handleSaveCategory(categoryId)
     }
-    handleClose()
+    onClose()
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !activeCategory) return null
+
+  const category = SYMPTOM_CATEGORIES[activeCategory]
+  const selection = draft[activeCategory] || { selectedIds: [], intensity: null, comment: '' }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50">
-      <div className="w-full max-w-md max-h-[90vh] rounded-t-3xl bg-[var(--tg-theme-bg-color,#ffffff)] flex flex-col animate-slide-in-bottom">
+      <div className="w-full max-w-md max-h-[92vh] rounded-t-3xl bg-[var(--tg-theme-bg-color,#ffffff)] flex flex-col animate-slide-in-bottom">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--tg-theme-hint-color,#d1d5db)]/20">
-          <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">
-            {lang === 'ru' ? 'Самочувствие' : 'How do you feel?'}
-          </h3>
+          <div>
+            <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">
+              {lang === 'ru' ? 'Самочувствие' : 'How do you feel?'}
+            </h3>
+            <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+              {getSelectedSummary(activeCategory, selection, lang) || (lang === 'ru' ? 'Выберите категорию' : 'Select a category')}
+            </p>
+          </div>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
           >
             <X size={20} className="text-[var(--tg-theme-hint-color,#6b7280)]" />
           </button>
         </div>
 
-        {/* Categories */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {SYMPTOM_CATEGORY_ORDER.map((categoryId) => {
-            const category = SYMPTOM_CATEGORIES[categoryId]
-            const Icon = category.icon
-            const isOpenCat = openCategory === categoryId
-            const selection = draft[categoryId] || { selectedIds: [], intensity: null }
-            const selectedCount = selection.selectedIds.length
-            const colorClass = categoryColors[categoryId] || 'bg-slate-100 text-slate-600'
+        {/* Category tabs */}
+        <div className="px-4 pt-3 pb-1 border-b border-[var(--tg-theme-hint-color,#d1d5db)]/10">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {SYMPTOM_CATEGORY_ORDER.map((categoryId) => {
+              const cat = SYMPTOM_CATEGORIES[categoryId]
+              const Icon = cat.icon
+              const isActive = activeCategory === categoryId
+              const hasSelection = (draft[categoryId]?.selectedIds?.length || 0) > 0
+              const colorClass = categoryColors[categoryId] || 'bg-slate-100 text-slate-600 border-slate-200'
 
-            return (
-              <div
-                key={categoryId}
-                className={`rounded-2xl border transition-all ${
-                  isOpenCat
-                    ? 'border-[var(--tg-theme-button-color,#e11d48)]/30 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]'
-                    : 'border-[var(--tg-theme-hint-color,#d1d5db)]/20 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]'
-                }`}
-              >
+              return (
                 <button
-                  onClick={() => setOpenCategory(isOpenCat ? null : categoryId)}
-                  className="w-full flex items-center justify-between p-3 text-left"
+                  key={categoryId}
+                  onClick={() => setActiveCategory(categoryId)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition-all ${
+                    isActive
+                      ? `${colorClass} ring-2 ring-offset-1 ring-[var(--tg-theme-button-color,#e11d48)]/30`
+                      : hasSelection
+                      ? 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] border-[var(--tg-theme-hint-color,#d1d5db)]/20'
+                      : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] border-[var(--tg-theme-hint-color,#d1d5db)]/20 hover:bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorClass}`}>
-                      <Icon size={20} />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[var(--tg-theme-text-color,#111827)]">
-                        {getCategoryLabel(categoryId, lang)}
-                      </p>
-                      {selectedCount > 0 && (
-                        <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-                          {selection.selectedIds
-                            .map((id) => `${getOptionEmoji(categoryId, id)} ${getOptionLabel(categoryId, id, lang)}`)
-                            .join(' · ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronDown
-                    size={20}
-                    className={`text-[var(--tg-theme-hint-color,#6b7280)] transition-transform ${isOpenCat ? 'rotate-180' : ''}`}
-                  />
+                  <Icon size={14} />
+                  <span>{getCategoryLabel(categoryId, lang)}</span>
+                  {hasSelection && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color,#e11d48)]" />
+                  )}
                 </button>
+              )
+            })}
+          </div>
+        </div>
 
-                {isOpenCat && (
-                  <div className="px-3 pb-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      {category.options.map((option) => {
-                        const selected = selection.selectedIds.includes(option.id)
-                        return (
-                          <button
-                            key={option.id}
-                            onClick={() => toggleOption(categoryId, option.id)}
-                            className={`flex items-center gap-2 p-2.5 rounded-xl text-sm font-medium transition-all border ${
-                              selected
-                                ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] border-transparent'
-                                : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] border-[var(--tg-theme-hint-color,#d1d5db)]/30 hover:border-[var(--tg-theme-button-color,#e11d48)]/30'
-                            }`}
-                          >
-                            <span className="text-base">{option.emoji}</span>
-                            <span className="truncate">{option.labels[lang]}</span>
-                            {selected && category.mode === 'multiple' && (
-                              <Check size={14} className="ml-auto shrink-0" />
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
+        {/* Options */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            {category.options.map((option) => {
+              const selected = selection.selectedIds.includes(option.id)
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => toggleOption(activeCategory, option.id)}
+                  className={`flex items-center gap-2 p-3 rounded-xl text-sm font-medium transition-all border ${
+                    selected
+                      ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] border-transparent shadow-sm'
+                      : 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] border-[var(--tg-theme-hint-color,#d1d5db)]/20 hover:border-[var(--tg-theme-button-color,#e11d48)]/30'
+                  }`}
+                >
+                  <span className="text-lg">{option.emoji}</span>
+                  <span className="truncate">{option.labels[lang]}</span>
+                  {selected && category.mode === 'multiple' && (
+                    <Check size={14} className="ml-auto shrink-0" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
 
-                    {category.hasIntensity && selection.selectedIds.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">
-                          {lang === 'ru' ? 'Интенсивность' : 'Intensity'}
-                        </p>
-                        <div className="flex gap-2">
-                          {[1, 2, 3].map((level) => {
-                            const labels = category.intensityLabels[lang]
-                            const active = selection.intensity === level
-                            const color =
-                              level === 1
-                                ? 'bg-emerald-500'
-                                : level === 2
-                                ? 'bg-amber-500'
-                                : 'bg-rose-500'
-                            return (
-                              <button
-                                key={level}
-                                onClick={() => setIntensity(categoryId, level)}
-                                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                                  active
-                                    ? `${color} text-white border-transparent`
-                                    : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] border-[var(--tg-theme-hint-color,#d1d5db)]/30 hover:border-[var(--tg-theme-button-color,#e11d48)]/30'
-                                }`}
-                              >
-                                {labels[level - 1]}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {selection.selectedIds.length > 0 && (
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)]">
-                          {lang === 'ru' ? 'Заметка' : 'Note'}
-                        </p>
-                        <textarea
-                          value={selection.comment || ''}
-                          onChange={(e) => setComment(categoryId, e.target.value)}
-                          placeholder={lang === 'ru' ? 'Особенности этого симптома...' : 'Details about this symptom...'}
-                          rows={2}
-                          className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--tg-theme-hint-color,#d1d5db)]/30 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] resize-none focus:outline-none focus:border-[var(--tg-theme-button-color,#e11d48)]"
-                        />
-                      </div>
-                    )}
-
+          {category.hasIntensity && selection.selectedIds.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)]">
+                {lang === 'ru' ? 'Интенсивность' : 'Intensity'}
+              </p>
+              <div className="flex gap-2">
+                {[1, 2, 3].map((level) => {
+                  const labels = category.intensityLabels[lang]
+                  const active = selection.intensity === level
+                  const color = level === 1 ? 'bg-emerald-500' : level === 2 ? 'bg-amber-500' : 'bg-rose-500'
+                  return (
                     <button
-                      onClick={() => handleSaveCategory(categoryId)}
-                      disabled={savingCategory === categoryId || loading}
-                      className="w-full py-2.5 rounded-xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+                      key={level}
+                      onClick={() => setIntensity(activeCategory, level)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                        active
+                          ? `${color} text-white border-transparent`
+                          : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] border-[var(--tg-theme-hint-color,#d1d5db)]/30 hover:border-[var(--tg-theme-button-color,#e11d48)]/30'
+                      }`}
                     >
-                      {savingCategory === categoryId && <Spinner size={16} />}
-                      {lang === 'ru' ? 'Сохранить' : 'Save'}
+                      {labels[level - 1]}
                     </button>
-                  </div>
-                )}
+                  )
+                })}
               </div>
-            )
-          })}
+            </div>
+          )}
+
+          {selection.selectedIds.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)]">
+                {lang === 'ru' ? 'Заметка' : 'Note'}
+              </p>
+              <textarea
+                value={selection.comment || ''}
+                onChange={(e) => setComment(activeCategory, e.target.value)}
+                placeholder={lang === 'ru' ? 'Особенности...' : 'Details...'}
+                rows={2}
+                className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--tg-theme-hint-color,#d1d5db)]/30 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] resize-none focus:outline-none focus:border-[var(--tg-theme-button-color,#e11d48)]"
+              />
+            </div>
+          )}
+
+          <button
+            onClick={() => handleSaveCategory(activeCategory)}
+            disabled={savingCategory === activeCategory || loading}
+            className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {savingCategory === activeCategory && <Spinner size={18} />}
+            {lang === 'ru' ? 'Сохранить' : 'Save'}
+          </button>
         </div>
 
         {/* Footer */}
@@ -296,10 +284,10 @@ export function SymptomPicker({
           <button
             onClick={handleSaveAll}
             disabled={changedCategories.size === 0 || loading}
-            className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading && <Spinner size={18} />}
-            {lang === 'ru' ? 'Готово' : 'Done'}
+            {lang === 'ru' ? `Готово (${changedCategories.size})` : `Done (${changedCategories.size})`}
           </button>
         </div>
       </div>
