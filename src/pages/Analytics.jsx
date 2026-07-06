@@ -41,6 +41,13 @@ function getTopOption(categoryId, counts, lang) {
   }
 }
 
+const PHASE_BAR_COLORS = {
+  menstruation: 'var(--phase-menstruation-deep)',
+  follicular: 'var(--phase-follicular-deep)',
+  ovulation: 'var(--phase-ovulation-deep)',
+  luteal: 'var(--phase-luteal-deep)',
+}
+
 export function Analytics() {
   const { t, i18n } = useTranslation()
   const { profile } = useAuth()
@@ -91,9 +98,7 @@ export function Analytics() {
     for (const s of allSymptoms) {
       if (s.symptom_type !== 'sex') continue
       const ids = parseSelectedIds(s.notes)
-      if (ids.length > 0 && !ids.includes('none')) {
-        dates.add(s.date)
-      }
+      if (ids.length > 0 && !ids.includes('none')) dates.add(s.date)
     }
     return dates.size
   }, [allSymptoms])
@@ -124,149 +129,84 @@ export function Analytics() {
   const hasPhaseCorrelations = phaseCorrelations.some((p) => p.topItems.length > 0)
 
   const statCards = [
-    {
-      icon: Clock,
-      label: t('analytics.averageCycle'),
-      value: `${avgCycleLength} ${t('analytics.days')}`,
-      color: 'text-violet-600',
-      bg: 'bg-violet-500/10',
-    },
-    {
-      icon: Calendar,
-      label: t('analytics.averagePeriod'),
-      value: `${avgPeriodLength} ${t('analytics.days')}`,
-      color: 'text-rose-600',
-      bg: 'bg-rose-500/10',
-    },
-    {
-      icon: TrendingUp,
-      label: t('analytics.cyclesCount'),
-      value: String(cycles.length || 0),
-      color: 'text-teal-600',
-      bg: 'bg-teal-500/10',
-    },
+    { icon: Clock, label: t('analytics.averageCycle'), value: avgCycleLength, unit: t('analytics.days'), accent: 'var(--phase-ovulation-deep)' },
+    { icon: Calendar, label: t('analytics.averagePeriod'), value: avgPeriodLength, unit: t('analytics.days'), accent: 'var(--phase-menstruation-deep)' },
+    { icon: TrendingUp, label: t('analytics.cyclesCount'), value: cycles.length || 0, unit: '', accent: 'var(--phase-luteal-deep)' },
     ...(regularity
-      ? [
-          {
-            icon: AlertCircle,
-            label: t('analytics.regularityIndex'),
-            value: `±${regularity.stdDev} ${t('analytics.days')}`,
-            sub: `${t('analytics.regularityRange')}: ${regularity.min}–${regularity.max} ${t('analytics.days')}`,
-            color: 'text-amber-600',
-            bg: 'bg-amber-500/10',
-          },
-        ]
+      ? [{
+          icon: AlertCircle,
+          label: t('analytics.regularityIndex'),
+          value: `±${regularity.stdDev}`,
+          unit: t('analytics.days'),
+          sub: `${regularity.min}–${regularity.max}`,
+          accent: 'var(--phase-follicular-deep)',
+        }]
       : []),
   ]
 
   const insightCards = [
-    ...(topMood
-      ? [
-          {
-            icon: Smile,
-            label: t('analytics.topMood'),
-            value: `${topMood.emoji} ${topMood.label}`,
-            sub: `${topMood.count} ${t('analytics.times')}`,
-            color: 'text-amber-600',
-            bg: 'bg-amber-500/10',
-          },
-        ]
-      : []),
-    ...(topSymptom
-      ? [
-          {
-            icon: Activity,
-            label: t('analytics.topSymptom'),
-            value: `${topSymptom.emoji} ${topSymptom.label}`,
-            sub: `${topSymptom.count} ${t('analytics.times')}`,
-            color: 'text-rose-600',
-            bg: 'bg-rose-500/10',
-          },
-        ]
-      : []),
-    ...(topActivity
-      ? [
-          {
-            icon: TrendingUp,
-            label: t('analytics.topActivity'),
-            value: `${topActivity.emoji} ${topActivity.label}`,
-            sub: `${topActivity.count} ${t('analytics.times')}`,
-            color: 'text-blue-600',
-            bg: 'bg-blue-500/10',
-          },
-        ]
-      : []),
-    ...(sexDaysCount > 0
-      ? [
-          {
-            icon: Heart,
-            label: t('analytics.daysWithSex'),
-            value: String(sexDaysCount),
-            sub: topSex ? `${t('analytics.often')}: ${topSex.emoji} ${topSex.label}` : '',
-            color: 'text-pink-600',
-            bg: 'bg-pink-500/10',
-          },
-        ]
-      : []),
-    ...(medicationLogs.length > 0
-      ? [
-          {
-            icon: Pill,
-            label: t('analytics.medicationIntake'),
-            value: `${medicationStats.taken}/${medicationLogs.length}`,
-            sub: t('analytics.takenTotal'),
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-500/10',
-          },
-        ]
-      : []),
+    ...(topMood ? [{ icon: Smile, label: t('analytics.topMood'), value: `${topMood.emoji} ${topMood.label}`, sub: `${topMood.count}×`, accent: 'var(--phase-follicular-deep)' }] : []),
+    ...(topSymptom ? [{ icon: Activity, label: t('analytics.topSymptom'), value: `${topSymptom.emoji} ${topSymptom.label}`, sub: `${topSymptom.count}×`, accent: 'var(--phase-menstruation-deep)' }] : []),
+    ...(topActivity ? [{ icon: TrendingUp, label: t('analytics.topActivity'), value: `${topActivity.emoji} ${topActivity.label}`, sub: `${topActivity.count}×`, accent: 'var(--phase-ovulation-deep)' }] : []),
+    ...(sexDaysCount > 0 ? [{ icon: Heart, label: t('analytics.daysWithSex'), value: String(sexDaysCount), sub: topSex ? topSex.emoji : '', accent: 'var(--phase-menstruation)' }] : []),
+    ...(medicationLogs.length > 0 ? [{ icon: Pill, label: t('analytics.medicationIntake'), value: `${medicationStats.taken}/${medicationLogs.length}`, sub: t('analytics.takenTotal'), accent: 'var(--phase-luteal-deep)' }] : []),
   ]
 
-  const cycleColors = ['#f43f5e', '#8b5cf6', '#14b8a6', '#f59e0b', '#6366f1']
-  const periodColors = ['#fb7185', '#a78bfa', '#5eead4', '#fcd34d', '#818cf8']
+  const cycleColors = ['#C45C6A', '#8B6FE0', '#4A9A88', '#D4A84A', '#7C5FD4']
+  const periodColors = ['#E8A0A8', '#C4B5FD', '#9DD4C4', '#F5D9A8', '#A78BFA']
+
+  const maxCorrelation = Math.max(
+    ...phaseCorrelations.flatMap((p) => p.topItems.map((i) => i.count)),
+    1
+  )
 
   return (
-    <div className="space-y-6 pb-4">
-      <h1 className="text-2xl font-bold">{t('analytics.title')}</h1>
+    <div className="space-y-5 pb-4 animate-fade-in">
+      <h1 className="page-title">{t('analytics.title')}</h1>
 
       {cycles.length < 2 && (
-        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] rounded-2xl px-4 py-3">
+        <p className="text-sm text-[var(--text-muted)] glass-panel rounded-2xl px-4 py-3">
           {t('analytics.needMoreData')}
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-3">
-        {statCards.map((stat) => (
-          <div key={stat.label} className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
-              <stat.icon size={24} />
-            </div>
-            <div>
-              <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{stat.label}</p>
-              <p className="text-2xl font-bold text-[var(--tg-theme-text-color,#111827)]">{stat.value}</p>
-              {stat.sub && <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{stat.sub}</p>}
-            </div>
+      {/* Hero metrics */}
+      <div className="grid grid-cols-3 gap-2.5">
+        {statCards.slice(0, 3).map((stat) => (
+          <div key={stat.label} className="card-elevated p-3.5 text-center">
+            <stat.icon size={16} className="mx-auto mb-2 opacity-60" style={{ color: stat.accent }} />
+            <p className="insight-value tabular-nums" style={{ color: stat.accent }}>{stat.value}</p>
+            <p className="text-[9px] text-[var(--text-muted)] mt-1 leading-tight">{stat.label}</p>
+            {stat.unit && <p className="text-[9px] text-[var(--text-muted)]">{stat.unit}</p>}
           </div>
         ))}
       </div>
 
+      {regularity && (
+        <div className="card-elevated p-4 flex items-center gap-4">
+          <AlertCircle size={20} style={{ color: 'var(--phase-follicular-deep)' }} />
+          <div>
+            <p className="text-xs text-[var(--text-muted)]">{t('analytics.regularityIndex')}</p>
+            <p className="insight-value text-3xl tabular-nums" style={{ color: 'var(--phase-follicular-deep)' }}>
+              ±{regularity.stdDev}
+            </p>
+            <p className="text-[10px] text-[var(--text-muted)]">
+              {t('analytics.regularityRange')}: {regularity.min}–{regularity.max} {t('analytics.days')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {insightCards.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-lg font-bold">{t('analytics.wellnessAndHabits')}</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
+          <h2 className="font-display text-base font-semibold">{t('analytics.wellnessAndHabits')}</h2>
+          <div className="grid grid-cols-2 gap-2.5">
             {insightCards.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] flex flex-col justify-between"
-              >
-                <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color} mb-2`}>
-                  <stat.icon size={18} />
-                </div>
-                <div>
-                  <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{stat.label}</p>
-                  <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)] leading-tight">{stat.value}</p>
-                  {stat.sub && <p className="text-[10px] text-[var(--tg-theme-hint-color,#6b7280)] mt-0.5">{stat.sub}</p>}
-                </div>
+              <div key={stat.label} className="card-elevated p-4 flex flex-col min-h-[100px]">
+                <stat.icon size={16} style={{ color: stat.accent }} className="mb-2 opacity-70" />
+                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">{stat.label}</p>
+                <p className="font-display text-lg font-semibold leading-tight mt-1 truncate">{stat.value}</p>
+                {stat.sub && <p className="text-[10px] text-[var(--text-muted)] mt-auto pt-1">{stat.sub}</p>}
               </div>
             ))}
           </div>
@@ -275,64 +215,79 @@ export function Analytics() {
 
       {hasPhaseCorrelations && (
         <div className="space-y-3">
-          <h2 className="text-lg font-bold">{t('analytics.phaseCorrelations')}</h2>
-          <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{t('analytics.phaseCorrelationsHint')}</p>
-          <div className="grid grid-cols-1 gap-3">
-            {phaseCorrelations.map((entry) => (
+          <h2 className="font-display text-base font-semibold">{t('analytics.phaseCorrelations')}</h2>
+          <p className="text-xs text-[var(--text-muted)]">{t('analytics.phaseCorrelationsHint')}</p>
+          <div className="space-y-3">
+            {phaseCorrelations.map((entry) =>
               entry.topItems.length > 0 && (
-                <div
-                  key={entry.phase}
-                  className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-2"
-                >
+                <div key={entry.phase} className="card-elevated p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-[var(--tg-theme-text-color,#111827)]">
-                      {t(`home.phase.${entry.phase}`)}
-                    </p>
-                    <span className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+                    <p className="text-sm font-semibold">{t(`home.phase.${entry.phase}`)}</p>
+                    <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
                       {entry.loggedDays} {t('analytics.loggedDays')}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {entry.topItems.map((item) => (
-                      <span
-                        key={`${entry.phase}-${item.categoryId}-${item.optionId}`}
-                        className="px-2.5 py-1 rounded-xl text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20"
-                      >
-                        {item.emoji} {item.label} · {item.count}
-                      </span>
+                  <div className="space-y-2">
+                    {entry.topItems.slice(0, 3).map((item) => (
+                      <div key={`${entry.phase}-${item.optionId}`} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span>{item.emoji} {item.label}</span>
+                          <span className="text-[var(--text-muted)] tabular-nums">{item.count}</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-black/[0.06] overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700 ease-premium"
+                            style={{
+                              width: `${(item.count / maxCorrelation) * 100}%`,
+                              background: PHASE_BAR_COLORS[entry.phase],
+                            }}
+                          />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
               )
-            ))}
+            )}
           </div>
         </div>
       )}
 
-      {/* Chart */}
-      <div className="rounded-2xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
-        <h2 className="text-lg font-bold mb-4">{t('analytics.cycleHistory')}</h2>
-        <div className="h-48">
+      <div className="card-elevated p-5">
+        <h2 className="font-display text-base font-semibold mb-4">{t('analytics.cycleHistory')}</h2>
+        <div className="h-52">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <BarChart data={chartData} margin={{ top: 8, right: 4, bottom: 4, left: -24 }} barGap={4}>
+              <defs>
+                <linearGradient id="cycleGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8B6FE0" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#C4B5FD" stopOpacity={0.5} />
+                </linearGradient>
+                <linearGradient id="periodGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#C45C6A" stopOpacity={0.9} />
+                  <stop offset="100%" stopColor="#E8A0A8" stopOpacity={0.5} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{
-                  borderRadius: '12px',
-                  border: 'none',
-                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                  borderRadius: '14px',
+                  border: '1px solid var(--border-subtle)',
+                  boxShadow: 'var(--shadow-2)',
+                  background: 'var(--surface-elevated)',
+                  fontSize: 12,
                 }}
               />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="cycle" name={t('analytics.chartCycle')} radius={[8, 8, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={cycleColors[index % cycleColors.length]} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+              <Bar dataKey="cycle" name={t('analytics.chartCycle')} radius={[10, 10, 4, 4]} fill="url(#cycleGrad)">
+                {chartData.map((_, index) => (
+                  <Cell key={`c-${index}`} fill={cycleColors[index % cycleColors.length]} fillOpacity={0.85} />
                 ))}
               </Bar>
-              <Bar dataKey="period" name={t('analytics.chartPeriod')} radius={[8, 8, 0, 0]}>
-                {chartData.map((entry, index) => (
-                  <Cell key={`pcell-${index}`} fill={periodColors[index % periodColors.length]} />
+              <Bar dataKey="period" name={t('analytics.chartPeriod')} radius={[10, 10, 4, 4]} fill="url(#periodGrad)">
+                {chartData.map((_, index) => (
+                  <Cell key={`p-${index}`} fill={periodColors[index % periodColors.length]} fillOpacity={0.85} />
                 ))}
               </Bar>
             </BarChart>
@@ -340,9 +295,13 @@ export function Analytics() {
         </div>
       </div>
 
-      <div className="rounded-2xl p-5 bg-gradient-to-br from-violet-500 to-rose-500 text-white">
-        <p className="text-sm text-white/80">{t('analytics.dailyTip')}</p>
-        <p className="text-lg font-semibold mt-1">{t('analytics.dailyTipText')}</p>
+      <div className="rounded-2xl p-5 elevation-2 text-white overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--phase-ovulation-deep)] via-[var(--phase-menstruation-deep)] to-[var(--phase-luteal-deep)] opacity-90" />
+        <div className="absolute inset-0 noise-overlay" />
+        <div className="relative">
+          <p className="label-caps text-white/70">{t('analytics.dailyTip')}</p>
+          <p className="font-display text-lg font-medium mt-2 leading-snug">{t('analytics.dailyTipText')}</p>
+        </div>
       </div>
     </div>
   )

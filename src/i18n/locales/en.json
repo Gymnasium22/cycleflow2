@@ -4,7 +4,9 @@
     "loading": "Loading...",
     "loadingSlow": "Loading is taking too long...",
     "loadingFailed": "Failed to load data. Check your connection and try again.",
-    "reload": "Reload app"
+    "reload": "Reload app",
+    "pullToRefresh": "Pull down",
+    "releaseToRefresh": "Release"
   },
   "nav": {
     "home": "Home",

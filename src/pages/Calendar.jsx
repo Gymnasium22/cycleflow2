@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, CalendarDays, Heart, StickyNote } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, Heart, StickyNote } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SymptomPicker } from '../components/SymptomPicker'
@@ -14,6 +14,7 @@ import { useDayNotesForMonth } from '../hooks/useDayNotesForMonth'
 import { EmptyState } from '../components/EmptyState'
 import { HistorySection } from '../components/HistorySection'
 import { DayNoteEditor } from '../components/DayNoteEditor'
+import { getPhaseTheme } from '../utils/phaseTheme'
 import {
   generateCalendarDays,
   getAverageCycleLength,
@@ -50,6 +51,8 @@ export function Calendar() {
   const [selectedDate, setSelectedDate] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
+  const [monthAnimKey, setMonthAnimKey] = useState(0)
+  const [headerOffset, setHeaderOffset] = useState(0)
   const touchStartXRef = useRef(null)
 
   const monthStartStr = useMemo(() => {
@@ -118,17 +121,36 @@ export function Calendar() {
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
 
+  const todayPhase = useMemo(
+    () => getPhaseForDate(new Date(), cycles, avgCycleLength, avgPeriodLength),
+    [cycles, avgCycleLength, avgPeriodLength]
+  )
+  const todayPhaseTheme = getPhaseTheme(todayPhase)
+
+  useEffect(() => {
+    setMonthAnimKey((k) => k + 1)
+    setHeaderOffset(0)
+  }, [year, month])
+
   const prevMonth = () => {
     hapticFeedback.impact('light')
+    setHeaderOffset(-8)
     setCurrentDate(new Date(year, month - 1, 1))
   }
   const nextMonth = () => {
     hapticFeedback.impact('light')
+    setHeaderOffset(8)
     setCurrentDate(new Date(year, month + 1, 1))
   }
 
   function handleCalendarTouchStart(e) {
     touchStartXRef.current = e.touches[0].clientX
+  }
+
+  function handleCalendarTouchMove(e) {
+    if (touchStartXRef.current === null) return
+    const diff = e.touches[0].clientX - touchStartXRef.current
+    setHeaderOffset(Math.max(-12, Math.min(12, diff * 0.08)))
   }
 
   function handleCalendarTouchEnd(e) {
@@ -137,6 +159,8 @@ export function Calendar() {
     if (Math.abs(diff) > 50) {
       if (diff < 0) nextMonth()
       else prevMonth()
+    } else {
+      setHeaderOffset(0)
     }
     touchStartXRef.current = null
   }
@@ -271,12 +295,12 @@ export function Calendar() {
   }
 
   const typeStyles = {
-    period: 'bg-rose-500 text-white shadow-lg shadow-rose-500/30',
-    ovulation: 'bg-violet-500 text-white shadow-lg shadow-violet-500/30',
-    fertile: 'bg-violet-200 text-violet-800',
-    menstruation: 'bg-rose-100 text-rose-700',
-    follicular: 'bg-amber-100 text-amber-700',
-    luteal: 'bg-teal-100 text-teal-700',
+    period: 'bg-[var(--phase-menstruation-deep)] text-white elevation-1',
+    ovulation: 'bg-[var(--phase-ovulation-deep)] text-white elevation-1',
+    fertile: 'cal-day-fertile',
+    menstruation: 'bg-[color-mix(in_srgb,var(--phase-menstruation)_25%,transparent)] text-[var(--phase-menstruation-deep)]',
+    follicular: 'bg-[color-mix(in_srgb,var(--phase-follicular)_22%,transparent)] text-[var(--phase-follicular-deep)]',
+    luteal: 'bg-[color-mix(in_srgb,var(--phase-luteal)_22%,transparent)] text-[var(--phase-luteal-deep)]',
   }
 
   const selectedCycle = selectedDate ? getCycleForSelectedDate(selectedDate) : null
@@ -308,32 +332,39 @@ export function Calendar() {
         <HistorySection />
       ) : (
         <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t('calendar.title')}</h1>
-        <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
-            <ChevronLeft size={20} />
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="label-caps text-[var(--text-muted)]">{t('calendar.title')}</p>
+          <h1
+            className="font-display text-2xl font-semibold tracking-tight transition-transform duration-300 ease-premium"
+            style={{ transform: `translateX(${headerOffset}px)` }}
+          >
+            {monthNames[lang][month]}
+            <span className="text-[var(--text-muted)] font-normal text-lg ml-1.5 tabular-nums">{year}</span>
+          </h1>
+        </div>
+        <div className="flex items-center gap-0.5 glass-panel rounded-full p-0.5 elevation-1">
+          <button onClick={prevMonth} className="p-2.5 rounded-full hover:bg-black/5 transition-colors">
+            <ChevronLeft size={18} />
           </button>
-          <span className="text-sm font-semibold min-w-[100px] text-center">
-            {monthNames[lang][month]} {year}
-          </span>
-          <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
-            <ChevronRight size={20} />
+          <button onClick={nextMonth} className="p-2.5 rounded-full hover:bg-black/5 transition-colors">
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
       {cycles.length === 0 && (
         <EmptyState
-          icon={CalendarDays}
+          illustration="calendar"
           title={t('calendar.empty')}
           description={t('calendar.emptyHint')}
         />
       )}
 
       <div
-        className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] touch-pan-y"
+        className="rounded-2xl p-4 glass-panel elevation-1 touch-pan-y"
         onTouchStart={handleCalendarTouchStart}
+        onTouchMove={handleCalendarTouchMove}
         onTouchEnd={handleCalendarTouchEnd}
       >
         <div className="grid grid-cols-7 mb-2">
@@ -343,7 +374,7 @@ export function Calendar() {
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div key={monthAnimKey} className="grid grid-cols-7 gap-1 animate-month-in">
           {days.map((date, idx) => {
             if (!date) return <div key={idx} className="aspect-square" />
 
@@ -365,11 +396,12 @@ export function Calendar() {
               <button
                 key={idx}
                 onClick={() => handleDayClick(date)}
-                className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all relative ${
-                  type ? typeStyles[type] : 'text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
-                } ${isToday && !type ? 'ring-2 ring-[var(--tg-theme-button-color,#e11d48)]' : ''} ${
-                  isSelected ? 'ring-2 ring-offset-2 ring-[var(--tg-theme-button-color,#e11d48)]' : ''
-                } ${inPeriod && !type ? 'bg-rose-100 text-rose-700' : ''}`}
+                style={isToday ? { '--phase-glow-color': todayPhaseTheme.glow } : undefined}
+                className={`aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 relative ${
+                  type ? typeStyles[type] : 'text-[var(--tg-theme-text-color,#111827)] hover:bg-black/[0.04]'
+                } ${isToday ? `cal-day-today-glow phase-${todayPhase}` : ''} ${
+                  isSelected ? 'ring-2 ring-offset-1 ring-[var(--tg-theme-button-color,#C45C6A)]' : ''
+                } ${inPeriod && !type ? 'bg-[color-mix(in_srgb,var(--phase-menstruation)_25%,transparent)] text-[var(--phase-menstruation-deep)]' : ''}`}
               >
                 <span className="leading-none">{date.getDate()}</span>
                 <div className="flex items-center justify-center gap-1 mt-0.5 h-3">

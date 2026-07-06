@@ -102,7 +102,7 @@ export function MedicationWidget({ inverted = false }) {
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center transition-all border ${
                   isTaken
-                    ? 'bg-emerald-500 border-transparent text-white'
+                    ? 'bg-emerald-500 border-transparent text-white animate-bounce-in'
                     : 'border-[var(--tg-theme-hint-color,#d1d5db)] hover:border-emerald-500'
                 }`}
               >

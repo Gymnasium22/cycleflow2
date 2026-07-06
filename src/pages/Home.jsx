@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Trash2, Heart, Check, Pill, Settings2 } from 'lucide-react'
+import { Droplets, Sparkles, Calendar, ChevronRight, X, Trash2, Check, Pill, Settings2 } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -8,6 +8,8 @@ import { SymptomPicker } from '../components/SymptomPicker'
 import { MedicationManageModal } from '../components/MedicationManageModal'
 import { MedicationWidget } from '../components/MedicationWidget'
 import { DayNoteEditor } from '../components/DayNoteEditor'
+import { CycleRingHero } from '../components/CycleRingHero'
+import { getPhaseTheme, CATEGORY_GRADIENTS } from '../utils/phaseTheme'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay, isPeriodOverdue, getActiveCycle } from '../hooks/useCycles'
@@ -39,33 +41,6 @@ import {
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
 import { formatDaysUntilI18n } from '../utils/formatDaysUntil'
-
-const phaseConfig = {
-  menstruation: {
-    key: 'menstruation',
-    gradient: 'from-rose-400 to-rose-600',
-    bg: 'bg-rose-500/10',
-    text: 'text-rose-600',
-  },
-  follicular: {
-    key: 'follicular',
-    gradient: 'from-amber-300 to-amber-500',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-600',
-  },
-  ovulation: {
-    key: 'ovulation',
-    gradient: 'from-violet-400 to-violet-600',
-    bg: 'bg-violet-500/10',
-    text: 'text-violet-600',
-  },
-  luteal: {
-    key: 'luteal',
-    gradient: 'from-teal-400 to-teal-600',
-    bg: 'bg-teal-500/10',
-    text: 'text-teal-600',
-  },
-}
 
 const PRIMARY_SYMPTOM_CHIPS = ['mood', 'symptoms', 'sex', 'activity']
 const TEST_SYMPTOM_CHIPS = ['ovulation_test', 'pregnancy_test']
@@ -106,7 +81,8 @@ export function Home() {
   const hasCycles = cycles.length > 0
   const cycleDay = lastPeriodStart ? getCycleDayForDate(new Date(), lastPeriodStart, avgCycleLength) : null
   const phase = hasCycles ? getPhaseForDate(new Date(), cycles, avgCycleLength, avgPeriodLength) : null
-  const phaseInfo = phase ? phaseConfig[phase] : null
+  const phaseInfo = phase ? getPhaseTheme(phase) : null
+  const cycleProgress = cycleDay && avgCycleLength ? Math.min(cycleDay / avgCycleLength, 1) : 0
   const nextPeriod = hasCycles ? getNextPeriodDateFromHistory(cycles, avgCycleLength) : null
   const ovulation = hasCycles ? getOvulationDateFromHistory(cycles, avgCycleLength) : null
   const daysUntilPeriod = nextPeriod ? getDaysUntil(nextPeriod) : null
@@ -237,7 +213,7 @@ export function Home() {
       <button
         key={catId}
         onClick={() => openSymptomPicker(catId)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] hover:border-[var(--tg-theme-button-color,#e11d48)]/30 transition-colors"
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium glass-panel text-[var(--tg-theme-text-color,#111827)] hover:elevation-1 active:scale-[0.97] bg-gradient-to-br ${CATEGORY_GRADIENTS[catId] || ''}`}
       >
         <Icon size={14} />
         {getCategoryLabel(catId, i18n.language)}
@@ -285,71 +261,42 @@ export function Home() {
   return (
     <div className="space-y-4 pb-4">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">{t('app.title')}</h1>
-        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
+        <h1 className="page-title">{t('app.title')}</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1 tabular-nums">
           {formatDate(new Date(), locale)}
         </p>
       </header>
 
       {hasCycles && phaseInfo ? (
         <>
-          <div className={`relative overflow-hidden rounded-2xl p-5 text-white bg-gradient-to-br ${phaseInfo.gradient} shadow-xl`}>
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10 blur-xl" />
-
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-white/80 text-sm font-medium uppercase tracking-wider">
-                  {displayDayLabel}
-                </p>
-                <p className="text-6xl font-bold mt-1">{displayDay}</p>
-                <p className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm">
-                  {t(`home.phase.${phaseInfo.key}`)}
-                </p>
-              </div>
-
-              <div className="relative w-28 h-28 shrink-0">
-                <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="8" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="42"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${((displayDay || 0) / progressTotal) * 264} 264`}
-                    className="drop-shadow-[0_0_8px_rgba(255,255,255,0.75)] transition-all duration-1000 ease-out"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white">
-                  {progressTotal} {t('analytics.days')}
-                </div>
-              </div>
+          <CycleRingHero
+            phase={phase}
+            displayDay={displayDay}
+            displayDayLabel={displayDayLabel}
+            phaseLabel={t(`home.phase.${phaseInfo.key}`)}
+            progressTotal={progressTotal}
+            cycleProgress={inMenstruationToday ? (activePeriodDay || 0) / avgCycleLength : cycleProgress}
+            cycleProgressLabel={t('home.dayOfCycle')}
+          >
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={openMedicationManage}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
+              >
+                <Pill size={14} />
+                {t('todayWidget.manageMedications')}
+                <Settings2 size={12} className="text-white/70" />
+              </button>
             </div>
-
-            <div className="relative mt-4 pt-4 border-t border-white/20 space-y-3">
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={openMedicationManage}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
-                >
-                  <Pill size={14} />
-                  {t('todayWidget.manageMedications')}
-                  <Settings2 size={12} className="text-white/70" />
-                </button>
-              </div>
-              <MedicationWidget inverted />
-              {medications.length === 0 && (
-                <p className="text-xs text-white/60 -mt-1">
-                  {t('todayWidget.noMedicationsHint')}
-                </p>
-              )}
-              <DayNoteEditor date={todayStr} compact inverted />
-            </div>
-          </div>
+            <MedicationWidget inverted />
+            {medications.length === 0 && (
+              <p className="text-xs text-white/60 -mt-1">
+                {t('todayWidget.noMedicationsHint')}
+              </p>
+            )}
+            <DayNoteEditor date={todayStr} compact inverted />
+          </CycleRingHero>
 
           {renderPeriodButton()}
 
@@ -367,7 +314,7 @@ export function Home() {
             </div>
           )}
 
-          <div className="rounded-2xl p-3 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]/80 border border-[var(--tg-theme-hint-color,#d1d5db)]/15 flex">
+          <div className="rounded-2xl p-3 glass-panel flex elevation-1">
             <div className="flex-1 px-2 min-w-0">
               <div className="flex items-center gap-1.5 text-rose-600 mb-1">
                 <Droplets size={14} />
@@ -394,7 +341,7 @@ export function Home() {
       ) : (
         <>
           <EmptyState
-            icon={Heart}
+            illustration="cycle"
             title={t('home.noData')}
             description={t('home.noDataHint')}
           />
@@ -409,10 +356,10 @@ export function Home() {
       )}
 
       <div className="space-y-3">
-        <h2 className="text-lg font-bold">{t('home.logSymptoms')}</h2>
+        <h2 className="font-display text-lg font-semibold">{t('home.logSymptoms')}</h2>
         <button
           onClick={() => openSymptomPicker()}
-          className="w-full flex items-center justify-between p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]/80 hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 border border-[var(--tg-theme-hint-color,#d1d5db)]/10 shadow-sm transition-all duration-200 active:scale-[0.99] text-left"
+          className="w-full flex items-center justify-between p-4 rounded-2xl card-elevated hover:elevation-2 transition-all duration-200 active:scale-[0.99] text-left"
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center text-white shadow-md">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Heart, ArrowRight, Calendar, Droplets, Bell } from 'lucide-react'
+import { ArrowRight, Calendar, Droplets, Bell } from 'lucide-react'
+import { CycleRingIllustration } from '../components/Illustrations'
 import { Spinner } from '../components/Spinner'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
@@ -70,14 +71,14 @@ export function Onboarding() {
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] px-5 py-8">
-      <div className="flex-1 flex flex-col justify-center space-y-8">
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-rose-400 to-violet-500 flex items-center justify-center text-white shadow-lg">
-            <Heart size={32} />
+    <div className="flex flex-col min-h-full bg-[var(--surface-base)] text-[var(--tg-theme-text-color,#111827)] px-5 py-8">
+      <div className="flex-1 flex flex-col justify-center space-y-8 animate-fade-in">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center">
+            <CycleRingIllustration className="w-36 h-36" />
           </div>
-          <h1 className="text-2xl font-bold">{t('onboarding.welcome')}</h1>
-          <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t('onboarding.subtitle')}</p>
+          <h1 className="page-title">{t('onboarding.welcome')}</h1>
+          <p className="text-sm text-[var(--text-muted)] max-w-xs mx-auto leading-relaxed">{t('onboarding.subtitle')}</p>
         </div>
 
         <div className="flex items-center justify-center gap-2">
@@ -116,7 +117,7 @@ export function Onboarding() {
             min={2}
             max={8}
             unit={t('onboarding.days')}
-            icon={<Heart size={24} className="text-rose-500" />}
+            icon={<Droplets size={24} className="text-[var(--phase-menstruation-deep)]" />}
             onChange={setPeriodLength}
             onNext={() => setStep(3)}
             nextLabel={t('onboarding.next')}
@@ -269,9 +270,9 @@ function StepCard({ title, hint, value, min, max, unit, icon, onChange, onNext, 
         <p className="text-sm text-center text-[var(--tg-theme-hint-color,#6b7280)]">{hint}</p>
       </div>
 
-      <div className="rounded-2xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
+      <div className="card-elevated p-5 space-y-4">
         <div className="text-center">
-          <span className="text-4xl font-bold text-[var(--tg-theme-button-color,#e11d48)]">{value}</span>
+          <span className="font-display text-5xl font-semibold text-[var(--tg-theme-button-color,#C45C6A)] tabular-nums">{value}</span>
           <span className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] ml-1">{unit}</span>
         </div>
         <input

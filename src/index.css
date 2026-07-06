@@ -1,5 +1,44 @@
 @import "tailwindcss";
 
+/* ─── Design tokens (items 1, 3, 4) ─── */
+:root {
+  /* Phase palette — dusty premium */
+  --phase-menstruation: #E8A0A8;
+  --phase-menstruation-deep: #C45C6A;
+  --phase-menstruation-start: #E8A0A8;
+  --phase-menstruation-end: #C45C6A;
+
+  --phase-follicular: #F5D9A8;
+  --phase-follicular-deep: #B8862E;
+  --phase-follicular-start: #F5D9A8;
+  --phase-follicular-end: #D4A84A;
+
+  --phase-ovulation: #C4B5FD;
+  --phase-ovulation-deep: #7C5FD4;
+  --phase-ovulation-start: #C4B5FD;
+  --phase-ovulation-end: #8B6FE0;
+
+  --phase-luteal: #9DD4C4;
+  --phase-luteal-deep: #4A9A88;
+  --phase-luteal-start: #9DD4C4;
+  --phase-luteal-end: #4A9A88;
+
+  /* Surfaces */
+  --surface-base: var(--tg-theme-bg-color, #faf9f7);
+  --surface-elevated: var(--tg-theme-bg-color, #ffffff);
+  --surface-muted: var(--tg-theme-secondary-bg-color, #f3f2ef);
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --text-muted: var(--tg-theme-hint-color, #8a8580);
+
+  /* Elevation shadows */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.1), 0 24px 48px rgba(0, 0, 0, 0.12);
+
+  /* Motion */
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @theme {
   --color-rose-50: #fff1f2;
   --color-rose-100: #ffe4e6;
@@ -30,38 +69,70 @@ html, body, #root {
   padding: 0;
 }
 
-/* Custom Themes Support for 2026 Overhaul */
+/* ─── Typography (item 1) ─── */
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'tnum' 1, 'cv01' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--surface-base);
+  color: var(--tg-theme-text-color, #1a1816);
+  transition: background-color 0.35s var(--ease-premium), color 0.35s var(--ease-premium);
+}
+
+.font-display {
+  font-family: 'Fraunces', 'Georgia', serif;
+  font-optical-sizing: auto;
+}
+
+.label-caps {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.page-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Themes ─── */
 body.theme-sakura {
-  --tg-theme-button-color: #f43f5e;
+  --tg-theme-button-color: #C45C6A;
   --tg-theme-button-text-color: #ffffff;
 }
 
 body.theme-lavender {
-  --tg-theme-button-color: #8b5cf6;
+  --tg-theme-button-color: #8B6FE0;
   --tg-theme-button-text-color: #ffffff;
 }
 
 body.theme-teal {
-  --tg-theme-button-color: #0d9488;
+  --tg-theme-button-color: #4A9A88;
   --tg-theme-button-text-color: #ffffff;
 }
 
 body.theme-midnight {
   --tg-theme-bg-color: #090d16;
   --tg-theme-text-color: #f3f4f6;
-  --tg-theme-hint-color: #718096;
+  --tg-theme-hint-color: #8b95a8;
   --tg-theme-button-color: #fb2c79;
   --tg-theme-button-text-color: #ffffff;
   --tg-theme-secondary-bg-color: #121824;
-}
-
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: var(--tg-theme-bg-color, #ffffff);
-  color: var(--tg-theme-text-color, #000000);
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --surface-base: #090d16;
+  --surface-elevated: #121824;
+  --surface-muted: #1a2234;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.3);
 }
 
 #root {
@@ -69,49 +140,82 @@ body {
   flex-direction: column;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
+/* ─── Elevation & glass (item 3) ─── */
+.elevation-1 {
+  box-shadow: var(--shadow-1);
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+.elevation-2 {
+  box-shadow: var(--shadow-2);
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 10px;
+.elevation-3 {
+  box-shadow: var(--shadow-3);
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-/* Smooth transitions for theme changes and states */
-button, input, select, textarea, a {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Glassmorphism effects */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-1);
 }
 
 body.theme-midnight .glass-panel {
-  background: rgba(18, 24, 36, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(18, 24, 36, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.card-elevated {
+  background: var(--surface-muted);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-1);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ─── Phase hero glow (item 2) ─── */
+.phase-glow {
+  position: relative;
+}
+
+.phase-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.phase-menstruation { --phase-glow-color: rgba(232, 160, 168, 0.4); }
+.phase-follicular { --phase-glow-color: rgba(245, 217, 168, 0.35); }
+.phase-ovulation { --phase-glow-color: rgba(167, 139, 250, 0.4); }
+.phase-luteal { --phase-glow-color: rgba(107, 184, 168, 0.35); }
+
+.phase-glow::after {
+  box-shadow: 0 0 40px var(--phase-glow-color), 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.ring-glow {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+}
+
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+/* Seasonal touches (item 12) */
+.season-winter {
+  filter: saturate(0.92) hue-rotate(-4deg);
+}
+
+.season-summer {
+  filter: saturate(1.05) hue-rotate(3deg);
+}
+
+/* Midnight warnings */
 body.theme-midnight .warning-banner-amber {
   color: #fcd34d !important;
   background: rgba(251, 191, 36, 0.15) !important;
@@ -122,41 +226,191 @@ body.theme-midnight .warning-banner-orange {
   color: #fdba74 !important;
 }
 
-body.theme-midnight .warning-banner-orange p {
-  color: inherit !important;
-}
-
+body.theme-midnight .warning-banner-orange p,
 body.theme-midnight .warning-banner-orange .text-orange-800,
 body.theme-midnight .warning-banner-orange .text-orange-700 {
   color: #fdba74 !important;
 }
 
-/* SVG Glow Filter */
-.svg-glow {
-  filter: drop-shadow(0 0 8px currentColor);
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Transitions (item 5) */
+button, input, select, textarea, a {
+  transition: all 0.22s var(--ease-premium);
+}
+
+.ease-premium {
+  transition-timing-function: var(--ease-premium);
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInBottom {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes meshDrift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(8px, -6px) scale(1.05); }
+}
+
+@keyframes meshDriftReverse {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-6px, 8px); }
+}
+
+@keyframes ringDraw {
+  from { stroke-dashoffset: 360; }
+  to { stroke-dashoffset: 80; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideMonth {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.25s ease-out;
+  animation: fadeIn 0.32s var(--ease-premium) both;
 }
 
 .animate-slide-in-bottom {
-  animation: slideInBottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideInBottom 0.38s var(--ease-premium) both;
+}
+
+.animate-mesh-drift {
+  animation: meshDrift 8s ease-in-out infinite;
+}
+
+.animate-mesh-drift-reverse {
+  animation: meshDriftReverse 10s ease-in-out infinite;
+}
+
+.animate-ring-draw {
+  animation: ringDraw 1.2s var(--ease-premium) both;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.4s var(--ease-premium) both;
+}
+
+.animate-month-in {
+  animation: slideMonth 0.28s var(--ease-premium) both;
+}
+
+/* Skeleton shimmer (item 12) */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    color-mix(in srgb, var(--surface-muted) 70%, white) 50%,
+    var(--surface-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+body.theme-midnight .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    #243044 50%,
+    var(--surface-muted) 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Pull-to-refresh ring (item 12) */
+.pull-ring-indicator {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--tg-theme-button-color, #C45C6A);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(calc(var(--pull-progress, 0) * 360deg));
+  transition: transform 0.15s ease-out;
+}
+
+/* Intensity slider */
+.intensity-slider {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Floating nav (item 8) */
+.floating-nav {
+  background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-2);
+}
+
+.nav-pill-active {
+  background: color-mix(in srgb, var(--tg-theme-button-color) 14%, transparent);
+  border-radius: 9999px;
+}
+
+/* Symptom option chips */
+.symptom-chip-selected {
+  background: linear-gradient(135deg, var(--tg-theme-button-color), color-mix(in srgb, var(--tg-theme-button-color) 75%, #8B6FE0));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--tg-theme-button-color) 35%, transparent);
+}
+
+.category-pill-active {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Calendar day styles */
+.cal-day-fertile {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--phase-ovulation) 70%, transparent);
+  color: var(--phase-ovulation-deep) !important;
+}
+
+.cal-day-today-glow {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tg-theme-button-color) 50%, transparent),
+              0 0 16px var(--phase-glow-color, rgba(196, 92, 106, 0.35));
+}
+
+/* Analytics chart */
+.chart-bar-cycle { fill: url(#cycleBarGrad); }
+.insight-value {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
