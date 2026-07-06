@@ -24,17 +24,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build project
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
+
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -f dist/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -47,10 +52,51 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages (attempt 1)
+        id: deploy_attempt_1
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deploy_attempt_1.outcome == 'failure'
+        run: sleep 45
+
+      - name: Deploy to GitHub Pages (attempt 2)
+        if: steps.deploy_attempt_1.outcome == 'failure'
+        id: deploy_attempt_2
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Wait before final retry
+        if: steps.deploy_attempt_1.outcome == 'failure' && steps.deploy_attempt_2.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages (attempt 3)
+        if: steps.deploy_attempt_1.outcome == 'failure' && steps.deploy_attempt_2.outcome == 'failure'
+        id: deploy_attempt_3
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Resolve deployment result
         id: deployment
-        uses: actions/deploy-pages@v4
+        run: |
+          if [ "${{ steps.deploy_attempt_1.outcome }}" = "success" ]; then
+            echo "page_url=${{ steps.deploy_attempt_1.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.deploy_attempt_2.outcome }}" = "success" ]; then
+            echo "page_url=${{ steps.deploy_attempt_2.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ steps.deploy_attempt_3.outcome }}" = "success" ]; then
+            echo "page_url=${{ steps.deploy_attempt_3.outputs.page_url }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::GitHub Pages deployment failed after 3 attempts."
+          echo "If this persists, open Settings → Pages and re-select 'GitHub Actions' as the source."
+          exit 1
