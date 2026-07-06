@@ -15,15 +15,23 @@ import { applyTheme, getDefaultTheme } from './utils/theme'
 
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })))
 
-const TABS = {
-  home: <Home />,
-  calendar: <Calendar />,
-  analytics: (
-    <Suspense fallback={<AnalyticsSkeleton />}>
-      <Analytics />
-    </Suspense>
-  ),
-  settings: <Settings />,
+function renderActiveTab(activeTab, setActiveTab) {
+  switch (activeTab) {
+    case 'home':
+      return <Home onNavigateToCalendar={() => setActiveTab('calendar')} />
+    case 'calendar':
+      return <Calendar />
+    case 'analytics':
+      return (
+        <Suspense fallback={<AnalyticsSkeleton />}>
+          <Analytics />
+        </Suspense>
+      )
+    case 'settings':
+      return <Settings />
+    default:
+      return <Home onNavigateToCalendar={() => setActiveTab('calendar')} />
+  }
 }
 
 function AppContent() {
@@ -73,7 +81,7 @@ function AppContent() {
 
   return (
     <Layout activeTab={activeTab} onTabChange={setActiveTab}>
-      {TABS[activeTab]}
+      {renderActiveTab(activeTab, setActiveTab)}
     </Layout>
   )
 }

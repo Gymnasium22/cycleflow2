@@ -56,6 +56,19 @@
       "ovulation": "Ovulation",
       "luteal": "Luteal phase"
     },
+    "hero": {
+      "expandDetails": "Today’s details",
+      "collapseDetails": "Collapse",
+      "phaseLegend": "Cycle phases",
+      "ringAria": "Cycle ring — tap for phase legend",
+      "openCalendar": "Open calendar",
+      "phaseHint": {
+        "menstruation": "Your body is renewing. Rest and warmth make these days easier.",
+        "follicular": "Energy is rising — a good time for new plans and activity.",
+        "ovulation": "Peak fertility. Listen to your body and log how you feel.",
+        "luteal": "Time to slow down. Self-care and sleep matter most now."
+      }
+    },
     "dialogs": {
       "endPeriodTitle": "Period ended",
       "endPeriodMessage": "Mark period as ended?",

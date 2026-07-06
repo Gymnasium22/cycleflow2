@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Sparkles, Calendar, ChevronRight, X, Trash2, Check, Pill, Settings2 } from 'lucide-react'
+import { Droplets, Calendar, ChevronRight, X, Trash2, Check, Pill, Settings2 } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -45,7 +45,7 @@ import { formatDaysUntilI18n, formatForecastDaysUntil } from '../utils/formatDay
 const PRIMARY_SYMPTOM_CHIPS = ['mood', 'symptoms', 'sex', 'activity']
 const TEST_SYMPTOM_CHIPS = ['ovulation_test', 'pregnancy_test']
 
-export function Home() {
+export function Home({ onNavigateToCalendar }) {
   const { t, i18n } = useTranslation()
   const { profile } = useAuth()
   const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
@@ -221,13 +221,53 @@ export function Home() {
     )
   }
 
-  function renderPeriodButton() {
+  const ringCenter = useMemo(() => {
+    if (inMenstruationToday) {
+      return {
+        primary: t('home.periodDay'),
+        secondary: `${activePeriodDay}/${avgPeriodLength}`,
+      }
+    }
+    if (daysUntilOvulation !== null && daysUntilOvulation >= 0 && daysUntilOvulation <= 3) {
+      return {
+        primary: formatForecastDaysUntil(daysUntilOvulation),
+        secondary: t('home.ovulation'),
+      }
+    }
+    if (daysUntilPeriod !== null && daysUntilPeriod >= 0 && daysUntilPeriod <= 7) {
+      return {
+        primary: formatDaysUntilI18n(daysUntilPeriod, { allowOverdue: cycleDelayed }),
+        secondary: t('home.nextPeriod'),
+      }
+    }
+    return {
+      primary: t('home.dayOfCycle'),
+      secondary: `${displayDay}/${progressTotal}`,
+    }
+  }, [
+    inMenstruationToday,
+    activePeriodDay,
+    avgPeriodLength,
+    daysUntilOvulation,
+    daysUntilPeriod,
+    cycleDelayed,
+    displayDay,
+    progressTotal,
+    t,
+  ])
+
+  function renderPeriodButton({ variant = 'default' } = {}) {
+    const hero = variant === 'hero'
+    const base = hero
+      ? 'w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold active:scale-[0.98] transition-all disabled:opacity-60'
+      : 'w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-semibold hover:opacity-90 active:scale-[0.99] transition-all disabled:opacity-60'
+
     if (periodTrackingOpen) {
       return (
         <button
           onClick={handleEndPeriod}
           disabled={cyclesLoading}
-          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl btn-secondary-action font-semibold hover:opacity-90 active:scale-[0.99] transition-all disabled:opacity-60"
+          className={`${base} ${hero ? 'bg-white text-[var(--phase-menstruation-deep)] shadow-lg shadow-black/10' : 'btn-secondary-action hover:opacity-90'}`}
         >
           {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
           {t('home.periodEnded')}
@@ -239,7 +279,11 @@ export function Home() {
         <button
           onClick={handleCancelPeriod}
           disabled={cyclesLoading}
-          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl glass-panel font-semibold hover:bg-red-500/8 hover:text-red-600 active:scale-[0.99] transition-all disabled:opacity-60"
+          className={`${base} ${
+            hero
+              ? 'bg-white/20 border border-white/35 text-white hover:bg-white/28'
+              : 'glass-panel hover:bg-red-500/8 hover:text-red-600'
+          }`}
         >
           {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
           {t('home.cancelPeriodStart')}
@@ -250,7 +294,11 @@ export function Home() {
       <button
         onClick={handleStartPeriod}
         disabled={cyclesLoading || !!activeCycle}
-        className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-red-500/15 disabled:opacity-60"
+        className={`${base} ${
+          hero
+            ? 'bg-white text-[var(--phase-menstruation-deep)] shadow-lg shadow-black/10 hover:bg-white/95'
+            : 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] shadow-md shadow-red-500/15 hover:opacity-90'
+        }`}
       >
         {cyclesLoading ? <Spinner size={20} /> : <Droplets size={18} />}
         {t('home.periodStarted')}
@@ -276,29 +324,45 @@ export function Home() {
             phaseLabel={t(`home.phase.${phaseInfo.key}`)}
             progressTotal={progressTotal}
             cycleProgress={inMenstruationToday ? (activePeriodDay || 0) / avgCycleLength : cycleProgress}
-            cycleProgressLabel={t('home.dayOfCycle')}
-          >
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                onClick={openMedicationManage}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
-              >
-                <Pill size={14} />
-                {t('todayWidget.manageMedications')}
-                <Settings2 size={12} className="text-white/70" />
-              </button>
-            </div>
-            <MedicationWidget inverted />
-            {medications.length === 0 && (
-              <p className="text-xs text-white/60 -mt-1">
-                {t('todayWidget.noMedicationsHint')}
-              </p>
-            )}
-            <DayNoteEditor date={todayStr} compact inverted />
-          </CycleRingHero>
-
-          {renderPeriodButton()}
+            ringCenterPrimary={ringCenter.primary}
+            ringCenterSecondary={ringCenter.secondary}
+            onNavigateToCalendar={onNavigateToCalendar}
+            forecast={{
+              period: {
+                label: t('home.nextPeriod'),
+                date: formatDate(nextPeriod, locale),
+                until: formatDaysUntilI18n(daysUntilPeriod, { allowOverdue: cycleDelayed }),
+              },
+              ovulation: {
+                label: t('home.ovulation'),
+                date: formatDate(ovulation, locale),
+                until: formatForecastDaysUntil(daysUntilOvulation),
+              },
+            }}
+            periodAction={renderPeriodButton({ variant: 'hero' })}
+            expandedContent={
+              <>
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={openMedicationManage}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/15 border border-white/25 text-white hover:bg-white/25 transition-colors"
+                  >
+                    <Pill size={14} />
+                    {t('todayWidget.manageMedications')}
+                    <Settings2 size={12} className="text-white/70" />
+                  </button>
+                </div>
+                <MedicationWidget inverted />
+                {medications.length === 0 && (
+                  <p className="text-xs text-white/60 -mt-1">
+                    {t('todayWidget.noMedicationsHint')}
+                  </p>
+                )}
+                <DayNoteEditor date={todayStr} compact inverted />
+              </>
+            }
+          />
 
           {cycleDelayed && (
             <div className="warning-banner-orange rounded-2xl p-4 bg-orange-500/10 border border-orange-500/20 space-y-2">
@@ -314,29 +378,6 @@ export function Home() {
             </div>
           )}
 
-          <div className="rounded-2xl p-3 glass-panel flex elevation-1">
-            <div className="flex-1 px-2 min-w-0">
-              <div className="flex items-center gap-1.5 text-rose-600 mb-1">
-                <Droplets size={14} />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">{t('home.nextPeriod')}</span>
-              </div>
-              <p className="text-sm font-bold text-[var(--tg-theme-text-color,#111827)] truncate">{formatDate(nextPeriod, locale)}</p>
-              <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-0.5">
-                {formatDaysUntilI18n(daysUntilPeriod, { allowOverdue: cycleDelayed })}
-              </p>
-            </div>
-            <div className="w-px bg-[var(--tg-theme-hint-color,#d1d5db)]/20 shrink-0" />
-            <div className="flex-1 px-2 min-w-0">
-              <div className="flex items-center gap-1.5 text-violet-600 mb-1">
-                <Sparkles size={14} />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">{t('home.ovulation')}</span>
-              </div>
-              <p className="text-sm font-bold text-[var(--tg-theme-text-color,#111827)] truncate">{formatDate(ovulation, locale)}</p>
-              <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-0.5">
-                {formatForecastDaysUntil(daysUntilOvulation)}
-              </p>
-            </div>
-          </div>
         </>
       ) : (
         <>

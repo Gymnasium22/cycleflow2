@@ -337,6 +337,47 @@ button, input, select, textarea, a {
   animation: meshDriftReverse 10s ease-in-out infinite;
 }
 
+/* Hero card — shimmer, phase pulse, ring pulse */
+@keyframes heroShimmer {
+  0%, 90% { transform: translateX(-120%) skewX(-12deg); opacity: 0; }
+  92% { opacity: 0.35; }
+  100% { transform: translateX(120%) skewX(-12deg); opacity: 0; }
+}
+
+@keyframes heroPhasePulse {
+  0% { box-shadow: 0 0 0 0 var(--phase-glow-color, rgba(255, 255, 255, 0.35)); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes heroRingPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 1)); }
+}
+
+.hero-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 58%
+  );
+  animation: heroShimmer 28s ease-in-out infinite;
+}
+
+.hero-phase-pulse {
+  animation: heroPhasePulse 0.7s var(--ease-premium);
+}
+
+.hero-ring-pulse {
+  animation: heroRingPulse 0.7s var(--ease-premium);
+}
+
 .animate-ring-draw {
   animation: ringDraw 1.2s var(--ease-premium) both;
 }
