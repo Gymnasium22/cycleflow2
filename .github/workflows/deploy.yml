@@ -24,11 +24,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build project
         env:
@@ -57,46 +57,37 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages (attempt 1)
-        id: deploy_attempt_1
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v5
         continue-on-error: true
 
       - name: Wait before retry
-        if: steps.deploy_attempt_1.outcome == 'failure'
-        run: sleep 45
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
 
-      - name: Deploy to GitHub Pages (attempt 2)
-        if: steps.deploy_attempt_1.outcome == 'failure'
-        id: deploy_attempt_2
+      - name: Deploy to GitHub Pages (retry 2)
+        if: steps.deployment.outcome == 'failure'
+        id: deployment_retry_2
         uses: actions/deploy-pages@v5
         continue-on-error: true
 
       - name: Wait before final retry
-        if: steps.deploy_attempt_1.outcome == 'failure' && steps.deploy_attempt_2.outcome == 'failure'
-        run: sleep 60
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry_2.outcome == 'failure'
+        run: sleep 90
 
-      - name: Deploy to GitHub Pages (attempt 3)
-        if: steps.deploy_attempt_1.outcome == 'failure' && steps.deploy_attempt_2.outcome == 'failure'
-        id: deploy_attempt_3
+      - name: Deploy to GitHub Pages (retry 3)
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry_2.outcome == 'failure'
+        id: deployment_retry_3
         uses: actions/deploy-pages@v5
         continue-on-error: true
 
-      - name: Resolve deployment result
-        id: deployment
+      - name: Fail if all deployment attempts failed
+        if: >-
+          steps.deployment.outcome == 'failure' &&
+          (steps.deployment_retry_2.outcome == 'failure' || steps.deployment_retry_2.outcome == 'skipped') &&
+          (steps.deployment_retry_3.outcome == 'failure' || steps.deployment_retry_3.outcome == 'skipped')
         run: |
-          if [ "${{ steps.deploy_attempt_1.outcome }}" = "success" ]; then
-            echo "page_url=${{ steps.deploy_attempt_1.outputs.page_url }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "${{ steps.deploy_attempt_2.outcome }}" = "success" ]; then
-            echo "page_url=${{ steps.deploy_attempt_2.outputs.page_url }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "${{ steps.deploy_attempt_3.outcome }}" = "success" ]; then
-            echo "page_url=${{ steps.deploy_attempt_3.outputs.page_url }}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           echo "::error::GitHub Pages deployment failed after 3 attempts."
-          echo "If this persists, open Settings → Pages and re-select 'GitHub Actions' as the source."
+          echo "Open Settings → Pages, switch source away from GitHub Actions and back, then re-run this workflow."
           exit 1
