@@ -149,11 +149,11 @@ export function Analytics() {
     ...(topSymptom ? [{ icon: Activity, label: t('analytics.topSymptom'), value: `${topSymptom.emoji} ${topSymptom.label}`, sub: `${topSymptom.count}×`, accent: 'var(--phase-menstruation-deep)' }] : []),
     ...(topActivity ? [{ icon: TrendingUp, label: t('analytics.topActivity'), value: `${topActivity.emoji} ${topActivity.label}`, sub: `${topActivity.count}×`, accent: 'var(--phase-ovulation-deep)' }] : []),
     ...(sexDaysCount > 0 ? [{ icon: Heart, label: t('analytics.daysWithSex'), value: String(sexDaysCount), sub: topSex ? topSex.emoji : '', accent: 'var(--phase-menstruation)' }] : []),
-    ...(medicationLogs.length > 0 ? [{ icon: Pill, label: t('analytics.medicationIntake'), value: `${medicationStats.taken}/${medicationLogs.length}`, sub: t('analytics.takenTotal'), accent: 'var(--phase-luteal-deep)' }] : []),
+    ...(medicationLogs.length > 0 ? [{ icon: Pill, label: t('analytics.medicationIntake'), value: `${medicationStats.taken}/${medicationLogs.length}`, sub: t('analytics.takenTotal'), accent: 'var(--accent-success-deep)' }] : []),
   ]
 
-  const cycleColors = ['#C45C6A', '#8B6FE0', '#4A9A88', '#D4A84A', '#7C5FD4']
-  const periodColors = ['#E8A0A8', '#C4B5FD', '#9DD4C4', '#F5D9A8', '#A78BFA']
+  const cycleColors = ['#C45C6A', '#8B6FE0', '#8E7AA8', '#D4A84A', '#7C5FD4']
+  const periodColors = ['#E8A0A8', '#C4B5FD', '#C8B4D8', '#F5D9A8', '#A78BFA']
 
   const maxCorrelation = Math.max(
     ...phaseCorrelations.flatMap((p) => p.topItems.map((i) => i.count)),
@@ -296,7 +296,7 @@ export function Analytics() {
       </div>
 
       <div className="rounded-2xl p-5 elevation-2 text-white overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-[var(--phase-ovulation-deep)] via-[var(--phase-menstruation-deep)] to-[var(--phase-luteal-deep)] opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--phase-ovulation-deep)] via-[var(--phase-menstruation-deep)] to-[#5C4F72] opacity-90" />
         <div className="absolute inset-0 noise-overlay" />
         <div className="relative">
           <p className="label-caps text-white/70">{t('analytics.dailyTip')}</p>

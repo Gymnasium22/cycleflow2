@@ -227,7 +227,7 @@ export function Home() {
         <button
           onClick={handleEndPeriod}
           disabled={cyclesLoading}
-          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-teal-500/15 disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl btn-secondary-action font-semibold hover:opacity-90 active:scale-[0.99] transition-all disabled:opacity-60"
         >
           {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
           {t('home.periodEnded')}
@@ -239,7 +239,7 @@ export function Home() {
         <button
           onClick={handleCancelPeriod}
           disabled={cyclesLoading}
-          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 border border-[var(--tg-theme-hint-color,#d1d5db)]/30 active:scale-[0.99] transition-all disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl glass-panel font-semibold hover:bg-red-500/8 hover:text-red-600 active:scale-[0.99] transition-all disabled:opacity-60"
         >
           {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
           {t('home.cancelPeriodStart')}
@@ -381,7 +381,7 @@ export function Home() {
         </div>
 
         {symptoms.length > 0 && (
-          <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-2">
+          <div className="card-elevated p-4 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--tg-theme-hint-color,#6b7280)]">
               {t('home.loggedToday')}
             </p>

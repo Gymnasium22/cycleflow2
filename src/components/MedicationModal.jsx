@@ -8,10 +8,10 @@ const DAY_KEYS = [1, 2, 3, 4, 5, 6, 0]
 const COLORS = [
   { value: 'rose', class: 'bg-rose-500' },
   { value: 'violet', class: 'bg-violet-500' },
-  { value: 'teal', class: 'bg-teal-500' },
+  { value: 'teal', class: 'bg-[var(--accent-secondary)]' },
   { value: 'amber', class: 'bg-amber-500' },
   { value: 'blue', class: 'bg-blue-500' },
-  { value: 'emerald', class: 'bg-emerald-500' },
+  { value: 'emerald', class: 'bg-[var(--accent-success-deep)]' },
 ]
 
 export function MedicationModal({

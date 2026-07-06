@@ -312,7 +312,7 @@ export function Calendar() {
 
   return (
     <div className="space-y-4 pb-4">
-      <div className="flex gap-2 p-1 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
+      <div className="flex gap-2 p-1 rounded-2xl glass-panel elevation-1">
         {['calendar', 'history'].map((tab) => (
           <button
             key={tab}
@@ -441,7 +441,7 @@ export function Calendar() {
           <span className="text-[var(--tg-theme-hint-color,#6b7280)]">{t('home.phase.ovulation')}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-teal-400" />
+          <div className="w-3 h-3 rounded-full bg-[var(--phase-luteal-deep)]" />
           <span className="text-[var(--tg-theme-hint-color,#6b7280)]">{t('home.phase.luteal')}</span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -540,7 +540,7 @@ export function Calendar() {
                   <button
                     onClick={handleEndActiveCycle}
                     disabled={cyclesLoading}
-                    className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl btn-secondary-action font-semibold hover:opacity-90 disabled:opacity-60"
                   >
                     {cyclesLoading ? <Spinner size={18} /> : <Check size={18} />}
                     {t('home.periodEnded')}

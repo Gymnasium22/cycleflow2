@@ -96,8 +96,8 @@ export function MedicationLog({ isOpen, onClose }) {
                       disabled={isLoading}
                       className={`p-2 rounded-xl transition-colors ${
                         log.status === 'taken'
-                          ? 'bg-green-500 text-white'
-                          : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-green-50'
+                          ? 'btn-success-mark'
+                          : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-[var(--accent-success)]/10'
                       }`}
                       aria-label={t('settings.medications.taken')}
                     >

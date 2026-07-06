@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, Trash2, X, Calendar, Clock, FileText, ChevronRight, ClipboardList, FileX } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Calendar, Clock, FileText, ChevronRight } from 'lucide-react'
 import { Spinner } from './Spinner'
 import { ConfirmDialog } from './ConfirmDialog'
 import { SymptomPicker } from './SymptomPicker'
@@ -137,7 +137,7 @@ export function HistorySection() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold">{t('history.periods')}</p>
           <button onClick={openAddCycle} className="p-2 rounded-xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]">
@@ -145,11 +145,11 @@ export function HistorySection() {
           </button>
         </div>
         {sortedCycles.length === 0 ? (
-          <EmptyState icon={ClipboardList} title={t('history.noPeriods')} description={t('history.noPeriodsHint')} />
+          <EmptyState illustration="cycle" title={t('history.noPeriods')} description={t('history.noPeriodsHint')} />
         ) : (
           <div className="space-y-2">
             {sortedCycles.map((cycle) => (
-              <div key={cycle.id} className="p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20">
+              <div key={cycle.id} className="p-3 rounded-xl glass-panel">
                 <div className="flex items-start justify-between">
                   <div className="text-sm">
                     <div className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export function HistorySection() {
         )}
       </div>
 
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <label className="text-sm font-semibold">{t('history.symptomsForDate')}</label>
           <button onClick={() => openSymptomPicker()} className="p-2 rounded-xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]">
@@ -196,7 +196,7 @@ export function HistorySection() {
         </div>
         <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-bg-color,#ffffff)]" />
         {selectedSymptoms.length === 0 ? (
-          <EmptyState icon={FileX} title={t('history.noSymptoms')} description={t('history.noSymptomsHint')} />
+          <EmptyState illustration="wellness" title={t('history.noSymptoms')} description={t('history.noSymptomsHint')} />
         ) : (
           <div className="space-y-2">
             {selectedSymptoms.map((symptom) => {

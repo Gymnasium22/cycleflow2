@@ -14,7 +14,7 @@ export function IntensitySlider({ value, onChange, labels }) {
     <div className="space-y-3">
       <div className="relative h-2 rounded-full bg-[var(--surface-muted)] overflow-hidden">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400 transition-all duration-300 ease-premium"
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[var(--phase-ovulation)] via-amber-300 to-[var(--phase-menstruation)] transition-all duration-300 ease-premium"
           style={{ width: value ? `${pct + 33}%` : '0%' }}
         />
         <input
@@ -30,7 +30,7 @@ export function IntensitySlider({ value, onChange, labels }) {
       <div className="flex justify-between">
         {levels.map((level) => {
           const active = value === level
-          const color = level === 1 ? 'text-emerald-600' : level === 2 ? 'text-amber-600' : 'text-rose-600'
+          const color = level === 1 ? 'text-[var(--phase-ovulation-deep)]' : level === 2 ? 'text-amber-600' : 'text-[var(--phase-menstruation-deep)]'
           return (
             <button
               key={level}

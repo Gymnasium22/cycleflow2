@@ -6,7 +6,7 @@ export function CycleRingIllustration({ className = 'w-40 h-40' }) {
       <circle cx="80" cy="80" r="58" stroke="url(#ringGrad)" strokeWidth="6" strokeLinecap="round" strokeDasharray="280 80" className="animate-ring-draw" />
       <circle cx="80" cy="80" r="42" stroke="rgba(196,92,106,0.35)" strokeWidth="3" strokeDasharray="8 6" />
       <circle cx="80" cy="80" r="70" fill="url(#glowGrad)" opacity="0.35" />
-      <text x="80" y="88" textAnchor="middle" className="fill-[var(--tg-theme-button-color,#e11d48)]" fontSize="28" fontFamily="Fraunces, serif" fontWeight="600">12</text>
+      <text x="80" y="88" textAnchor="middle" className="fill-[var(--tg-theme-button-color,#e11d48)]" fontSize="28" fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="700">12</text>
       <defs>
         <linearGradient id="ringGrad" x1="0" y1="0" x2="160" y2="160">
           <stop stopColor="#E8A0A8" />

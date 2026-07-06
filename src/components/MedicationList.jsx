@@ -6,10 +6,10 @@ import { MedicationModal } from './MedicationModal'
 const COLOR_CLASSES = {
   rose: 'bg-rose-500',
   violet: 'bg-violet-500',
-  teal: 'bg-teal-500',
+  teal: 'bg-[var(--accent-secondary)]',
   amber: 'bg-amber-500',
   blue: 'bg-blue-500',
-  emerald: 'bg-emerald-500',
+  emerald: 'bg-[var(--accent-success-deep)]',
 }
 
 export function MedicationList({

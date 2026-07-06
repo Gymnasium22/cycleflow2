@@ -19,7 +19,7 @@ const THEME_BACKGROUNDS = {
   telegram: 'from-blue-400 to-blue-600',
   sakura: 'from-rose-400 to-rose-600',
   lavender: 'from-violet-400 to-violet-600',
-  teal: 'from-teal-400 to-teal-600',
+  teal: 'from-[#D4C4E4] to-[#9B8EC4]',
   midnight: 'bg-[#0f172a]',
 }
 
@@ -267,11 +267,11 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
+    <div className="space-y-4 pb-4 animate-fade-in">
+      <h1 className="page-title">{t('settings.title')}</h1>
 
       {/* Language */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Globe size={20} className="text-violet-500" />
           <span className="font-semibold">{t('settings.language')}</span>
@@ -294,7 +294,7 @@ export function Settings() {
       </div>
 
       {/* Theme Selection */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Palette size={20} className="text-pink-500" />
           <span className="font-semibold">{t('settings.theme')}</span>
@@ -318,7 +318,7 @@ export function Settings() {
       </div>
 
       {/* Timezone */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <MapPin size={20} className="text-blue-500" />
           <span className="font-semibold">{t('settings.timezone')}</span>
@@ -339,7 +339,7 @@ export function Settings() {
       </div>
 
       {/* Cycle settings */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
+      <div className="card-elevated p-4 space-y-4">
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-[var(--tg-theme-text-color,#111827)]">
             <Moon size={18} className="text-rose-500" />
@@ -382,9 +382,9 @@ export function Settings() {
       </div>
 
       {/* Notifications */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
+      <div className="card-elevated p-4 space-y-4">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
-          <Bell size={20} className="text-teal-500" />
+          <Bell size={20} className="text-[var(--phase-ovulation-deep)]" />
           <span className="font-semibold">{t('settings.notifications')}</span>
         </div>
 
@@ -473,7 +473,7 @@ export function Settings() {
       </div>
 
       {/* Data Export */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+      <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Download size={20} className="text-blue-500" />
           <span className="font-semibold">{t('settings.data')}</span>
@@ -530,7 +530,7 @@ export function Settings() {
           {t('settings.saveAll')}
         </button>
         {saved && (
-          <p className="text-center text-sm text-green-600 font-medium">
+          <p className="text-center text-sm text-[var(--accent-success-deep)] font-medium">
             {t('common.saved')}
           </p>
         )}

@@ -8,10 +8,10 @@ import { useTelegram } from '../context/TelegramContext'
 const COLOR_CLASSES = {
   rose: 'bg-rose-500 text-white shadow-rose-500/20',
   violet: 'bg-violet-500 text-white shadow-violet-500/20',
-  teal: 'bg-teal-500 text-white shadow-teal-500/20',
+  teal: 'bg-[var(--accent-secondary)] text-white shadow-[var(--accent-secondary)]/25',
   amber: 'bg-amber-500 text-white shadow-amber-500/20',
   blue: 'bg-blue-500 text-white shadow-blue-500/20',
-  emerald: 'bg-emerald-500 text-white shadow-emerald-500/20',
+  emerald: 'bg-[var(--accent-success-deep)] text-white shadow-[var(--accent-success)]/25',
 }
 
 export function MedicationWidget({ inverted = false }) {
@@ -69,7 +69,7 @@ export function MedicationWidget({ inverted = false }) {
   return (
     <div className="space-y-2.5">
       <h3 className={`text-sm font-semibold flex items-center gap-2 ${titleClass}`}>
-        <Pill size={16} className={inverted ? 'text-white/80' : 'text-emerald-500'} />
+        <Pill size={16} className={inverted ? 'text-white/80' : 'text-[var(--accent-success-deep)]'} />
         {t('settings.medications.widgetTitle')}
       </h3>
       <div className="space-y-2">
@@ -102,8 +102,8 @@ export function MedicationWidget({ inverted = false }) {
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center transition-all border ${
                   isTaken
-                    ? 'bg-emerald-500 border-transparent text-white animate-bounce-in'
-                    : 'border-[var(--tg-theme-hint-color,#d1d5db)] hover:border-emerald-500'
+                    ? 'btn-success-mark animate-bounce-in'
+                    : 'border-[var(--tg-theme-hint-color,#d1d5db)] hover:border-[var(--accent-success)]'
                 }`}
               >
                 {isTaken && <Check size={14} strokeWidth={3} />}

@@ -137,7 +137,7 @@ export function Onboarding() {
               <p className="text-sm text-center text-[var(--tg-theme-hint-color,#6b7280)]">{t('onboarding.lastPeriodHint')}</p>
             </div>
 
-            <div className="rounded-2xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
+            <div className="card-elevated p-5 space-y-4">
               <input
                 type="date"
                 value={lastPeriodDate}
@@ -149,7 +149,7 @@ export function Onboarding() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(2)}
-                className="flex-1 py-3.5 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75 transition-opacity"
+                className="flex-1 py-3.5 rounded-2xl glass-panel font-semibold hover:elevation-1 transition-all"
               >
                 {t('onboarding.back')}
               </button>
@@ -168,13 +168,13 @@ export function Onboarding() {
           <div className="space-y-6">
             <div className="space-y-2">
               <div className="flex items-center justify-center gap-2">
-                <Bell size={24} className="text-teal-500" />
+                <Bell size={24} className="text-[var(--phase-ovulation-deep)]" />
                 <h2 className="text-lg font-semibold text-center">{t('onboarding.notifications')}</h2>
               </div>
               <p className="text-sm text-center text-[var(--tg-theme-hint-color,#6b7280)]">{t('onboarding.notificationsHint')}</p>
             </div>
 
-            <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-4">
+            <div className="card-elevated p-4 space-y-4">
               <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
                 <span className="text-sm font-medium">{t('onboarding.notifyPeriod')}</span>
                 <input
@@ -239,7 +239,7 @@ export function Onboarding() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 py-3.5 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75 transition-opacity"
+                className="flex-1 py-3.5 rounded-2xl glass-panel font-semibold hover:elevation-1 transition-all"
               >
                 {t('onboarding.back')}
               </button>
@@ -294,7 +294,7 @@ function StepCard({ title, hint, value, min, max, unit, icon, onChange, onNext, 
         {showBack && (
           <button
             onClick={onBack}
-            className="flex-1 py-3.5 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75 transition-opacity"
+            className="flex-1 py-3.5 rounded-2xl glass-panel font-semibold hover:elevation-1 transition-all"
           >
             {backLabel}
           </button>
