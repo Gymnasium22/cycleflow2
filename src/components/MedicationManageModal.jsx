@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { MedicationList } from './MedicationList'
 import { MedicationLog } from './MedicationLog'
+import { ModalPortal } from './ModalPortal'
 
 export function MedicationManageModal({
   isOpen,
@@ -19,21 +20,33 @@ export function MedicationManageModal({
   if (!isOpen) return null
 
   return (
-    <>
-      <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
-        <div className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-5 space-y-4 animate-slide-in-bottom">
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+        onClick={onClose}
+        role="presentation"
+      >
+        <div
+          className="w-full max-w-md max-h-[min(88vh,720px)] overflow-y-auto rounded-2xl bg-[var(--surface-elevated)] p-5 space-y-4 animate-slide-in-bottom elevation-3 border border-[var(--border-subtle)]"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="medication-manage-title"
+        >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">
+            <h3 id="medication-manage-title" className="section-heading text-lg">
               {t('settings.medications.title')}
             </h3>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20"
+              className="p-2 rounded-full hover:bg-black/5"
+              aria-label={t('common.cancel')}
             >
               <X size={20} />
             </button>
           </div>
-          <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.medicationsHint')}</p>
+          <p className="text-xs text-[var(--text-muted)]">{t('settings.medicationsHint')}</p>
           <MedicationList
             medications={medications}
             isLoading={isLoading}
@@ -46,6 +59,6 @@ export function MedicationManageModal({
         </div>
       </div>
       <MedicationLog isOpen={showHistory} onClose={() => setShowHistory(false)} />
-    </>
+    </ModalPortal>
   )
 }

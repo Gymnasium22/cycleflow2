@@ -26,7 +26,8 @@
     "tomorrow": "tomorrow",
     "yesterday": "yesterday",
     "inDays": "in {{count}} days",
-    "overdueDays": "{{count}} days overdue",
+    "overdueDays": "expected {{count}} days ago",
+    "daysAgo": "{{count}} days ago",
     "saved": "✓ Saved"
   },
   "home": {
@@ -80,6 +81,7 @@
     "symptoms": "Symptoms",
     "notes": "Notes",
     "addSymptoms": "Add symptoms",
+    "predictedPeriod": "Predicted period",
     "period": "Period",
     "editDates": "Edit dates",
     "deleteRecord": "Delete record",

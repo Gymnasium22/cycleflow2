@@ -8,6 +8,7 @@ import { useTelegram } from '../context/TelegramContext'
 import { useCycles } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import { EmptyState } from './EmptyState'
+import { ModalPortal } from './ModalPortal'
 import { getCategoryLabel, getOptionLabel, getOptionEmoji } from '../data/symptomCategories'
 import {
   formatDate,
@@ -226,8 +227,14 @@ export function HistorySection() {
       </div>
 
       {showCycleModal && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4" onClick={() => setShowCycleModal(false)} role="presentation">
+          <div
+            className="w-full max-w-md max-h-[min(88vh,720px)] overflow-y-auto rounded-2xl bg-[var(--surface-elevated)] p-6 space-y-4 animate-slide-in-bottom elevation-3 border border-[var(--border-subtle)]"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{editingCycle ? t('history.editRecord') : t('history.addRecord')}</h3>
               <button onClick={() => setShowCycleModal(false)} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20"><X size={20} /></button>
@@ -262,6 +269,7 @@ export function HistorySection() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <SymptomPicker isOpen={showSymptomPicker} onClose={() => { setShowSymptomPicker(false); setSymptomPickerCategory(null) }} defaultOpenCategory={symptomPickerCategory} initialSelections={selections} onSaveCategory={async (a, b, c, d) => { await saveCategorySelection(a, b, c, d); hapticFeedback.notification('success') }} onDeleteCategory={async (id) => { await deleteCategory(id); hapticFeedback.notification('success') }} loading={symptomsLoading} />

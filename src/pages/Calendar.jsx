@@ -5,6 +5,7 @@ import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SymptomPicker } from '../components/SymptomPicker'
 import { CalendarSkeleton } from '../components/CalendarSkeleton'
+import { ModalPortal } from '../components/ModalPortal'
 import { useAuth } from '../context/AuthContext'
 import { useTelegram } from '../context/TelegramContext'
 import { useCycles, getActiveCycle } from '../hooks/useCycles'
@@ -26,6 +27,8 @@ import {
   formatDate,
   toISODateString,
   isDateInPeriodRange,
+  getNextPeriodDateFromHistory,
+  getPredictedPeriodDateSet,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
@@ -126,6 +129,16 @@ export function Calendar() {
     [cycles, avgCycleLength, avgPeriodLength]
   )
   const todayPhaseTheme = getPhaseTheme(todayPhase)
+
+  const nextPeriodDate = useMemo(
+    () => (cycles.length > 0 ? getNextPeriodDateFromHistory(cycles, avgCycleLength) : null),
+    [cycles, avgCycleLength]
+  )
+
+  const predictedPeriodDates = useMemo(
+    () => getPredictedPeriodDateSet(cycles, avgCycleLength, avgPeriodLength),
+    [cycles, avgCycleLength, avgPeriodLength]
+  )
 
   useEffect(() => {
     setMonthAnimKey((k) => k + 1)
@@ -342,6 +355,11 @@ export function Calendar() {
             {monthNames[lang][month]}
             <span className="text-[var(--text-muted)] font-normal text-lg ml-1.5 tabular-nums">{year}</span>
           </h1>
+          {nextPeriodDate && cycles.length > 0 && (
+            <p className="text-xs text-[var(--text-muted)] mt-1 tabular-nums">
+              {t('home.nextPeriod')}: {formatDate(nextPeriodDate, locale)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-0.5 glass-panel rounded-full p-0.5 elevation-1">
           <button onClick={prevMonth} className="p-2.5 rounded-full hover:bg-black/5 transition-colors">
@@ -386,6 +404,7 @@ export function Calendar() {
             const hasSex = sexDates.has(dateStr)
             const hasSymptoms = symptomDates.has(dateStr)
             const hasNote = noteDates.has(dateStr)
+            const isPredictedPeriod = !inPeriod && predictedPeriodDates.has(dateStr)
 
             const cycleForDay = getCycleForDate(date, cycles)
             const cycleDayNumber = cycleForDay
@@ -401,7 +420,9 @@ export function Calendar() {
                   type ? typeStyles[type] : 'text-[var(--tg-theme-text-color,#111827)] hover:bg-black/[0.04]'
                 } ${isToday ? `cal-day-today-glow phase-${todayPhase}` : ''} ${
                   isSelected ? 'ring-2 ring-offset-1 ring-[var(--tg-theme-button-color,#C45C6A)]' : ''
-                } ${inPeriod && !type ? 'bg-[color-mix(in_srgb,var(--phase-menstruation)_25%,transparent)] text-[var(--phase-menstruation-deep)]' : ''}`}
+                } ${inPeriod && !type ? 'bg-[color-mix(in_srgb,var(--phase-menstruation)_25%,transparent)] text-[var(--phase-menstruation-deep)]' : ''} ${
+                  isPredictedPeriod ? 'cal-day-predicted-period' : ''
+                }`}
               >
                 <span className="leading-none">{date.getDate()}</span>
                 <div className="flex items-center justify-center gap-1 mt-0.5 h-3">
@@ -431,6 +452,10 @@ export function Calendar() {
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-rose-500" />
           <span className="text-[var(--tg-theme-hint-color,#6b7280)]">{t('home.phase.menstruation')}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm border-2 border-dashed border-[var(--phase-menstruation-deep)] bg-[color-mix(in_srgb,var(--phase-menstruation)_20%,transparent)]" />
+          <span className="text-[var(--tg-theme-hint-color,#6b7280)]">{t('calendar.predictedPeriod')}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-amber-400" />
@@ -466,8 +491,14 @@ export function Calendar() {
 
       {/* Day actions modal */}
       {showModal && selectedDate && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/45 backdrop-blur-sm p-4 pb-6" onClick={closeModal} role="presentation">
+          <div
+            className="w-full max-w-md rounded-2xl bg-[var(--surface-elevated)] p-6 space-y-4 animate-slide-in-bottom elevation-3 border border-[var(--border-subtle)]"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
                 {formatDate(selectedDate, locale)}
@@ -550,12 +581,19 @@ export function Calendar() {
             )}
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit cycle modal */}
       {showEditCycle && editingCycle && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4" onClick={() => setShowEditCycle(false)} role="presentation">
+          <div
+            className="w-full max-w-md rounded-2xl bg-[var(--surface-elevated)] p-6 space-y-4 animate-slide-in-bottom elevation-3 border border-[var(--border-subtle)]"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
                 {t('calendar.editDates')}
@@ -626,6 +664,7 @@ export function Calendar() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       <SymptomPicker

@@ -12,6 +12,10 @@ import {
   sortCyclesByDateDesc,
   daysBetween,
   formatDaysUntil,
+  getNextPeriodDateFromHistory,
+  getUpcomingOvulationDateFromHistory,
+  getPredictedPeriodDateSet,
+  toISODateString,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from './cycle'
@@ -99,6 +103,27 @@ describe('isCycleDelayed', () => {
   it('returns false when active period is open', () => {
     const cycles = [{ start_date: new Date().toISOString().slice(0, 10), end_date: null }]
     expect(isCycleDelayed(cycles, DEFAULT_CYCLE_LENGTH)).toBe(false)
+  })
+})
+
+describe('getUpcomingOvulationDateFromHistory', () => {
+  it('returns a future ovulation after the current one passed', () => {
+    const cycles = [{ start_date: '2026-01-01', end_date: '2026-01-05', cycle_length: 28 }]
+    const upcoming = getUpcomingOvulationDateFromHistory(cycles, 28)
+    expect(upcoming).toBeTruthy()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    expect(upcoming.getTime()).toBeGreaterThanOrEqual(today.getTime())
+  })
+})
+
+describe('getPredictedPeriodDateSet', () => {
+  it('includes predicted period days for a single logged cycle', () => {
+    const cycles = [{ start_date: '2026-01-01', end_date: '2026-01-05', cycle_length: 28, period_length: 5 }]
+    const set = getPredictedPeriodDateSet(cycles, 28, 5)
+    expect(set.size).toBe(5)
+    const nextStart = getNextPeriodDateFromHistory(cycles, 28)
+    expect(set.has(toISODateString(nextStart))).toBe(true)
   })
 })
 

@@ -26,7 +26,8 @@
     "tomorrow": "завтра",
     "yesterday": "вчера",
     "inDays": "через {{count}} дн.",
-    "overdueDays": "просрочено на {{count}} дн.",
+    "overdueDays": "ожидались {{count}} дн. назад",
+    "daysAgo": "{{count}} дн. назад",
     "saved": "✓ Сохранено"
   },
   "home": {
@@ -80,6 +81,7 @@
     "symptoms": "Симптомы",
     "notes": "Заметки",
     "addSymptoms": "Добавить симптомы",
+    "predictedPeriod": "Прогноз месячных",
     "period": "Менструация",
     "editDates": "Изменить даты",
     "deleteRecord": "Удалить запись",

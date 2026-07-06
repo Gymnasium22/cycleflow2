@@ -218,6 +218,42 @@ export function getOvulationDateFromHistory(cycles, avgCycleLength = DEFAULT_CYC
   return ovulation
 }
 
+/** Next ovulation on or after today (avoids "overdue" after current ovulation passed). */
+export function getUpcomingOvulationDateFromHistory(cycles, avgCycleLength = DEFAULT_CYCLE_LENGTH) {
+  if (!cycles?.length) return null
+
+  const lastCycle = getLastCycle(cycles)
+  const lastStart = parseDate(lastCycle.start_date)
+  if (!lastStart) return null
+
+  const cycleLength = avgCycleLength || lastCycle.cycle_length || DEFAULT_CYCLE_LENGTH
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  let ovulation = new Date(lastStart)
+  ovulation.setDate(ovulation.getDate() + cycleLength - LUTEAL_PHASE_LENGTH)
+
+  while (ovulation.getTime() < today.getTime()) {
+    ovulation.setDate(ovulation.getDate() + cycleLength)
+  }
+  return ovulation
+}
+
+/** ISO date strings for the predicted next period window (not yet logged). */
+export function getPredictedPeriodDateSet(cycles, avgCycleLength, avgPeriodLength) {
+  const nextStart = getNextPeriodDateFromHistory(cycles, avgCycleLength)
+  if (!nextStart) return new Set()
+
+  const set = new Set()
+  const len = avgPeriodLength || DEFAULT_PERIOD_LENGTH
+  for (let i = 0; i < len; i++) {
+    const d = new Date(nextStart)
+    d.setDate(d.getDate() + i)
+    set.add(toISODateString(d))
+  }
+  return set
+}
+
 export function getCycleDay(lastPeriodStart, cycleLength = DEFAULT_CYCLE_LENGTH) {
   return getCycleDayForDate(new Date(), lastPeriodStart, cycleLength)
 }

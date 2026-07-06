@@ -26,7 +26,7 @@ import {
   getAverageCycleLength,
   getAveragePeriodLength,
   getNextPeriodDateFromHistory,
-  getOvulationDateFromHistory,
+  getUpcomingOvulationDateFromHistory,
   getPhaseForDate,
   getCycleDayForDate,
   formatDate,
@@ -40,7 +40,7 @@ import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
-import { formatDaysUntilI18n } from '../utils/formatDaysUntil'
+import { formatDaysUntilI18n, formatForecastDaysUntil } from '../utils/formatDaysUntil'
 
 const PRIMARY_SYMPTOM_CHIPS = ['mood', 'symptoms', 'sex', 'activity']
 const TEST_SYMPTOM_CHIPS = ['ovulation_test', 'pregnancy_test']
@@ -84,7 +84,7 @@ export function Home() {
   const phaseInfo = phase ? getPhaseTheme(phase) : null
   const cycleProgress = cycleDay && avgCycleLength ? Math.min(cycleDay / avgCycleLength, 1) : 0
   const nextPeriod = hasCycles ? getNextPeriodDateFromHistory(cycles, avgCycleLength) : null
-  const ovulation = hasCycles ? getOvulationDateFromHistory(cycles, avgCycleLength) : null
+  const ovulation = hasCycles ? getUpcomingOvulationDateFromHistory(cycles, avgCycleLength) : null
   const daysUntilPeriod = nextPeriod ? getDaysUntil(nextPeriod) : null
   const daysUntilOvulation = ovulation ? getDaysUntil(ovulation) : null
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
@@ -322,7 +322,7 @@ export function Home() {
               </div>
               <p className="text-sm font-bold text-[var(--tg-theme-text-color,#111827)] truncate">{formatDate(nextPeriod, locale)}</p>
               <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-0.5">
-                {formatDaysUntilI18n(daysUntilPeriod)}
+                {formatDaysUntilI18n(daysUntilPeriod, { allowOverdue: cycleDelayed })}
               </p>
             </div>
             <div className="w-px bg-[var(--tg-theme-hint-color,#d1d5db)]/20 shrink-0" />
@@ -333,7 +333,7 @@ export function Home() {
               </div>
               <p className="text-sm font-bold text-[var(--tg-theme-text-color,#111827)] truncate">{formatDate(ovulation, locale)}</p>
               <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-0.5">
-                {formatDaysUntilI18n(daysUntilOvulation)}
+                {formatForecastDaysUntil(daysUntilOvulation)}
               </p>
             </div>
           </div>

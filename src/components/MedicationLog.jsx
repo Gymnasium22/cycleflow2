@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, ChevronLeft, ChevronRight, Check, XCircle, Circle } from 'lucide-react'
 import { Spinner } from './Spinner'
+import { ModalPortal } from './ModalPortal'
 import { useMedicationLogs } from '../hooks/useMedicationLogs'
 
 export function MedicationLog({ isOpen, onClose }) {
@@ -43,8 +44,14 @@ export function MedicationLog({ isOpen, onClose }) {
   const monthLabel = new Date(year, month, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' })
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/45 backdrop-blur-sm p-4" onClick={onClose} role="presentation">
+      <div
+        className="w-full max-w-md max-h-[min(88vh,720px)] overflow-y-auto rounded-2xl bg-[var(--surface-elevated)] p-6 space-y-4 animate-slide-in-bottom elevation-3 border border-[var(--border-subtle)]"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.history')}</h3>
           <button
@@ -135,5 +142,6 @@ export function MedicationLog({ isOpen, onClose }) {
         )}
       </div>
     </div>
+    </ModalPortal>
   )
 }

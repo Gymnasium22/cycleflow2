@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ModalPortal } from './ModalPortal'
 
 export function ConfirmDialog({
   isOpen,
@@ -22,6 +23,7 @@ export function ConfirmDialog({
   if (!isOpen) return null
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-sm rounded-2xl bg-[var(--surface-elevated)] p-6 space-y-4 animate-slide-in-bottom elevation-3 border border-[var(--border-subtle)]">
         <h3 className="section-heading text-[var(--tg-theme-text-color)]">{title}</h3>
@@ -44,5 +46,6 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
+    </ModalPortal>
   )
 }

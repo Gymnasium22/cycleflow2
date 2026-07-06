@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { X, Check } from 'lucide-react'
 import { Spinner } from './Spinner'
 import { IntensitySlider } from './IntensitySlider'
+import { ModalPortal } from './ModalPortal'
 import { CATEGORY_GRADIENTS } from '../utils/phaseTheme'
 import {
   SYMPTOM_CATEGORIES,
@@ -147,8 +148,9 @@ export function SymptomPicker({
   const selection = draft[activeCategory] || { selectedIds: [], intensity: null, comment: '' }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-md max-h-[92vh] rounded-t-3xl bg-[var(--surface-elevated)] flex flex-col animate-slide-in-bottom elevation-3">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-md max-h-[min(92vh,100dvh)] rounded-t-3xl bg-[var(--surface-elevated)] flex flex-col animate-slide-in-bottom elevation-3 mb-0">
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
           <div>
             <h3 className="font-display text-lg font-semibold">{t('symptoms.pickerTitle')}</h3>
@@ -265,5 +267,6 @@ export function SymptomPicker({
         </div>
       </div>
     </div>
+    </ModalPortal>
   )
 }

@@ -429,6 +429,13 @@ body.theme-midnight .skeleton-shimmer {
               0 0 16px var(--phase-glow-color, rgba(196, 92, 106, 0.35));
 }
 
+.cal-day-predicted-period {
+  background: color-mix(in srgb, var(--phase-menstruation) 14%, transparent) !important;
+  color: var(--phase-menstruation-deep) !important;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--phase-menstruation-deep) 55%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--phase-menstruation-deep) 70%, transparent);
+}
+
 /* Analytics chart */
 .chart-bar-cycle { fill: url(#cycleBarGrad); }
 .insight-value {
