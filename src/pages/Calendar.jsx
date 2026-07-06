@@ -16,6 +16,7 @@ import { EmptyState } from '../components/EmptyState'
 import { HistorySection } from '../components/HistorySection'
 import { DayNoteEditor } from '../components/DayNoteEditor'
 import { getPhaseTheme } from '../utils/phaseTheme'
+import { scrollToAppTop } from '../utils/scrollToAppTop'
 import {
   generateCalendarDays,
   getAverageCycleLength,
@@ -329,7 +330,11 @@ export function Calendar() {
         {['calendar', 'history'].map((tab) => (
           <button
             key={tab}
-            onClick={() => { hapticFeedback.impact('light'); setView(tab) }}
+            onClick={() => {
+              hapticFeedback.impact('light')
+              setView(tab)
+              scrollToAppTop()
+            }}
             className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
               view === tab
                 ? 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] shadow-sm'

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, MapPin, Palette } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, MapPin, Palette, FileText } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useTelegram } from '../context/TelegramContext'
@@ -14,6 +14,7 @@ import {
 } from '../utils/cycle'
 import { applyTheme, AVAILABLE_THEMES } from '../utils/theme'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
+import { downloadDoctorReport } from '../utils/doctorReport'
 
 const THEME_BACKGROUNDS = {
   telegram: 'from-blue-400 to-blue-600',
@@ -50,7 +51,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isTestingNotifications, setIsTestingNotifications] = useState(false)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   const { hapticFeedback } = useTelegram()
 
@@ -156,52 +157,6 @@ export function Settings() {
     showSavedMessage()
   }
 
-  async function testNotifications() {
-    setIsTestingNotifications(true)
-    hapticFeedback.impact('light')
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const accessToken = session?.access_token
-      if (!accessToken) {
-        throw new Error(t('settings.errors.noSessionTelegram'))
-      }
-
-      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notifications`
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ test: true }),
-      })
-
-      const responseText = await response.text()
-      let responseData
-      try {
-        responseData = JSON.parse(responseText)
-      } catch {
-        responseData = { raw: responseText }
-      }
-
-      if (!response.ok) {
-        const isJwtError = responseText.includes('UNAUTHORIZED_LEGACY_JWT') || responseText.includes('Invalid JWT')
-        const message = isJwtError
-          ? t('settings.errors.jwtExpired')
-          : (responseData?.error || responseData?.message || `HTTP ${response.status}`)
-        throw new Error(message)
-      }
-
-      hapticFeedback.notification('success')
-      alert(t('settings.errors.notificationsSent') + JSON.stringify(responseData))
-    } catch (err) {
-      console.error('Test notifications error:', err)
-      alert(t('settings.errors.sendFailed') + (err?.message || JSON.stringify(err)))
-    } finally {
-      setIsTestingNotifications(false)
-    }
-  }
-
   function getExportSymptoms() {
     try {
       const storedSymptoms = localStorage.getItem('cicle_symptoms')
@@ -220,27 +175,50 @@ export function Settings() {
     }
   }
 
-  function exportData() {
+  async function exportDoctorPdf() {
     hapticFeedback.impact('light')
+    setIsExportingPdf(true)
     try {
-      const storedSettings = localStorage.getItem('cicle_settings')
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
-      const data = {
-        exported_at: new Date().toISOString(),
+      await downloadDoctorReport({
         cycles,
         symptoms: getExportSymptoms(),
-        day_notes: getExportDayNotes(),
-        settings: storedSettings ? JSON.parse(storedSettings) : (settings || {}),
+        dayNotes: getExportDayNotes(),
         profile: profile || (storedProfile ? JSON.parse(storedProfile) : {}),
-      }
-      downloadTextFile(
-        `cicle-export-${new Date().toISOString().split('T')[0]}.json`,
-        JSON.stringify(data, null, 2),
-        'application/json'
-      )
+        lang: i18n.language === 'ru' ? 'ru' : 'en',
+        labels: {
+          title: t('settings.doctorReport.title'),
+          generated: t('settings.doctorReport.generated'),
+          summary: t('settings.doctorReport.summary'),
+          avgCycle: t('analytics.averageCycle'),
+          avgPeriod: t('analytics.averagePeriod'),
+          cyclesCount: t('analytics.cyclesCount'),
+          regularity: t('analytics.regularityIndex'),
+          days: t('analytics.days'),
+          cyclesTable: t('settings.doctorReport.cyclesTable'),
+          noCycles: t('settings.doctorReport.noCycles'),
+          ongoing: t('settings.doctorReport.ongoing'),
+          period: t('settings.doctorReport.period'),
+          note: t('settings.doctorReport.note'),
+          symptomsByPhase: t('settings.doctorReport.symptomsByPhase'),
+          recentSymptoms: t('settings.doctorReport.recentSymptoms'),
+          dayNotes: t('settings.doctorReport.dayNotes'),
+          intensity: t('settings.doctorReport.intensity'),
+          disclaimer: t('settings.doctorReport.disclaimer'),
+          phases: {
+            menstruation: t('home.phase.menstruation'),
+            follicular: t('home.phase.follicular'),
+            ovulation: t('home.phase.ovulation'),
+            luteal: t('home.phase.luteal'),
+          },
+        },
+      })
+      hapticFeedback.notification('success')
     } catch (e) {
-      console.error('Export failed:', e)
-      alert(t('settings.errors.exportFailed'))
+      console.error('PDF export failed:', e)
+      alert(t('settings.errors.exportPdfFailed'))
+    } finally {
+      setIsExportingPdf(false)
     }
   }
 
@@ -478,20 +456,14 @@ export function Settings() {
           <Download size={20} className="text-blue-500" />
           <span className="font-semibold">{t('settings.data')}</span>
         </div>
+        <p className="text-xs text-[var(--text-muted)]">{t('settings.exportHint')}</p>
         <button
-          onClick={testNotifications}
-          disabled={isTestingNotifications}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors disabled:opacity-60"
+          onClick={exportDoctorPdf}
+          disabled={isExportingPdf}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
         >
-          {isTestingNotifications ? <Spinner size={18} /> : <Send size={18} />}
-          {t('settings.testNotification')}
-        </button>
-        <button
-          onClick={exportData}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
-        >
-          <Download size={18} />
-          {t('settings.exportJson')}
+          {isExportingPdf ? <Spinner size={18} /> : <FileText size={18} />}
+          {t('settings.exportDoctorPdf')}
         </button>
         <button
           onClick={exportCsv}
@@ -511,12 +483,6 @@ export function Settings() {
           {isDeleting ? <Spinner size={18} /> : <Trash2 size={18} />}
           {t('settings.deleteAllData')}
         </button>
-      </div>
-
-      {/* Info */}
-      <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 text-amber-800">
-        <Info size={20} className="shrink-0 mt-0.5" />
-        <p className="text-sm">{t('settings.info')}</p>
       </div>
 
       {/* Save button and confirmation */}

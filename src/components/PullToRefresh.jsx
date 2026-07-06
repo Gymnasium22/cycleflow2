@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export function PullToRefresh({ children, onRefresh }) {
+export function PullToRefresh({ children, onRefresh, scrollKey }) {
   const { t } = useTranslation()
   const [pull, setPull] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
@@ -11,6 +11,14 @@ export function PullToRefresh({ children, onRefresh }) {
 
   const THRESHOLD = 72
   const MAX_PULL = 100
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.scrollTop = 0
+    setPull(0)
+    setIsPulling(false)
+  }, [scrollKey])
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -81,6 +89,7 @@ export function PullToRefresh({ children, onRefresh }) {
       </div>
       <div
         ref={containerRef}
+        data-app-scroll
         className="flex-1 overflow-y-auto touch-pan-y"
         style={{
           transform: pull > 0 ? `translateY(${pull}px)` : undefined,

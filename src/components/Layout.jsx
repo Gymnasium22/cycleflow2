@@ -9,7 +9,7 @@ export function Layout({ children, activeTab, onTabChange }) {
 
   return (
     <div className="flex flex-col min-h-full bg-[var(--surface-base)] text-[var(--tg-theme-text-color,#111827)]">
-      <PullToRefresh>
+      <PullToRefresh scrollKey={activeTab}>
         <main
           className="px-5 py-6 min-h-full"
           onTouchStart={onTouchStart}
