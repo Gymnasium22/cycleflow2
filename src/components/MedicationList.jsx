@@ -19,6 +19,7 @@ export function MedicationList({
   onDeleteMedication,
   onToggleReminder,
   onOpenHistory,
+  showTitle = true,
 }) {
   const { t } = useTranslation()
   const dayLabels = t('settings.medications.weekdays', { returnObjects: true })
@@ -56,8 +57,10 @@ export function MedicationList({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.title')}</span>
+      <div className={`flex items-center ${showTitle ? 'justify-between' : 'justify-end'}`}>
+        {showTitle && (
+          <span className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.title')}</span>
+        )}
         <button
           onClick={() => onOpenHistory?.()}
           className="flex items-center gap-1 text-sm text-[var(--tg-theme-button-color,#e11d48)] font-medium hover:opacity-80"

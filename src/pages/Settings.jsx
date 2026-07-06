@@ -1,16 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, MapPin, Palette, Pill } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, MapPin, Palette } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { MedicationList } from '../components/MedicationList'
-import { MedicationLog } from '../components/MedicationLog'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
-import { useMedications } from '../hooks/useMedications'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
@@ -52,19 +49,10 @@ export function Settings() {
   const [notifyTime, setNotifyTime] = useState(settings?.notify_time ?? '09:00')
   const [saved, setSaved] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showMedicationLog, setShowMedicationLog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isTestingNotifications, setIsTestingNotifications] = useState(false)
 
   const { hapticFeedback } = useTelegram()
-  const {
-    medications,
-    loading: medicationsLoading,
-    isLoading: medicationsSaving,
-    saveMedication,
-    deleteMedication,
-    toggleReminder,
-  } = useMedications()
 
 
 
@@ -484,26 +472,6 @@ export function Settings() {
         </div>
       </div>
 
-      {/* Medications */}
-      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
-        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
-          <Pill size={20} className="text-emerald-500" />
-          <span className="font-semibold">{t('settings.medications.title')}</span>
-        </div>
-        <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-          <Info size={12} className="shrink-0 mt-0.5" />
-          {t('settings.medicationsHint')}
-        </p>
-        <MedicationList
-          medications={medications}
-          isLoading={medicationsLoading || medicationsSaving}
-          onSaveMedication={saveMedication}
-          onDeleteMedication={deleteMedication}
-          onToggleReminder={toggleReminder}
-          onOpenHistory={() => setShowMedicationLog(true)}
-        />
-      </div>
-
       {/* Data Export */}
       <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
@@ -567,11 +535,6 @@ export function Settings() {
           </p>
         )}
       </div>
-
-      <MedicationLog
-        isOpen={showMedicationLog}
-        onClose={() => setShowMedicationLog(false)}
-      />
 
       <ConfirmDialog
         isOpen={showDeleteDialog}

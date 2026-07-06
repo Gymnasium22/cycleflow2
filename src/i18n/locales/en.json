@@ -33,6 +33,7 @@
     "nextPeriod": "Next period",
     "ovulation": "Ovulation",
     "logSymptoms": "Log symptoms",
+    "loggedToday": "Logged today",
     "today": "Today",
     "noData": "No data yet",
     "noDataHint": "Tap the button below when your period starts, or enter data manually.",
@@ -129,7 +130,9 @@
     "loggedDays": "days logged"
   },
   "todayWidget": {
-    "title": "Today"
+    "title": "Today",
+    "manageMedications": "Medications",
+    "noMedicationsHint": "Add medications and reminders using the button on the right"
   },
   "dayNotes": {
     "title": "Day note",

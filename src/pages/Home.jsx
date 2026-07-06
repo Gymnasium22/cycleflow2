@@ -6,10 +6,12 @@ import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SymptomPicker } from '../components/SymptomPicker'
 import { TodayWidget } from '../components/TodayWidget'
+import { MedicationManageModal } from '../components/MedicationManageModal'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay, isPeriodOverdue, getActiveCycle } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
+import { useMedications } from '../hooks/useMedications'
 
 import {
   SYMPTOM_CATEGORIES,
@@ -68,12 +70,21 @@ export function Home() {
   const { t, i18n } = useTranslation()
   const { profile } = useAuth()
   const { cycles, addCycle, updateCycle, deleteCycle, isLoading: cyclesLoading } = useCycles()
+  const {
+    medications,
+    loading: medicationsLoading,
+    isLoading: medicationsSaving,
+    saveMedication,
+    deleteMedication,
+    toggleReminder,
+  } = useMedications()
 
   const todayStr = useMemo(() => toISODateString(new Date()), [])
   const { symptoms, selections, saveCategorySelection, deleteCategory, isLoading: symptomsLoading } = useSymptoms(todayStr)
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
   const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
+  const [showMedicationManage, setShowMedicationManage] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
 
   const { hapticFeedback } = useTelegram()
@@ -209,27 +220,22 @@ export function Home() {
     })
   }
 
+  function openMedicationManage() {
+    hapticFeedback.impact('light')
+    setShowMedicationManage(true)
+  }
+
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-5 pb-4">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">{t('app.title')}</h1>
+        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
+          {formatDate(new Date(), locale)}
+        </p>
       </header>
-
-      <TodayWidget
-        dateStr={todayStr}
-        locale={locale}
-        phase={phase}
-        displayDay={hasCycles ? displayDay : null}
-        displayDayLabel={displayDayLabel}
-        daysUntilPeriod={hasCycles ? daysUntilPeriod : null}
-        daysUntilOvulation={hasCycles ? daysUntilOvulation : null}
-        symptoms={symptoms}
-        onOpenSymptomPicker={() => openSymptomPicker()}
-      />
 
       {hasCycles && phaseInfo ? (
         <>
-          {/* Main cycle card */}
           <div className={`relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br ${phaseInfo.gradient} shadow-xl`}>
             <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full -ml-10 -mb-10 blur-xl" />
@@ -240,12 +246,12 @@ export function Home() {
                   {displayDayLabel}
                 </p>
                 <p className="text-6xl font-bold mt-1">{displayDay}</p>
-                <p className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm`}>
+                <p className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm">
                   {t(`home.phase.${phaseInfo.key}`)}
                 </p>
               </div>
 
-              <div className="relative w-32 h-32">
+              <div className="relative w-32 h-32 shrink-0">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="8" />
                   <circle
@@ -281,9 +287,8 @@ export function Home() {
             </div>
           )}
 
-          {/* Forecast cards */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-3xl p-4 bg-rose-500/10 border border-rose-500/15 backdrop-blur-sm shadow-sm transition-all hover:scale-[1.02] active:scale-[0.99]">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-3xl p-4 bg-rose-500/10 border border-rose-500/15 shadow-sm">
               <div className="flex items-center gap-2 text-rose-600 mb-2">
                 <Droplets size={18} />
                 <span className="text-xs font-semibold uppercase tracking-wide">{t('home.nextPeriod')}</span>
@@ -294,7 +299,7 @@ export function Home() {
               </p>
             </div>
 
-            <div className="rounded-3xl p-4 bg-violet-500/10 border border-violet-500/15 backdrop-blur-sm shadow-sm transition-all hover:scale-[1.02] active:scale-[0.99]">
+            <div className="rounded-3xl p-4 bg-violet-500/10 border border-violet-500/15 shadow-sm">
               <div className="flex items-center gap-2 text-violet-600 mb-2">
                 <Sparkles size={18} />
                 <span className="text-xs font-semibold uppercase tracking-wide">{t('home.ovulation')}</span>
@@ -314,11 +319,51 @@ export function Home() {
         />
       )}
 
-      {/* Quick actions */}
+      {periodOverdue && (
+        <p className="text-sm text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3">
+          {t('home.periodOverdueHint')}
+        </p>
+      )}
+
+      {periodTrackingOpen ? (
+        <button
+          onClick={handleEndPeriod}
+          disabled={cyclesLoading}
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-teal-500 text-white font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-teal-500/15 disabled:opacity-60"
+        >
+          {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
+          {t('home.periodEnded')}
+        </button>
+      ) : isPeriodStartedToday ? (
+        <button
+          onClick={handleCancelPeriod}
+          disabled={cyclesLoading}
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 border border-[var(--tg-theme-hint-color,#d1d5db)]/30 active:scale-[0.99] transition-all disabled:opacity-60"
+        >
+          {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
+          {t('home.cancelPeriodStart')}
+        </button>
+      ) : (
+        <button
+          onClick={handleStartPeriod}
+          disabled={cyclesLoading || !!activeCycle}
+          className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-red-500/15 disabled:opacity-60"
+        >
+          {cyclesLoading ? <Spinner size={20} /> : <Droplets size={18} />}
+          {t('home.periodStarted')}
+        </button>
+      )}
+
+      <TodayWidget
+        dateStr={todayStr}
+        locale={locale}
+        onManageMedications={openMedicationManage}
+      />
+
       <div className="space-y-3">
         <h2 className="text-lg font-bold">{t('home.logSymptoms')}</h2>
         <button
-          onClick={openSymptomPicker}
+          onClick={() => openSymptomPicker()}
           className="w-full flex items-center justify-between p-4 rounded-3xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]/80 hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 border border-[var(--tg-theme-hint-color,#d1d5db)]/10 shadow-sm transition-all duration-200 active:scale-[0.99] text-left"
         >
           <div className="flex items-center gap-3">
@@ -350,99 +395,59 @@ export function Home() {
           })}
         </div>
 
-        {periodOverdue && (
-          <p className="text-sm text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3">
-            {t('home.periodOverdueHint')}
-          </p>
-        )}
+        {symptoms.length > 0 && (
+          <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--tg-theme-hint-color,#6b7280)]">
+              {t('home.loggedToday')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {symptoms.map((s) => {
+                const parsedNotes = (() => {
+                  try {
+                    const parsed = JSON.parse(s.notes || '{}')
+                    if (Array.isArray(parsed)) {
+                      return { selectedIds: parsed, comment: '' }
+                    }
+                    return {
+                      selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
+                      comment: parsed.comment || '',
+                    }
+                  } catch {
+                    return { selectedIds: [], comment: '' }
+                  }
+                })()
+                const labels = parsedNotes.selectedIds.map((id) => `${getOptionEmoji(s.symptom_type, id)} ${getOptionLabel(s.symptom_type, id, i18n.language)}`)
+                if (s.intensity) labels.push(`${s.intensity}/3`)
+                if (parsedNotes.comment) labels.push(`💬 ${parsedNotes.comment}`)
 
-        {periodTrackingOpen ? (
-          <button
-            onClick={handleEndPeriod}
-            disabled={cyclesLoading}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-teal-500 text-white font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-teal-500/15 disabled:opacity-60"
-          >
-            {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
-            {t('home.periodEnded')}
-          </button>
-        ) : isPeriodStartedToday ? (
-          <button
-            onClick={handleCancelPeriod}
-            disabled={cyclesLoading}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 border border-[var(--tg-theme-hint-color,#d1d5db)]/30 active:scale-[0.99] transition-all disabled:opacity-60"
-          >
-            {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
-            {t('home.cancelPeriodStart')}
-          </button>
-        ) : (
-          <button
-            onClick={handleStartPeriod}
-            disabled={cyclesLoading || !!activeCycle}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-red-500/15 disabled:opacity-60"
-          >
-            {cyclesLoading ? <Spinner size={20} /> : <Droplets size={18} />}
-            {t('home.periodStarted')}
-          </button>
+                return (
+                  <div
+                    key={s.id}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openSymptomPicker(s.symptom_type)}
+                      className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+                    >
+                      <span className="font-semibold shrink-0">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
+                      <span className="truncate max-w-[200px]">{labels.join(' · ') || '—'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSymptomCategory(s.symptom_type)}
+                      className="text-red-500 hover:text-red-700 opacity-70 group-hover:opacity-100 transition-opacity p-0.5 shrink-0"
+                      aria-label={t('common.delete')}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
       </div>
-
-      {/* Today's logged symptoms */}
-      {symptoms.length > 0 && (
-        <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
-          <p className="text-sm font-semibold mb-2 text-[var(--tg-theme-text-color,#111827)]">{t('symptoms.title')}</p>
-          <div className="flex flex-wrap gap-2">
-            {symptoms.map((s) => {
-              const parsedNotes = (() => {
-                try {
-                  const parsed = JSON.parse(s.notes || '{}')
-                  if (Array.isArray(parsed)) {
-                    return { selectedIds: parsed, comment: '' }
-                  }
-                  return {
-                    selectedIds: Array.isArray(parsed.selectedIds) ? parsed.selectedIds : [],
-                    comment: parsed.comment || '',
-                  }
-                } catch {
-                  return { selectedIds: [], comment: '' }
-                }
-              })()
-              const selectedIds = parsedNotes.selectedIds
-              const comment = parsedNotes.comment
-
-              const labels = selectedIds.map((id) => `${getOptionEmoji(s.symptom_type, id)} ${getOptionLabel(s.symptom_type, id, i18n.language)}`)
-              if (s.intensity) {
-                labels.push(`${s.intensity}/3`)
-              }
-              if (comment) {
-                labels.push(`💬 ${comment}`)
-              }
-              return (
-                <div
-                  key={s.id}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
-                >
-                  <button
-                    type="button"
-                    onClick={() => openSymptomPicker(s.symptom_type)}
-                    className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
-                  >
-                    <span className="font-semibold shrink-0">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
-                    <span className="truncate max-w-[200px]">{labels.join(' · ') || '—'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSymptomCategory(s.symptom_type)}
-                    className="text-red-500 hover:text-red-700 opacity-70 group-hover:opacity-100 transition-opacity p-0.5 shrink-0"
-                    aria-label={t('common.delete')}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       <SymptomPicker
         isOpen={showSymptomPicker}
@@ -455,6 +460,16 @@ export function Home() {
         onSaveCategory={handleSaveCategory}
         onDeleteCategory={handleDeleteCategory}
         loading={symptomsLoading}
+      />
+
+      <MedicationManageModal
+        isOpen={showMedicationManage}
+        onClose={() => setShowMedicationManage(false)}
+        medications={medications}
+        isLoading={medicationsLoading || medicationsSaving}
+        onSaveMedication={saveMedication}
+        onDeleteMedication={deleteMedication}
+        onToggleReminder={toggleReminder}
       />
 
       <ConfirmDialog
