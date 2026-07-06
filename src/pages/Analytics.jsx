@@ -9,11 +9,13 @@ import { useMedicationLogs } from '../hooks/useMedicationLogs'
 import {
   getAverageCycleLength,
   getAveragePeriodLength,
+  getCycleChartData,
   parseDate,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
 import { getOptionLabel, getOptionEmoji } from '../data/symptomCategories'
+import { getSymptomPhaseCorrelations } from '../utils/symptomPhaseCorrelation'
 
 function parseSelectedIds(notes) {
   try {
@@ -111,12 +113,15 @@ export function Analytics() {
 
   const chartData =
     cycles.length > 0
-      ? [...cycles].reverse().map((cycle, index) => ({
-          name: `#${index + 1}`,
-          cycle: cycle.cycle_length || fallbackCycle,
-          period: cycle.period_length || fallbackPeriod,
-        }))
+      ? getCycleChartData(cycles, fallbackCycle, fallbackPeriod)
       : [{ name: '1', cycle: fallbackCycle, period: fallbackPeriod }]
+
+  const phaseCorrelations = useMemo(
+    () => getSymptomPhaseCorrelations(allSymptoms, cycles, avgCycleLength, avgPeriodLength, lang),
+    [allSymptoms, cycles, avgCycleLength, avgPeriodLength, lang]
+  )
+
+  const hasPhaseCorrelations = phaseCorrelations.some((p) => p.topItems.length > 0)
 
   const statCards = [
     {
@@ -224,6 +229,12 @@ export function Analytics() {
     <div className="space-y-6 pb-4">
       <h1 className="text-2xl font-bold">{t('analytics.title')}</h1>
 
+      {cycles.length < 2 && (
+        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] rounded-2xl px-4 py-3">
+          {t('analytics.needMoreData')}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-3">
         {statCards.map((stat) => (
           <div key={stat.label} className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] flex items-center gap-4">
@@ -262,6 +273,42 @@ export function Analytics() {
         </div>
       )}
 
+      {hasPhaseCorrelations && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-bold">{t('analytics.phaseCorrelations')}</h2>
+          <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{t('analytics.phaseCorrelationsHint')}</p>
+          <div className="grid grid-cols-1 gap-3">
+            {phaseCorrelations.map((entry) => (
+              entry.topItems.length > 0 && (
+                <div
+                  key={entry.phase}
+                  className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--tg-theme-text-color,#111827)]">
+                      {t(`home.phase.${entry.phase}`)}
+                    </p>
+                    <span className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+                      {entry.loggedDays} {t('analytics.loggedDays')}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {entry.topItems.map((item) => (
+                      <span
+                        key={`${entry.phase}-${item.categoryId}-${item.optionId}`}
+                        className="px-2.5 py-1 rounded-xl text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20"
+                      >
+                        {item.emoji} {item.label} · {item.count}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Chart */}
       <div className="rounded-2xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
         <h2 className="text-lg font-bold mb-4">{t('analytics.cycleHistory')}</h2>
@@ -278,12 +325,12 @@ export function Analytics() {
                 }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="cycle" name={lang === 'ru' ? 'Цикл' : 'Cycle'} radius={[8, 8, 0, 0]}>
+              <Bar dataKey="cycle" name={t('analytics.chartCycle')} radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={cycleColors[index % cycleColors.length]} />
                 ))}
               </Bar>
-              <Bar dataKey="period" name={lang === 'ru' ? 'Месячные' : 'Period'} radius={[8, 8, 0, 0]}>
+              <Bar dataKey="period" name={t('analytics.chartPeriod')} radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, index) => (
                   <Cell key={`pcell-${index}`} fill={periodColors[index % periodColors.length]} />
                 ))}
@@ -294,12 +341,8 @@ export function Analytics() {
       </div>
 
       <div className="rounded-2xl p-5 bg-gradient-to-br from-violet-500 to-rose-500 text-white">
-        <p className="text-sm text-white/80">{lang === 'ru' ? 'Совет дня' : 'Daily tip'}</p>
-        <p className="text-lg font-semibold mt-1">
-          {lang === 'ru'
-            ? 'Следите за регулярностью цикла — это помогает лучше понимать своё тело.'
-            : 'Track your cycle regularity — it helps you understand your body better.'}
-        </p>
+        <p className="text-sm text-white/80">{t('analytics.dailyTip')}</p>
+        <p className="text-lg font-semibold mt-1">{t('analytics.dailyTipText')}</p>
       </div>
     </div>
   )

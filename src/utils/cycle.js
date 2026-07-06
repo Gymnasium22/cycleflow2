@@ -1,5 +1,7 @@
 export const DEFAULT_CYCLE_LENGTH = 28
 export const DEFAULT_PERIOD_LENGTH = 5
+export const LUTEAL_PHASE_LENGTH = 14
+export const CYCLE_DELAY_NOTIFY_DAYS = 3
 
 export function parseDate(dateInput) {
   if (!dateInput) return null
@@ -40,19 +42,80 @@ export function toISODateString(date) {
   return `${year}-${month}-${day}`
 }
 
+export function sortCyclesByDateDesc(cycles) {
+  if (!cycles?.length) return []
+  return [...cycles].sort((a, b) => parseDate(b.start_date) - parseDate(a.start_date))
+}
+
+export function sortCyclesByDateAsc(cycles) {
+  if (!cycles?.length) return []
+  return [...cycles].sort((a, b) => parseDate(a.start_date) - parseDate(b.start_date))
+}
+
+export function getLastCycle(cycles) {
+  return sortCyclesByDateDesc(cycles)[0] || null
+}
+
+export function isPeriodTrackingOpen(cycle) {
+  if (!cycle || cycle.end_date) return false
+  const start = parseDate(cycle.start_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return !!(start && start <= today)
+}
+
+export function getActiveCycle(cycles) {
+  if (!cycles?.length) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return sortCyclesByDateDesc(cycles).find((c) => {
+    if (c.end_date) return false
+    const start = parseDate(c.start_date)
+    return start && start <= today
+  }) || null
+}
+
+export function getPeriodEndDateForPhase(cycle, fallbackPeriodLength = DEFAULT_PERIOD_LENGTH) {
+  const start = parseDate(cycle?.start_date)
+  if (!start) return null
+  if (cycle.end_date) return parseDate(cycle.end_date)
+
+  const expectedLen = cycle.period_length || fallbackPeriodLength
+  const end = new Date(start)
+  end.setDate(start.getDate() + expectedLen - 1)
+  return end
+}
+
+export function isDateInPeriodRange(date, cycle, fallbackPeriodLength = DEFAULT_PERIOD_LENGTH) {
+  const start = parseDate(cycle?.start_date)
+  const end = getPeriodEndDateForPhase(cycle, fallbackPeriodLength)
+  const target = parseDate(date)
+  if (!start || !end || !target) return false
+  return target >= start && target <= end
+}
+
+export function isPeriodOverdue(cycle, fallbackPeriodLength = DEFAULT_PERIOD_LENGTH) {
+  if (!isPeriodTrackingOpen(cycle)) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const expectedEnd = getPeriodEndDateForPhase(cycle, fallbackPeriodLength)
+  return expectedEnd && today > expectedEnd
+}
+
+export function getActivePeriodDay(cycle) {
+  if (!isPeriodTrackingOpen(cycle)) return null
+  const start = parseDate(cycle.start_date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+}
+
 export function getActualPeriodLength(cycle, fallback = DEFAULT_PERIOD_LENGTH) {
   if (!cycle) return fallback
 
   if (cycle.end_date) {
     const length = daysBetween(cycle.start_date, cycle.end_date) + 1
     return length > 0 ? length : fallback
-  }
-
-  const today = new Date()
-  const start = parseDate(cycle.start_date)
-  if (start && start <= today) {
-    const activeLength = daysBetween(start, today) + 1
-    return activeLength > 0 ? activeLength : fallback
   }
 
   return cycle.period_length || fallback
@@ -68,13 +131,11 @@ export function getAveragePeriodLength(cycles, fallback = DEFAULT_PERIOD_LENGTH)
 export function getAverageCycleLength(cycles, fallback = DEFAULT_CYCLE_LENGTH) {
   if (!cycles || cycles.length === 0) return fallback
 
-  if (cycles.length === 1 && cycles[0].cycle_length) {
-    return cycles[0].cycle_length
+  if (cycles.length < 2) {
+    return cycles[0]?.cycle_length || fallback
   }
 
-  if (cycles.length < 2) return fallback
-
-  const sorted = [...cycles].sort((a, b) => parseDate(a.start_date) - parseDate(b.start_date))
+  const sorted = sortCyclesByDateAsc(cycles)
   const intervals = []
   for (let i = 1; i < sorted.length; i++) {
     const days = daysBetween(sorted[i - 1].start_date, sorted[i].start_date)
@@ -90,24 +151,24 @@ export function getCycleForDate(date, cycles) {
   const target = parseDate(date)
   if (!target) return null
 
-  const sorted = [...cycles].sort((a, b) => parseDate(b.start_date) - parseDate(a.start_date))
+  const sorted = sortCyclesByDateDesc(cycles)
   return sorted.find((c) => parseDate(c.start_date) <= target) || null
 }
 
-export function getCycleDayForDate(date, cycleStart, cycleLength = DEFAULT_CYCLE_LENGTH) {
+export function getCycleDayForDate(date, cycleStart) {
   const target = parseDate(date)
   const start = parseDate(cycleStart)
   if (!target || !start) return null
 
   const diff = daysBetween(start, target)
   if (diff === null || diff < 0) return null
-  return (diff % cycleLength) + 1
+  return diff + 1
 }
 
 export function getCurrentPhase(cycleDay, periodLength = DEFAULT_PERIOD_LENGTH, cycleLength = DEFAULT_CYCLE_LENGTH) {
   if (cycleDay <= periodLength) return 'menstruation'
 
-  const ovulationDay = cycleLength - 14
+  const ovulationDay = Math.max(periodLength + 1, cycleLength - LUTEAL_PHASE_LENGTH)
   if (cycleDay >= ovulationDay - 1 && cycleDay <= ovulationDay + 1) return 'ovulation'
   if (cycleDay < ovulationDay) return 'follicular'
   return 'luteal'
@@ -119,10 +180,7 @@ export function getPhaseForDate(date, cycles, avgCycleLength = DEFAULT_CYCLE_LEN
 
   const target = parseDate(date)
   const start = parseDate(cycle.start_date)
-
-  const periodLength = getActualPeriodLength(cycle, avgPeriodLength)
-  const periodEnd = new Date(start)
-  periodEnd.setDate(start.getDate() + periodLength - 1)
+  const periodEnd = getPeriodEndDateForPhase(cycle, avgPeriodLength)
 
   if (target >= start && target <= periodEnd) return 'menstruation'
 
@@ -130,14 +188,14 @@ export function getPhaseForDate(date, cycles, avgCycleLength = DEFAULT_CYCLE_LEN
   const cycleDay = getCycleDayForDate(target, start, cycleLength)
   if (!cycleDay) return null
 
+  const periodLength = cycle.period_length || avgPeriodLength
   return getCurrentPhase(cycleDay, periodLength, cycleLength)
 }
 
 export function getNextPeriodDateFromHistory(cycles, avgCycleLength = DEFAULT_CYCLE_LENGTH) {
   if (!cycles || cycles.length === 0) return null
 
-  const sorted = [...cycles].sort((a, b) => parseDate(b.start_date) - parseDate(a.start_date))
-  const lastCycle = sorted[0]
+  const lastCycle = getLastCycle(cycles)
   const lastStart = parseDate(lastCycle.start_date)
   const cycleLength = avgCycleLength || lastCycle.cycle_length || DEFAULT_CYCLE_LENGTH
 
@@ -156,11 +214,10 @@ export function getOvulationDateFromHistory(cycles, avgCycleLength = DEFAULT_CYC
   if (!nextPeriod) return null
 
   const ovulation = new Date(nextPeriod)
-  ovulation.setDate(ovulation.getDate() - 14)
+  ovulation.setDate(ovulation.getDate() - LUTEAL_PHASE_LENGTH)
   return ovulation
 }
 
-// Legacy wrappers for backwards compatibility
 export function getCycleDay(lastPeriodStart, cycleLength = DEFAULT_CYCLE_LENGTH) {
   return getCycleDayForDate(new Date(), lastPeriodStart, cycleLength)
 }
@@ -196,6 +253,34 @@ export function getDaysUntil(date) {
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+export function formatDaysUntil(days, lang = 'ru') {
+  if (days === null || days === undefined) return ''
+  if (days === 0) return lang === 'ru' ? 'сегодня' : 'today'
+  if (days === 1) return lang === 'ru' ? 'завтра' : 'tomorrow'
+  if (days === -1) return lang === 'ru' ? 'вчера' : 'yesterday'
+  if (days < 0) {
+    const abs = Math.abs(days)
+    return lang === 'ru' ? `просрочено на ${abs} дн.` : `${abs} days overdue`
+  }
+  return lang === 'ru' ? `через ${days} дн.` : `in ${days} days`
+}
+
+export function getCycleChartData(cycles, fallbackCycle = DEFAULT_CYCLE_LENGTH, fallbackPeriod = DEFAULT_PERIOD_LENGTH) {
+  const sorted = sortCyclesByDateAsc(cycles)
+  return sorted.map((cycle, index) => {
+    let cycleLen = cycle.cycle_length || fallbackCycle
+    if (index > 0) {
+      const interval = daysBetween(sorted[index - 1].start_date, cycle.start_date)
+      if (interval && interval > 0) cycleLen = interval
+    }
+    return {
+      name: `#${index + 1}`,
+      cycle: cycleLen,
+      period: getActualPeriodLength(cycle, fallbackPeriod),
+    }
+  })
+}
+
 export function generateCalendarDays(year, month) {
   const days = []
   const firstDay = new Date(year, month, 1)
@@ -213,10 +298,33 @@ export function generateCalendarDays(year, month) {
   return days
 }
 
+export function isCycleDelayed(cycles, avgCycleLength = DEFAULT_CYCLE_LENGTH) {
+  if (!cycles?.length) return false
+  if (getActiveCycle(cycles)) return false
+
+  const nextPeriod = getNextPeriodDateFromHistory(cycles, avgCycleLength)
+  if (!nextPeriod) return false
+
+  const daysUntil = getDaysUntil(nextPeriod)
+  return daysUntil !== null && daysUntil < 0
+}
+
+export function getCycleDelayDays(cycles, avgCycleLength = DEFAULT_CYCLE_LENGTH) {
+  if (!isCycleDelayed(cycles, avgCycleLength)) return 0
+  const nextPeriod = getNextPeriodDateFromHistory(cycles, avgCycleLength)
+  return Math.abs(getDaysUntil(nextPeriod) || 0)
+}
+
+export function shouldSuggestPeriodEnd(cycle, expectedPeriodLength = DEFAULT_PERIOD_LENGTH) {
+  if (!isPeriodTrackingOpen(cycle)) return false
+  const day = getActivePeriodDay(cycle)
+  return day !== null && day >= expectedPeriodLength
+}
+
 export function getCycleStats(cycles) {
   if (!cycles || cycles.length === 0) return null
 
-  const sorted = [...cycles].sort((a, b) => parseDate(a.start_date) - parseDate(b.start_date))
+  const sorted = sortCyclesByDateAsc(cycles)
   const intervals = []
   for (let i = 1; i < sorted.length; i++) {
     const days = daysBetween(sorted[i - 1].start_date, sorted[i].start_date)

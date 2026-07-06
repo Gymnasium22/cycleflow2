@@ -1,18 +1,30 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, MapPin, Palette } from 'lucide-react'
+import { Globe, Bell, Moon, Info, Download, Clock, Trash2, Send, MapPin, Palette, Pill } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { MedicationList } from '../components/MedicationList'
+import { MedicationLog } from '../components/MedicationLog'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
+import { useMedications } from '../hooks/useMedications'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
-import { applyTheme } from '../utils/theme'
+import { applyTheme, AVAILABLE_THEMES } from '../utils/theme'
+import { buildExportCsv, downloadTextFile } from '../utils/export'
+
+const THEME_BACKGROUNDS = {
+  telegram: 'from-blue-400 to-blue-600',
+  sakura: 'from-rose-400 to-rose-600',
+  lavender: 'from-violet-400 to-violet-600',
+  teal: 'from-teal-400 to-teal-600',
+  midnight: 'bg-[#0f172a]',
+}
 
 export function Settings() {
   const { t, i18n } = useTranslation()
@@ -40,13 +52,21 @@ export function Settings() {
   const [notifyTime, setNotifyTime] = useState(settings?.notify_time ?? '09:00')
   const [saved, setSaved] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showMedicationLog, setShowMedicationLog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isTestingNotifications, setIsTestingNotifications] = useState(false)
 
   const { hapticFeedback } = useTelegram()
+  const {
+    medications,
+    loading: medicationsLoading,
+    isLoading: medicationsSaving,
+    saveMedication,
+    deleteMedication,
+    toggleReminder,
+  } = useMedications()
 
-  const debounceRef = useRef(null)
-  const notifyDebounceRef = useRef(null)
+
 
   const showSavedMessage = useCallback(() => {
     setSaved(true)
@@ -73,57 +93,12 @@ export function Settings() {
     }
   }, [settings])
 
-  // Auto-save cycle settings with debounce
-  useEffect(() => {
-    if (!profile) return
-    if (cycleLength === profile.cycle_length && periodLength === profile.period_length) return
-
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      updateProfile({ cycle_length: cycleLength, period_length: periodLength })
-      showSavedMessage()
-    }, 800)
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [cycleLength, periodLength, profile, updateProfile, showSavedMessage])
-
-  // Auto-save notification settings with debounce
-  useEffect(() => {
-    if (!settings) return
-    const isUnchanged =
-      notifyPeriod === (settings.notify_period ?? true) &&
-      notifyOvulation === (settings.notify_ovulation ?? false) &&
-      periodReminderDays === (settings.period_reminder_days ?? 2) &&
-      ovulationReminderDays === (settings.ovulation_reminder_days ?? 1) &&
-      notifyTime === (settings.notify_time ?? '09:00')
-
-    if (isUnchanged) return
-
-    if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
-    notifyDebounceRef.current = setTimeout(() => {
-      updateSettings({
-        notify_period: notifyPeriod,
-        notify_ovulation: notifyOvulation,
-        period_reminder_days: periodReminderDays,
-        ovulation_reminder_days: ovulationReminderDays,
-        notify_time: notifyTime,
-      })
-      showSavedMessage()
-    }, 400)
-
-    return () => {
-      if (notifyDebounceRef.current) clearTimeout(notifyDebounceRef.current)
-    }
-  }, [notifyPeriod, notifyOvulation, periodReminderDays, ovulationReminderDays, notifyTime, settings, updateSettings, showSavedMessage])
-
-  const handleLanguageChange = (lang) => {
+  const handleLanguageChange = (langCode) => {
     hapticFeedback.impact('light')
-    setLanguage(lang)
-    i18n.changeLanguage(lang)
-    localStorage.setItem('i18nextLng', lang)
-    updateProfile({ language_code: lang })
+    setLanguage(langCode)
+    i18n.changeLanguage(langCode)
+    localStorage.setItem('i18nextLng', langCode)
+    updateProfile({ language_code: langCode })
     showSavedMessage()
   }
 
@@ -131,8 +106,6 @@ export function Settings() {
     hapticFeedback.impact('light')
     const detected = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
     setTimezone(detected)
-    updateProfile({ timezone: detected })
-    showSavedMessage()
   }
 
   async function deleteAllData() {
@@ -142,7 +115,7 @@ export function Settings() {
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token
       if (!accessToken) {
-        throw new Error(i18n.language === 'ru' ? 'Нет активной сессии' : 'No active session')
+        throw new Error(t('settings.errors.noSession'))
       }
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-all-data`
@@ -167,7 +140,7 @@ export function Settings() {
       window.location.reload()
     } catch (err) {
       console.error('Delete all data error:', err?.message, err?.stack, JSON.stringify(err), err)
-      alert((i18n.language === 'ru' ? 'Ошибка при удалении данных: ' : 'Error deleting data: ') + (err?.message || JSON.stringify(err) || 'Unknown error'))
+      alert(t('settings.errors.deleteFailed') + (err?.message || JSON.stringify(err) || 'Unknown error'))
       setIsDeleting(false)
     }
   }
@@ -202,9 +175,7 @@ export function Settings() {
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token
       if (!accessToken) {
-        throw new Error(i18n.language === 'ru'
-          ? 'Нет активной сессии. Перезайдите через Telegram.'
-          : 'No active session. Please log in via Telegram again.')
+        throw new Error(t('settings.errors.noSessionTelegram'))
       }
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notifications`
@@ -228,72 +199,84 @@ export function Settings() {
       if (!response.ok) {
         const isJwtError = responseText.includes('UNAUTHORIZED_LEGACY_JWT') || responseText.includes('Invalid JWT')
         const message = isJwtError
-          ? (i18n.language === 'ru'
-              ? 'Ключ Supabase устарел. Обновите VITE_SUPABASE_ANON_KEY и SB_ANON_KEY, затем перезапустите cron job.'
-              : 'Supabase key expired. Update VITE_SUPABASE_ANON_KEY and SB_ANON_KEY, then restart the cron job.')
+          ? t('settings.errors.jwtExpired')
           : (responseData?.error || responseData?.message || `HTTP ${response.status}`)
         throw new Error(message)
       }
 
       hapticFeedback.notification('success')
-      alert((i18n.language === 'ru' ? 'Уведомления отправлены: ' : 'Notifications sent: ') + JSON.stringify(responseData))
+      alert(t('settings.errors.notificationsSent') + JSON.stringify(responseData))
     } catch (err) {
       console.error('Test notifications error:', err)
-      alert((i18n.language === 'ru' ? 'Ошибка отправки: ' : 'Send error: ') + (err?.message || JSON.stringify(err)))
+      alert(t('settings.errors.sendFailed') + (err?.message || JSON.stringify(err)))
     } finally {
       setIsTestingNotifications(false)
+    }
+  }
+
+  function getExportSymptoms() {
+    try {
+      const storedSymptoms = localStorage.getItem('cicle_symptoms')
+      return storedSymptoms ? JSON.parse(storedSymptoms) : []
+    } catch {
+      return []
+    }
+  }
+
+  function getExportDayNotes() {
+    try {
+      const stored = localStorage.getItem('cicle_day_notes')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
     }
   }
 
   function exportData() {
     hapticFeedback.impact('light')
     try {
-      const storedSymptoms = localStorage.getItem('cicle_symptoms')
       const storedSettings = localStorage.getItem('cicle_settings')
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
       const data = {
         exported_at: new Date().toISOString(),
         cycles,
-        symptoms: storedSymptoms ? JSON.parse(storedSymptoms) : [],
+        symptoms: getExportSymptoms(),
+        day_notes: getExportDayNotes(),
         settings: storedSettings ? JSON.parse(storedSettings) : (settings || {}),
         profile: profile || (storedProfile ? JSON.parse(storedProfile) : {}),
       }
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `cicle-export-${new Date().toISOString().split('T')[0]}.json`
-      a.click()
-      URL.revokeObjectURL(url)
+      downloadTextFile(
+        `cicle-export-${new Date().toISOString().split('T')[0]}.json`,
+        JSON.stringify(data, null, 2),
+        'application/json'
+      )
     } catch (e) {
       console.error('Export failed:', e)
-      alert(i18n.language === 'ru' ? 'Ошибка экспорта' : 'Export failed')
+      alert(t('settings.errors.exportFailed'))
     }
   }
 
-  const lang = i18n.language === 'ru' ? 'ru' : 'en'
-  const tLocal = {
-    ru: {
-      daysBeforePeriod: 'За сколько дней предупреждать о месячных',
-      daysBeforeOvulation: 'За сколько дней предупреждать об овуляции',
-      notifyTime: 'Время уведомлений',
-      saveAll: 'Сохранить все',
-      saved: '✓ Сохранено',
-      data: 'Данные',
-      exportData: 'Экспортировать данные (JSON)',
-      info: 'Уведомления работают через Telegram бота и Supabase Edge Functions. Убедитесь, что они настроены.',
-    },
-    en: {
-      daysBeforePeriod: 'Days before period to notify',
-      daysBeforeOvulation: 'Days before ovulation to notify',
-      notifyTime: 'Notification time',
-      saveAll: 'Save all',
-      saved: '✓ Saved',
-      data: 'Data',
-      exportData: 'Export data (JSON)',
-      info: 'Notifications work via Telegram bot and Supabase Edge Functions. Make sure they are configured.',
-    },
-  }[lang]
+  function exportCsv() {
+    hapticFeedback.impact('light')
+    try {
+      const storedProfile = localStorage.getItem('cicle_fallback_profile')
+      const csv = buildExportCsv({
+        cycles,
+        symptoms: getExportSymptoms(),
+        dayNotes: getExportDayNotes(),
+        profile: profile || (storedProfile ? JSON.parse(storedProfile) : {}),
+        lang: i18n.language === 'ru' ? 'ru' : 'en',
+      })
+      downloadTextFile(
+        `cicle-export-${new Date().toISOString().split('T')[0]}.csv`,
+        csv,
+        'text/csv;charset=utf-8'
+      )
+    } catch (e) {
+      console.error('CSV export failed:', e)
+      alert(t('settings.errors.exportCsvFailed'))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -306,17 +289,17 @@ export function Settings() {
           <span className="font-semibold">{t('settings.language')}</span>
         </div>
         <div className="flex gap-2">
-          {['ru', 'en'].map((lang) => (
+          {['ru', 'en'].map((langCode) => (
             <button
-              key={lang}
-              onClick={() => handleLanguageChange(lang)}
+              key={langCode}
+              onClick={() => handleLanguageChange(langCode)}
               className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                language === lang
+                language === langCode
                   ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
                   : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
               }`}
             >
-              {lang === 'ru' ? 'Русский' : 'English'}
+              {t(`settings.languageNames.${langCode}`)}
             </button>
           ))}
         </div>
@@ -326,28 +309,21 @@ export function Settings() {
       <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Palette size={20} className="text-pink-500" />
-          <span className="font-semibold">
-            {i18n.language === 'ru' ? 'Тема оформления' : 'App Theme'}
-          </span>
+          <span className="font-semibold">{t('settings.theme')}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {[
-            { id: 'sakura', labelRu: '🌸 Сакура', labelEn: '🌸 Sakura', bg: 'from-rose-400 to-rose-600' },
-            { id: 'lavender', labelRu: '🔮 Лаванда', labelEn: '🔮 Lavender', bg: 'from-violet-400 to-violet-600' },
-            { id: 'teal', labelRu: '🌿 Мята', labelEn: '🌿 Mint Teal', bg: 'from-teal-400 to-teal-600' },
-            { id: 'midnight', labelRu: '🌌 Полночь', labelEn: '🌌 Midnight', bg: 'bg-[#0f172a]' }
-          ].map((tItem) => (
+          {AVAILABLE_THEMES.map((themeId) => (
             <button
-              key={tItem.id}
-              onClick={() => handleThemeChange(tItem.id)}
+              key={themeId}
+              onClick={() => handleThemeChange(themeId)}
               className={`py-3 px-4 rounded-xl text-xs font-bold transition-all relative overflow-hidden flex items-center justify-between border ${
-                theme === tItem.id
+                theme === themeId
                   ? 'border-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10 text-[var(--tg-theme-text-color,#111827)] shadow-sm'
                   : 'border-[var(--tg-theme-hint-color,#d1d5db)]/20 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/10'
               }`}
             >
-              <span>{i18n.language === 'ru' ? tItem.labelRu : tItem.labelEn}</span>
-              <span className={`w-4 h-4 rounded-full bg-gradient-to-br ${tItem.bg} border border-white/20`} />
+              <span>{t(`settings.themes.${themeId}`)}</span>
+              <span className={`w-4 h-4 rounded-full bg-gradient-to-br ${THEME_BACKGROUNDS[themeId]} border border-white/20`} />
             </button>
           ))}
         </div>
@@ -357,9 +333,7 @@ export function Settings() {
       <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <MapPin size={20} className="text-blue-500" />
-          <span className="font-semibold">
-            {i18n.language === 'ru' ? 'Часовой пояс' : 'Timezone'}
-          </span>
+          <span className="font-semibold">{t('settings.timezone')}</span>
         </div>
         <div className="space-y-2">
           <p className="text-sm text-[var(--tg-theme-text-color,#111827)] font-medium">{timezone}</p>
@@ -371,7 +345,7 @@ export function Settings() {
             onClick={handleDetectTimezone}
             className="w-full py-2 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] text-sm font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
           >
-            {i18n.language === 'ru' ? 'Определить автоматически' : 'Detect automatically'}
+            {t('settings.detectTimezone')}
           </button>
         </div>
       </div>
@@ -438,7 +412,7 @@ export function Settings() {
 
         {notifyPeriod && (
           <div className="space-y-2 pl-2">
-            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{tLocal.daysBeforePeriod}</label>
+            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.daysBeforePeriod')}</label>
             <input
               type="range"
               min="1"
@@ -471,7 +445,7 @@ export function Settings() {
 
         {notifyOvulation && (
           <div className="space-y-2 pl-2">
-            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{tLocal.daysBeforeOvulation}</label>
+            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.daysBeforeOvulation')}</label>
             <input
               type="range"
               min="1"
@@ -495,7 +469,7 @@ export function Settings() {
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">
             <Clock size={14} />
-            {tLocal.notifyTime}
+            {t('settings.notifyTime')}
           </label>
           <input
             type="time"
@@ -510,11 +484,31 @@ export function Settings() {
         </div>
       </div>
 
+      {/* Medications */}
+      <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
+        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
+          <Pill size={20} className="text-emerald-500" />
+          <span className="font-semibold">{t('settings.medications.title')}</span>
+        </div>
+        <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+          <Info size={12} className="shrink-0 mt-0.5" />
+          {t('settings.medicationsHint')}
+        </p>
+        <MedicationList
+          medications={medications}
+          isLoading={medicationsLoading || medicationsSaving}
+          onSaveMedication={saveMedication}
+          onDeleteMedication={deleteMedication}
+          onToggleReminder={toggleReminder}
+          onOpenHistory={() => setShowMedicationLog(true)}
+        />
+      </div>
+
       {/* Data Export */}
       <div className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] space-y-3">
         <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
           <Download size={20} className="text-blue-500" />
-          <span className="font-semibold">{tLocal.data}</span>
+          <span className="font-semibold">{t('settings.data')}</span>
         </div>
         <button
           onClick={testNotifications}
@@ -522,14 +516,21 @@ export function Settings() {
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors disabled:opacity-60"
         >
           {isTestingNotifications ? <Spinner size={18} /> : <Send size={18} />}
-          {i18n.language === 'ru' ? 'Отправить тестовое уведомление' : 'Send test notification'}
+          {t('settings.testNotification')}
         </button>
         <button
           onClick={exportData}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
         >
           <Download size={18} />
-          {tLocal.exportData}
+          {t('settings.exportJson')}
+        </button>
+        <button
+          onClick={exportCsv}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
+        >
+          <Download size={18} />
+          {t('settings.exportCsv')}
         </button>
         <button
           onClick={() => {
@@ -540,14 +541,14 @@ export function Settings() {
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 font-semibold hover:bg-red-100 transition-colors disabled:opacity-60"
         >
           {isDeleting ? <Spinner size={18} /> : <Trash2 size={18} />}
-          {i18n.language === 'ru' ? 'Удалить все данные' : 'Delete all data'}
+          {t('settings.deleteAllData')}
         </button>
       </div>
 
-      {/* Info}
+      {/* Info */}
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 text-amber-800">
         <Info size={20} className="shrink-0 mt-0.5" />
-        <p className="text-sm">{tLocal.info}</p>
+        <p className="text-sm">{t('settings.info')}</p>
       </div>
 
       {/* Save button and confirmation */}
@@ -558,23 +559,26 @@ export function Settings() {
           className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
         >
           {(profileLoading || settingsLoading) && <Spinner size={18} />}
-          {tLocal.saveAll}
+          {t('settings.saveAll')}
         </button>
         {saved && (
           <p className="text-center text-sm text-green-600 font-medium">
-            {tLocal.saved}
+            {t('common.saved')}
           </p>
         )}
       </div>
 
+      <MedicationLog
+        isOpen={showMedicationLog}
+        onClose={() => setShowMedicationLog(false)}
+      />
+
       <ConfirmDialog
         isOpen={showDeleteDialog}
-        title={i18n.language === 'ru' ? 'Удалить все данные' : 'Delete all data'}
-        message={i18n.language === 'ru'
-          ? 'Все ваши циклы, симптомы, настройки и профиль будут безвозвратно удалены. Это действие нельзя отменить.'
-          : 'All your cycles, symptoms, settings and profile will be permanently deleted. This action cannot be undone.'}
-        confirmText={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
-        cancelText={i18n.language === 'ru' ? 'Отмена' : 'Cancel'}
+        title={t('settings.deleteAllData')}
+        message={t('settings.deleteAllMessage')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         destructive
         onConfirm={deleteAllData}
         onCancel={() => setShowDeleteDialog(false)}

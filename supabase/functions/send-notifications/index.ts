@@ -299,11 +299,30 @@ serve(async (req) => {
 
     const lang = profile.language_code === 'en' ? 'en' : 'ru'
 
+    const sortedCycles = [...(cycles || [])].sort(
+      (a: any, b: any) => parseDate(b.start_date).getTime() - parseDate(a.start_date).getTime()
+    )
+    const hasActivePeriod = sortedCycles.some((c: any) => {
+      if (c.end_date) return false
+      const start = parseDate(c.start_date)
+      return start.getTime() <= today.getTime()
+    })
+
     // Period notification
     if (setting.notify_period && daysUntilPeriod === periodReminderDays) {
       const message = lang === 'en'
         ? `🩸 Your period is expected in ${daysUntilPeriod} days. Take care of yourself!`
         : `🩸 Месячные ожидаются через ${daysUntilPeriod} дня. Берегите себя!`
+
+      notifications.push(sendMessage(botToken, profile.telegram_id, message))
+    }
+
+    // Cycle delay notification (3 days overdue, no active period)
+    const CYCLE_DELAY_NOTIFY_DAYS = 3
+    if (setting.notify_period && !hasActivePeriod && daysUntilPeriod === -CYCLE_DELAY_NOTIFY_DAYS) {
+      const message = lang === 'en'
+        ? `⏳ Your period is ${CYCLE_DELAY_NOTIFY_DAYS} days late. Mark it in the app if it has started.`
+        : `⏳ Месячные задерживаются на ${CYCLE_DELAY_NOTIFY_DAYS} дня. Отметьте начало в приложении, если они уже начались.`
 
       notifications.push(sendMessage(botToken, profile.telegram_id, message))
     }

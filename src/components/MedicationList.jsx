@@ -1,11 +1,7 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, Pill, Clock, CalendarDays } from 'lucide-react'
 import { MedicationModal } from './MedicationModal'
-
-const DAY_LABELS = {
-  ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
-  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-}
 
 const COLOR_CLASSES = {
   rose: 'bg-rose-500',
@@ -23,8 +19,10 @@ export function MedicationList({
   onDeleteMedication,
   onToggleReminder,
   onOpenHistory,
-  lang,
 }) {
+  const { t } = useTranslation()
+  const dayLabels = t('settings.medications.weekdays', { returnObjects: true })
+
   const [modalOpen, setModalOpen] = useState(false)
   const [editingMedication, setEditingMedication] = useState(null)
 
@@ -51,45 +49,26 @@ export function MedicationList({
     setEditingMedication(null)
   }
 
-  const t = {
-    ru: {
-      title: 'Таблетки',
-      add: 'Добавить таблетку',
-      noMedications: 'Нет добавленных таблеток',
-      history: 'История приёма',
-      everyDay: 'каждый день',
-      days: 'дн.',
-    },
-    en: {
-      title: 'Medications',
-      add: 'Add medication',
-      noMedications: 'No medications added',
-      history: 'Intake history',
-      everyDay: 'every day',
-      days: 'days',
-    },
-  }[lang]
-
-  function formatDays(days, l) {
-    if (days.length === 7) return t.everyDay
-    return days.map((d) => DAY_LABELS[l][d]).join(', ')
+  function formatDays(days) {
+    if (days.length === 7) return t('settings.medications.everyDay')
+    return days.map((d) => dayLabels[d]).join(', ')
   }
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{t.title}</span>
+        <span className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.title')}</span>
         <button
           onClick={() => onOpenHistory?.()}
           className="flex items-center gap-1 text-sm text-[var(--tg-theme-button-color,#e11d48)] font-medium hover:opacity-80"
         >
           <CalendarDays size={16} />
-          {t.history}
+          {t('settings.medications.history')}
         </button>
       </div>
 
       {medications.length === 0 ? (
-        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t.noMedications}</p>
+        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.medications.noMedications')}</p>
       ) : (
         <div className="space-y-2">
           {medications.map((medication) => (
@@ -131,7 +110,7 @@ export function MedicationList({
                       {reminder.time}
                     </span>
                     <span className="text-xs truncate max-w-[120px]">
-                      {formatDays(reminder.days_of_week || [], lang)}
+                      {formatDays(reminder.days_of_week || [])}
                     </span>
                   </div>
                 ))}
@@ -147,7 +126,7 @@ export function MedicationList({
         className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-[var(--tg-theme-hint-color,#d1d5db)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] disabled:opacity-60"
       >
         <Plus size={18} />
-        {t.add}
+        {t('settings.medications.add')}
       </button>
 
       <MedicationModal
@@ -160,7 +139,6 @@ export function MedicationList({
         onSave={handleSave}
         onDelete={isLoading ? null : handleDelete}
         isLoading={isLoading}
-        lang={lang}
       />
     </div>
   )

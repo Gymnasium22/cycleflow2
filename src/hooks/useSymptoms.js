@@ -3,6 +3,12 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 const STORAGE_KEY = 'cicle_symptoms'
+export const MAX_SYMPTOM_INTENSITY = 3
+
+function clampIntensity(intensity) {
+  if (intensity === null || intensity === undefined) return null
+  return Math.min(MAX_SYMPTOM_INTENSITY, Math.max(1, Number(intensity)))
+}
 
 function getStoredSymptoms() {
   try {
@@ -117,7 +123,7 @@ export function useSymptoms(date) {
     const payload = {
       date,
       symptom_type: categoryId,
-      intensity: intensity || null,
+      intensity: clampIntensity(intensity),
       notes,
     }
 

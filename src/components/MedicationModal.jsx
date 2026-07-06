@@ -1,16 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2, Clock } from 'lucide-react'
 import { Spinner } from './Spinner'
 
-const DAY_KEYS = [
-  { key: 1, ru: 'Пн', en: 'Mon' },
-  { key: 2, ru: 'Вт', en: 'Tue' },
-  { key: 3, ru: 'Ср', en: 'Wed' },
-  { key: 4, ru: 'Чт', en: 'Thu' },
-  { key: 5, ru: 'Пт', en: 'Fri' },
-  { key: 6, ru: 'Сб', en: 'Sat' },
-  { key: 0, ru: 'Вс', en: 'Sun' },
-]
+const DAY_KEYS = [1, 2, 3, 4, 5, 6, 0]
 
 const COLORS = [
   { value: 'rose', class: 'bg-rose-500' },
@@ -28,8 +21,9 @@ export function MedicationModal({
   onSave,
   onDelete,
   isLoading,
-  lang,
 }) {
+  const { t } = useTranslation()
+  const dayLabels = t('settings.medications.weekdays', { returnObjects: true })
   const [name, setName] = useState('')
   const [dosage, setDosage] = useState('')
   const [color, setColor] = useState(COLORS[0].value)
@@ -102,43 +96,12 @@ export function MedicationModal({
 
   if (!isOpen) return null
 
-  const t = {
-    ru: {
-      titleAdd: 'Добавить таблетку',
-      titleEdit: 'Редактировать таблетку',
-      name: 'Название',
-      dosage: 'Дозировка',
-      color: 'Цвет',
-      reminders: 'Напоминания',
-      time: 'Время',
-      days: 'Дни недели',
-      addReminder: 'Добавить время',
-      save: 'Сохранить',
-      cancel: 'Отмена',
-      delete: 'Удалить',
-    },
-    en: {
-      titleAdd: 'Add medication',
-      titleEdit: 'Edit medication',
-      name: 'Name',
-      dosage: 'Dosage',
-      color: 'Color',
-      reminders: 'Reminders',
-      time: 'Time',
-      days: 'Days of week',
-      addReminder: 'Add time',
-      save: 'Save',
-      cancel: 'Cancel',
-      delete: 'Delete',
-    },
-  }[lang]
-
   return (
     <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/40 p-4">
       <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">
-            {isEditing ? t.titleEdit : t.titleAdd}
+            {isEditing ? t('settings.medications.edit') : t('settings.medications.add')}
           </h3>
           <button
             onClick={onClose}
@@ -149,29 +112,29 @@ export function MedicationModal({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t.name}</label>
+          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.name')}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={lang === 'ru' ? 'Например, Витамин D' : 'e.g. Vitamin D'}
+            placeholder={t('settings.medications.namePlaceholder')}
             className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t.dosage}</label>
+          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.dosage')}</label>
           <input
             type="text"
             value={dosage}
             onChange={(e) => setDosage(e.target.value)}
-            placeholder={lang === 'ru' ? 'Например, 1000 МЕ' : 'e.g. 1000 IU'}
+            placeholder={t('settings.medications.dosagePlaceholder')}
             className="w-full px-3 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t.color}</label>
+          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.color')}</label>
           <div className="flex gap-2 flex-wrap">
             {COLORS.map((c) => (
               <button
@@ -184,7 +147,7 @@ export function MedicationModal({
         </div>
 
         <div className="space-y-3">
-          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t.reminders}</label>
+          <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.reminders')}</label>
           {reminders.map((reminder, index) => (
             <div
               key={index}
@@ -193,7 +156,7 @@ export function MedicationModal({
               <div className="flex items-center justify-between">
                 <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)] flex items-center gap-1">
                   <Clock size={12} />
-                  {t.time}
+                  {t('settings.medications.time')}
                 </label>
                 <button
                   onClick={() => removeReminder(index)}
@@ -211,21 +174,21 @@ export function MedicationModal({
               />
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t.days}</label>
+                <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.medications.days')}</label>
                 <div className="flex justify-between">
-                  {DAY_KEYS.map((day) => {
-                    const active = reminder.days_of_week.includes(day.key)
+                  {DAY_KEYS.map((dayKey) => {
+                    const active = reminder.days_of_week.includes(dayKey)
                     return (
                       <button
-                        key={day.key}
-                        onClick={() => toggleDay(index, day.key)}
+                        key={dayKey}
+                        onClick={() => toggleDay(index, dayKey)}
                         className={`w-8 h-8 rounded-full text-xs font-semibold transition-colors ${
                           active
                             ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
                             : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)]'
                         }`}
                       >
-                        {day[lang]}
+                        {dayLabels[dayKey]}
                       </button>
                     )
                   })}
@@ -239,7 +202,7 @@ export function MedicationModal({
             className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-[var(--tg-theme-hint-color,#d1d5db)] text-[var(--tg-theme-hint-color,#6b7280)] font-medium hover:bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]"
           >
             <Plus size={16} />
-            {t.addReminder}
+            {t('settings.medications.addReminder')}
           </button>
         </div>
 
@@ -258,7 +221,7 @@ export function MedicationModal({
             disabled={isLoading}
             className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75 disabled:opacity-60"
           >
-            {t.cancel}
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -266,7 +229,7 @@ export function MedicationModal({
             className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {isLoading && <Spinner size={18} />}
-            {t.save}
+            {t('common.save')}
           </button>
         </div>
       </div>

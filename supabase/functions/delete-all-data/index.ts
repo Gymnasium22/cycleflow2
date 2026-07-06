@@ -89,6 +89,10 @@ serve(async (req) => {
     console.log('[delete-all-data] Deleting all data for user:', userId)
 
     // Delete user data in correct order to respect foreign keys
+    await supabaseAdmin.from('medication_logs').delete().eq('user_id', userId)
+    await supabaseAdmin.from('medication_reminders').delete().eq('user_id', userId)
+    await supabaseAdmin.from('medications').delete().eq('user_id', userId)
+    await supabaseAdmin.from('day_notes').delete().eq('user_id', userId)
     await supabaseAdmin.from('cycles').delete().eq('user_id', userId)
     await supabaseAdmin.from('symptoms').delete().eq('user_id', userId)
     await supabaseAdmin.from('settings').delete().eq('user_id', userId)

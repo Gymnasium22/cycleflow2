@@ -23,6 +23,7 @@ const FALLBACK_PROFILE_KEY = 'cicle_fallback_profile'
 const FALLBACK_CYCLES_KEY = 'cicle_cycles'
 const FALLBACK_SYMPTOMS_KEY = 'cicle_symptoms'
 const FALLBACK_SETTINGS_KEY = 'cicle_settings'
+const FALLBACK_MEDICATIONS_KEY = 'cicle_medications'
 
 function getStoredProfile() {
   try {
@@ -276,11 +277,55 @@ export function AuthProvider({ children }) {
         }, { onConflict: 'user_id' })
       }
 
+      const fallbackMedications = (() => {
+        try {
+          const raw = localStorage.getItem(FALLBACK_MEDICATIONS_KEY)
+          return raw ? JSON.parse(raw) : []
+        } catch {
+          return []
+        }
+      })()
+
+      if (fallbackMedications.length > 0) {
+        for (const med of fallbackMedications) {
+          const { data: inserted, error: medError } = await supabase
+            .from('medications')
+            .insert({
+              user_id: userId,
+              name: med.name,
+              dosage: med.dosage || null,
+              color: med.color || null,
+            })
+            .select()
+            .single()
+
+          if (medError) {
+            console.error('[Auth] Migrate medication error:', medError)
+            continue
+          }
+
+          if (med.reminders?.length > 0) {
+            const remindersToInsert = med.reminders.map((r) => ({
+              user_id: userId,
+              medication_id: inserted.id,
+              time: r.time,
+              days_of_week: r.days_of_week,
+              enabled: r.enabled ?? true,
+            }))
+            const { error: reminderError } = await supabase
+              .from('medication_reminders')
+              .insert(remindersToInsert)
+            if (reminderError) console.error('[Auth] Migrate medication reminders error:', reminderError)
+          }
+        }
+      }
+
       // Clear fallback storage after successful migration
       localStorage.removeItem(FALLBACK_PROFILE_KEY)
       localStorage.removeItem(FALLBACK_CYCLES_KEY)
       localStorage.removeItem(FALLBACK_SYMPTOMS_KEY)
       localStorage.removeItem(FALLBACK_SETTINGS_KEY)
+      localStorage.removeItem(FALLBACK_MEDICATIONS_KEY)
       console.log('[Auth] Fallback data migrated to Supabase')
     } catch (err) {
       console.error('[Auth] Migration error:', err)

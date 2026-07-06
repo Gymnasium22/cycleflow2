@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { parseDate } from '../utils/cycle'
+import {
+  sortCyclesByDateDesc,
+  getActiveCycle,
+  isPeriodTrackingOpen,
+  getActivePeriodDay,
+  isPeriodOverdue,
+} from '../utils/cycle'
 
 const STORAGE_KEY = 'cicle_cycles'
 
@@ -15,13 +21,17 @@ function getStoredCycles() {
 }
 
 function setStoredCycles(cycles) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cycles))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sortCyclesByDateDesc(cycles)))
+}
+
+function normalizeCycles(cycles) {
+  return sortCyclesByDateDesc(cycles || [])
 }
 
 export function useCycles() {
   const { session } = useAuth()
   // Initialize with cached data immediately to avoid flash of empty state
-  const [cycles, setCycles] = useState(() => getStoredCycles())
+  const [cycles, setCycles] = useState(() => normalizeCycles(getStoredCycles()))
   const [loading, setLoading] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -31,7 +41,7 @@ export function useCycles() {
 
   const fetchCycles = useCallback(async () => {
     if (!isAuthenticated) {
-      setCycles(getStoredCycles())
+      setCycles(normalizeCycles(getStoredCycles()))
       setLoading(false)
       return
     }
@@ -52,9 +62,8 @@ export function useCycles() {
       setError(error)
       // Keep showing cached data on error
     } else {
-      const fresh = data || []
+      const fresh = normalizeCycles(data || [])
       setCycles(fresh)
-      // Update local cache with fresh server data
       setStoredCycles(fresh)
     }
     setLoading(false)
@@ -69,6 +78,11 @@ export function useCycles() {
   }, [fetchCycles, session?.user?.id])
 
   async function addCycle(cycle) {
+    if (getActiveCycle(cycles) && !cycle.end_date) {
+      setError({ message: 'ACTIVE_PERIOD_EXISTS' })
+      return null
+    }
+
     setIsLoading(true)
     const newCycle = {
       id: `local_${Date.now()}`,
@@ -79,7 +93,7 @@ export function useCycles() {
     }
 
     if (!isAuthenticated) {
-      const updated = [newCycle, ...getStoredCycles()]
+      const updated = normalizeCycles([newCycle, ...getStoredCycles()])
       setStoredCycles(updated)
       setCycles(updated)
       setIsLoading(false)
@@ -103,7 +117,7 @@ export function useCycles() {
       }
 
       setCycles((prev) => {
-        const updated = [data, ...prev]
+        const updated = normalizeCycles([data, ...prev])
         setStoredCycles(updated)
         return updated
       })
@@ -119,7 +133,7 @@ export function useCycles() {
   async function updateCycle(id, updates) {
     setIsLoading(true)
     if (!isAuthenticated) {
-      const updated = getStoredCycles().map((c) => (c.id === id ? { ...c, ...updates } : c))
+      const updated = normalizeCycles(getStoredCycles().map((c) => (c.id === id ? { ...c, ...updates } : c)))
       setStoredCycles(updated)
       setCycles(updated)
       setIsLoading(false)
@@ -141,7 +155,7 @@ export function useCycles() {
       }
 
       setCycles((prev) => {
-        const updated = prev.map((c) => (c.id === id ? data : c))
+        const updated = normalizeCycles(prev.map((c) => (c.id === id ? data : c)))
         setStoredCycles(updated)
         return updated
       })
@@ -157,7 +171,7 @@ export function useCycles() {
   async function deleteCycle(id) {
     setIsLoading(true)
     if (!isAuthenticated) {
-      const updated = getStoredCycles().filter((c) => c.id !== id)
+      const updated = normalizeCycles(getStoredCycles().filter((c) => c.id !== id))
       setStoredCycles(updated)
       setCycles(updated)
       setIsLoading(false)
@@ -172,7 +186,7 @@ export function useCycles() {
         return false
       }
       setCycles((prev) => {
-        const updated = prev.filter((c) => c.id !== id)
+        const updated = normalizeCycles(prev.filter((c) => c.id !== id))
         setStoredCycles(updated)
         return updated
       })
@@ -188,19 +202,4 @@ export function useCycles() {
   return { cycles, loading, isLoading, error, addCycle, updateCycle, deleteCycle, refetch: fetchCycles }
 }
 
-export function isPeriodActive(cycle) {
-  if (!cycle) return false
-  if (cycle.end_date) return false
-  const start = parseDate(cycle.start_date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return start && start <= today
-}
-
-export function getActivePeriodDay(cycle) {
-  if (!isPeriodActive(cycle)) return null
-  const start = parseDate(cycle.start_date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
-}
+export { isPeriodTrackingOpen as isPeriodActive, getActivePeriodDay, isPeriodOverdue, getActiveCycle }

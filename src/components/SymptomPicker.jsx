@@ -38,7 +38,7 @@ export function SymptomPicker({
   loading,
   defaultOpenCategory = null,
 }) {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
 
   const [draft, setDraft] = useState({})
@@ -160,10 +160,10 @@ export function SymptomPicker({
         <div className="flex items-center justify-between p-4 border-b border-[var(--tg-theme-hint-color,#d1d5db)]/20">
           <div>
             <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">
-              {lang === 'ru' ? 'Самочувствие' : 'How do you feel?'}
+              {t('symptoms.pickerTitle')}
             </h3>
             <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
-              {getSelectedSummary(activeCategory, selection, lang) || (lang === 'ru' ? 'Выберите категорию' : 'Select a category')}
+              {getSelectedSummary(activeCategory, selection, lang) || t('symptoms.selectCategory')}
             </p>
           </div>
           <button
@@ -236,7 +236,7 @@ export function SymptomPicker({
           {category.hasIntensity && selection.selectedIds.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)]">
-                {lang === 'ru' ? 'Интенсивность' : 'Intensity'}
+                {t('symptoms.intensity')}
               </p>
               <div className="flex gap-2">
                 {[1, 2, 3].map((level) => {
@@ -264,12 +264,12 @@ export function SymptomPicker({
           {selection.selectedIds.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)]">
-                {lang === 'ru' ? 'Заметка' : 'Note'}
+                {t('symptoms.note')}
               </p>
               <textarea
                 value={selection.comment || ''}
                 onChange={(e) => setComment(activeCategory, e.target.value)}
-                placeholder={lang === 'ru' ? 'Особенности...' : 'Details...'}
+                placeholder={t('symptoms.notePlaceholder')}
                 rows={2}
                 className="w-full px-3 py-2 rounded-xl text-sm border border-[var(--tg-theme-hint-color,#d1d5db)]/30 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] resize-none focus:outline-none focus:border-[var(--tg-theme-button-color,#e11d48)]"
               />
@@ -282,7 +282,7 @@ export function SymptomPicker({
             className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {savingCategory === activeCategory && <Spinner size={18} />}
-            {lang === 'ru' ? 'Сохранить' : 'Save'}
+            {t('symptoms.save')}
           </button>
         </div>
 
@@ -294,7 +294,7 @@ export function SymptomPicker({
             className="w-full py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {loading && <Spinner size={18} />}
-            {lang === 'ru' ? `Готово (${changedCategories.size})` : `Done (${changedCategories.size})`}
+            {t('symptoms.done', { count: changedCategories.size })}
           </button>
         </div>
       </div>

@@ -5,9 +5,11 @@ import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useAuth } from '../context/AuthContext'
 import { useTelegram } from '../context/TelegramContext'
-import { useCycles, isPeriodActive } from '../hooks/useCycles'
+import { useCycles, getActiveCycle } from '../hooks/useCycles'
 import { useSymptomHistory } from '../hooks/useSymptomHistory'
 import { EmptyState } from '../components/EmptyState'
+import { HistorySection } from '../components/HistorySection'
+import { DayNoteEditor } from '../components/DayNoteEditor'
 import {
   generateCalendarDays,
   getAverageCycleLength,
@@ -15,10 +17,10 @@ import {
   getPhaseForDate,
   getCycleForDate,
   getCycleDayForDate,
-  daysBetween,
   isSameDay,
   formatDate,
   toISODateString,
+  isDateInPeriodRange,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
@@ -40,6 +42,7 @@ export function Calendar() {
   const { hapticFeedback } = useTelegram()
 
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [view, setView] = useState('calendar')
 
   const monthStartStr = useMemo(() => {
     return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`
@@ -67,6 +70,14 @@ export function Calendar() {
       if (selectedIds.length > 0 && !selectedIds.includes('none')) {
         set.add(s.date)
       }
+    }
+    return set
+  }, [monthSymptoms])
+
+  const symptomDates = useMemo(() => {
+    const set = new Set()
+    for (const s of monthSymptoms) {
+      set.add(s.date)
     }
     return set
   }, [monthSymptoms])
@@ -110,7 +121,7 @@ export function Calendar() {
       const start = new Date(cycle.start_date)
       start.setHours(0, 0, 0, 0)
       const ovulationDay = cycleLength - 14
-      const targetDay = daysBetween(start, date)
+      const targetDay = getCycleDayForDate(date, cycle.start_date, cycleLength)
       if (targetDay !== null && targetDay >= ovulationDay - 5 && targetDay < ovulationDay) {
         return 'fertile'
       }
@@ -120,28 +131,11 @@ export function Calendar() {
   }
 
   function isPeriodDay(date) {
-    return cycles.some((cycle) => {
-      const start = new Date(cycle.start_date)
-      start.setHours(0, 0, 0, 0)
-      const end = cycle.end_date ? new Date(cycle.end_date) : new Date(start)
-      if (!cycle.end_date) {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        end.setTime(Math.max(end.getTime(), today.getTime()))
-      }
-      end.setHours(23, 59, 59, 999)
-      return date >= start && date <= end
-    })
+    return cycles.some((cycle) => isDateInPeriodRange(date, cycle, avgPeriodLength))
   }
 
   function getCycleForSelectedDate(date) {
-    return cycles.find((cycle) => {
-      const start = new Date(cycle.start_date)
-      start.setHours(0, 0, 0, 0)
-      const end = cycle.end_date ? new Date(cycle.end_date) : new Date(8640000000000000)
-      end.setHours(23, 59, 59, 999)
-      return date >= start && date <= end
-    })
+    return cycles.find((cycle) => isDateInPeriodRange(date, cycle, avgPeriodLength))
   }
 
   function handleDayClick(date) {
@@ -188,6 +182,10 @@ export function Calendar() {
 
   async function handleAddCycle() {
     if (!selectedDate) return
+    if (getActiveCycle(cycles)) {
+      hapticFeedback.notification('error')
+      return
+    }
     const dateStr = toISODateString(selectedDate)
     await addCycle({
       start_date: dateStr,
@@ -201,7 +199,7 @@ export function Calendar() {
 
   async function handleEndActiveCycle() {
     if (!selectedDate) return
-    const activeCycle = cycles.find((c) => isPeriodActive(c))
+    const activeCycle = getActiveCycle(cycles)
     if (!activeCycle) return
     const dateStr = toISODateString(selectedDate)
     await updateCycle(activeCycle.id, { end_date: dateStr })
@@ -212,12 +210,10 @@ export function Calendar() {
 
   function handleDeleteCycle(cycle) {
     openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Удалить запись' : 'Delete record',
-      message: i18n.language === 'ru'
-        ? `Удалить запись от ${formatDate(new Date(cycle.start_date), locale)}?`
-        : `Delete record from ${formatDate(new Date(cycle.start_date), locale)}?`,
-      confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
-      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
+      title: t('calendar.deleteRecord'),
+      message: t('calendar.deleteRecordMessage', { date: formatDate(new Date(cycle.start_date), locale) }),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
       destructive: true,
       onConfirm: async () => {
         closeConfirmDialog()
@@ -239,10 +235,30 @@ export function Calendar() {
   }
 
   const selectedCycle = selectedDate ? getCycleForSelectedDate(selectedDate) : null
-  const activeCycle = cycles.find((c) => isPeriodActive(c))
+  const activeCycle = getActiveCycle(cycles)
 
   return (
     <div className="space-y-6 pb-4">
+      <div className="flex gap-2 p-1 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
+        {['calendar', 'history'].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => { hapticFeedback.impact('light'); setView(tab) }}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              view === tab
+                ? 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] shadow-sm'
+                : 'text-[var(--tg-theme-hint-color,#6b7280)]'
+            }`}
+          >
+            {t(`calendar.tab${tab === 'calendar' ? 'Calendar' : 'History'}`)}
+          </button>
+        ))}
+      </div>
+
+      {view === 'history' ? (
+        <HistorySection />
+      ) : (
+        <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('calendar.title')}</h1>
         <div className="flex items-center gap-1">
@@ -261,10 +277,8 @@ export function Calendar() {
       {cycles.length === 0 && (
         <EmptyState
           icon={CalendarDays}
-          title={i18n.language === 'ru' ? 'Календарь пока пуст' : 'Calendar is empty'}
-          description={i18n.language === 'ru'
-            ? 'Отметьте первые месячные, чтобы увидеть фазы цикла и прогнозы.'
-            : 'Mark your first period to see cycle phases and forecasts.'}
+          title={t('calendar.empty')}
+          description={t('calendar.emptyHint')}
         />
       )}
 
@@ -286,6 +300,7 @@ export function Calendar() {
             const inPeriod = isPeriodDay(date)
             const dateStr = toISODateString(date)
             const hasSex = sexDates.has(dateStr)
+            const hasSymptoms = symptomDates.has(dateStr)
 
             const cycleForDay = getCycleForDate(date, cycles)
             const cycleDayNumber = cycleForDay
@@ -311,6 +326,9 @@ export function Calendar() {
                     <span className="w-1 h-1 rounded-full bg-current opacity-60" />
                   )}
                 </div>
+                {hasSymptoms && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color,#e11d48)] opacity-90" />
+                )}
                 {hasSex && (
                   <Heart size={10} className="absolute top-1 right-1 fill-current opacity-90" />
                 )}
@@ -337,6 +355,18 @@ export function Calendar() {
           <div className="w-3 h-3 rounded-full bg-teal-400" />
           <span className="text-[var(--tg-theme-hint-color,#6b7280)]">{t('home.phase.luteal')}</span>
         </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-violet-200" />
+          <span className="text-[var(--tg-theme-hint-color,#6b7280)]">
+            {t('calendar.fertileWindow')}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color,#e11d48)]" />
+          <span className="text-[var(--tg-theme-hint-color,#6b7280)]">
+            {t('calendar.symptoms')}
+          </span>
+        </div>
       </div>
 
       {/* Day actions modal */}
@@ -352,11 +382,13 @@ export function Calendar() {
               </button>
             </div>
 
+            <DayNoteEditor date={toISODateString(selectedDate)} compact />
+
             {selectedCycle ? (
               <div className="space-y-3">
                 <div className="rounded-2xl p-4 bg-rose-50 border border-rose-100">
                   <p className="text-sm font-semibold text-rose-700">
-                    {i18n.language === 'ru' ? 'Менструация' : 'Period'}
+                    {t('calendar.period')}
                   </p>
                   <p className="text-sm text-rose-600 mt-1">
                     {formatDate(new Date(selectedCycle.start_date), locale)}
@@ -369,7 +401,7 @@ export function Calendar() {
                   className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20"
                 >
                   <Pencil size={18} />
-                  {i18n.language === 'ru' ? 'Изменить даты' : 'Edit dates'}
+                  {t('calendar.editDates')}
                 </button>
 
                 <button
@@ -377,19 +409,25 @@ export function Calendar() {
                   className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-red-50 text-red-600 font-semibold hover:bg-red-100"
                 >
                   <Trash2 size={18} />
-                  {i18n.language === 'ru' ? 'Удалить запись' : 'Delete record'}
+                  {t('calendar.deleteRecord')}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <button
                   onClick={handleAddCycle}
-                  disabled={cyclesLoading}
+                  disabled={cyclesLoading || !!activeCycle}
                   className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 disabled:opacity-60"
                 >
                   {cyclesLoading ? <Spinner size={18} /> : <Plus size={18} />}
-                  {i18n.language === 'ru' ? 'Месячные начались' : 'Period started'}
+                  {t('home.periodStarted')}
                 </button>
+
+                {activeCycle && (
+                  <p className="text-xs text-center text-[var(--tg-theme-hint-color,#6b7280)]">
+                    {t('calendar.markPeriodEndFirst')}
+                  </p>
+                )}
 
                 {activeCycle && (
                   <button
@@ -398,7 +436,7 @@ export function Calendar() {
                     className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-teal-500 text-white font-semibold hover:opacity-90 disabled:opacity-60"
                   >
                     {cyclesLoading ? <Spinner size={18} /> : <Check size={18} />}
-                    {i18n.language === 'ru' ? 'Месячные закончились' : 'Period ended'}
+                    {t('home.periodEnded')}
                   </button>
                 )}
               </div>
@@ -413,7 +451,7 @@ export function Calendar() {
           <div className="w-full max-w-md rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">
-                {i18n.language === 'ru' ? 'Изменить даты' : 'Edit dates'}
+                {t('calendar.editDates')}
               </h3>
               <button onClick={() => setShowEditCycle(false)} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
                 <X size={20} />
@@ -422,7 +460,7 @@ export function Calendar() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                {i18n.language === 'ru' ? 'Дата начала' : 'Start date'}
+                {t('calendar.startDate')}
               </label>
               <input
                 type="date"
@@ -434,7 +472,7 @@ export function Calendar() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                {i18n.language === 'ru' ? 'Дата окончания' : 'End date'}
+                {t('calendar.endDate')}
               </label>
               <input
                 type="date"
@@ -446,7 +484,7 @@ export function Calendar() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-[var(--tg-theme-text-color,#111827)]">
-                {i18n.language === 'ru' ? 'Ожидаемая длительность' : 'Expected duration'}
+                {t('calendar.expectedDuration')}
               </label>
               <input
                 type="range"
@@ -458,7 +496,7 @@ export function Calendar() {
               />
               <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
                 <span>2</span>
-                <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{editPeriodLength} {i18n.language === 'ru' ? 'дн.' : 'days'}</span>
+                <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{editPeriodLength} {t('common.daysShort')}</span>
                 <span>8</span>
               </div>
             </div>
@@ -468,7 +506,7 @@ export function Calendar() {
                 onClick={() => setShowEditCycle(false)}
                 className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:opacity-75"
               >
-                {i18n.language === 'ru' ? 'Отмена' : 'Cancel'}
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleSaveCycle}
@@ -476,7 +514,7 @@ export function Calendar() {
                 className="flex-1 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {cyclesLoading && <Spinner size={18} />}
-                {i18n.language === 'ru' ? 'Сохранить' : 'Save'}
+                {t('common.save')}
               </button>
             </div>
           </div>
@@ -493,6 +531,8 @@ export function Calendar() {
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirmDialog}
       />
+        </>
+      )}
     </div>
   )
 }

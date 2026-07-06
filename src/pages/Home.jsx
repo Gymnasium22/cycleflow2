@@ -1,17 +1,16 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Droplets, Sparkles, Calendar, ChevronRight, X, Trash2, Heart, Check } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SymptomPicker } from '../components/SymptomPicker'
-import { MedicationList } from '../components/MedicationList'
-import { MedicationLog } from '../components/MedicationLog'
+import { TodayWidget } from '../components/TodayWidget'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
-import { useCycles, isPeriodActive, getActivePeriodDay } from '../hooks/useCycles'
+import { useCycles, isPeriodActive, getActivePeriodDay, isPeriodOverdue, getActiveCycle } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
-import { useMedications } from '../hooks/useMedications'
+
 import {
   SYMPTOM_CATEGORIES,
   getCategoryLabel,
@@ -28,9 +27,15 @@ import {
   formatDate,
   getDaysUntil,
   toISODateString,
+  getLastCycle,
+  isDateInPeriodRange,
+  isCycleDelayed,
+  getCycleDelayDays,
+  shouldSuggestPeriodEnd,
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
+import { formatDaysUntilI18n } from '../utils/formatDaysUntil'
 
 const phaseConfig = {
   menstruation: {
@@ -69,17 +74,7 @@ export function Home() {
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
   const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
-  const [showMedicationLog, setShowMedicationLog] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
-
-  const {
-    medications,
-    loading: medicationsLoading,
-    isLoading: medicationsSaving,
-    saveMedication,
-    deleteMedication,
-    toggleReminder,
-  } = useMedications()
 
   const { hapticFeedback } = useTelegram()
 
@@ -89,7 +84,8 @@ export function Home() {
   const avgCycleLength = getAverageCycleLength(cycles, fallbackCycleLength)
   const avgPeriodLength = getAveragePeriodLength(cycles, fallbackPeriodLength)
 
-  const lastCycle = cycles[0]
+  const lastCycle = getLastCycle(cycles)
+  const activeCycle = getActiveCycle(cycles)
   const lastPeriodStart = lastCycle?.start_date || null
 
   const hasCycles = cycles.length > 0
@@ -102,9 +98,16 @@ export function Home() {
   const daysUntilOvulation = ovulation ? getDaysUntil(ovulation) : null
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
 
-  const activePeriod = isPeriodActive(lastCycle)
-  const activePeriodDay = activePeriod ? getActivePeriodDay(lastCycle) : null
-  const isPeriodStartedToday = lastCycle?.start_date === todayStr
+  const periodTrackingOpen = isPeriodActive(activeCycle)
+  const inMenstruationToday = activeCycle && isDateInPeriodRange(new Date(), activeCycle, avgPeriodLength)
+  const activePeriodDay = periodTrackingOpen ? getActivePeriodDay(activeCycle) : null
+  const periodOverdue = isPeriodOverdue(activeCycle, avgPeriodLength)
+  const isPeriodStartedToday = activeCycle?.start_date === todayStr
+  const displayDay = inMenstruationToday ? activePeriodDay : cycleDay
+  const displayDayLabel = inMenstruationToday ? t('home.periodDay') : t('home.dayOfCycle')
+  const progressTotal = inMenstruationToday ? avgPeriodLength : avgCycleLength
+  const cycleDelayed = hasCycles && isCycleDelayed(cycles, avgCycleLength)
+  const cycleDelayDays = cycleDelayed ? getCycleDelayDays(cycles, avgCycleLength) : 0
 
   function openConfirmDialog({ title, message, confirmText, cancelText, onConfirm, destructive = false }) {
     hapticFeedback.impact('medium')
@@ -114,6 +117,28 @@ export function Home() {
   function closeConfirmDialog() {
     setConfirmDialog({ isOpen: false, title: '', message: '', confirmText: '', cancelText: '', onConfirm: null, destructive: false })
   }
+
+  useEffect(() => {
+    if (!periodTrackingOpen || !activeCycle) return
+    if (!shouldSuggestPeriodEnd(activeCycle, avgPeriodLength)) return
+
+    const promptKey = `cicle_period_end_prompt_${todayStr}`
+    if (sessionStorage.getItem(promptKey)) return
+
+    sessionStorage.setItem(promptKey, '1')
+    openConfirmDialog({
+      title: t('home.periodEndPromptTitle'),
+      message: t('home.periodEndPromptMessage', { day: activePeriodDay }),
+      confirmText: t('home.periodEndConfirm'),
+      cancelText: t('home.periodEndDismiss'),
+      onConfirm: async () => {
+        closeConfirmDialog()
+        await updateCycle(activeCycle.id, { end_date: todayStr })
+        hapticFeedback.notification('success')
+      },
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodTrackingOpen, activeCycle?.id, activePeriodDay, avgPeriodLength, todayStr])
 
   async function handleStartPeriod() {
     hapticFeedback.impact('light')
@@ -127,13 +152,13 @@ export function Home() {
 
   async function handleEndPeriod() {
     openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Окончание месячных' : 'Period ended',
-      message: i18n.language === 'ru' ? 'Отметить окончание месячных?' : 'Mark period as ended?',
-      confirmText: i18n.language === 'ru' ? 'Отметить' : 'Mark',
-      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
+      title: t('home.dialogs.endPeriodTitle'),
+      message: t('home.dialogs.endPeriodMessage'),
+      confirmText: t('home.dialogs.endPeriodConfirm'),
+      cancelText: t('common.cancel'),
       onConfirm: async () => {
         closeConfirmDialog()
-        await updateCycle(lastCycle.id, { end_date: todayStr })
+        await updateCycle(activeCycle.id, { end_date: todayStr })
         hapticFeedback.notification('success')
       },
     })
@@ -141,14 +166,14 @@ export function Home() {
 
   async function handleCancelPeriod() {
     openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Отменить начало' : 'Cancel start',
-      message: i18n.language === 'ru' ? 'Отменить начало месячных?' : 'Cancel period start?',
-      confirmText: i18n.language === 'ru' ? 'Отменить' : 'Cancel',
-      cancelText: i18n.language === 'ru' ? 'Нет' : 'No',
+      title: t('home.dialogs.cancelStartTitle'),
+      message: t('home.dialogs.cancelStartMessage'),
+      confirmText: t('home.dialogs.cancelStartConfirm'),
+      cancelText: t('home.dialogs.cancelStartNo'),
       destructive: true,
       onConfirm: async () => {
         closeConfirmDialog()
-        await deleteCycle(lastCycle.id)
+        await deleteCycle(activeCycle.id)
         hapticFeedback.notification('success')
       },
     })
@@ -172,12 +197,10 @@ export function Home() {
 
   async function handleDeleteSymptomCategory(categoryId) {
     openConfirmDialog({
-      title: i18n.language === 'ru' ? 'Удалить запись' : 'Delete record',
-      message: i18n.language === 'ru'
-        ? `Удалить запись «${getCategoryLabel(categoryId, i18n.language)}»?`
-        : `Delete «${getCategoryLabel(categoryId, i18n.language)}» record?`,
-      confirmText: i18n.language === 'ru' ? 'Удалить' : 'Delete',
-      cancelText: i18n.language === 'ru' ? 'Отмена' : 'Cancel',
+      title: t('home.dialogs.deleteSymptomTitle'),
+      message: t('home.dialogs.deleteSymptomMessage', { category: getCategoryLabel(categoryId, i18n.language) }),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
       destructive: true,
       onConfirm: async () => {
         closeConfirmDialog()
@@ -190,8 +213,19 @@ export function Home() {
     <div className="space-y-6 pb-4">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">{t('app.title')}</h1>
-        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">{t('home.today')}: {formatDate(new Date(), locale)}</p>
       </header>
+
+      <TodayWidget
+        dateStr={todayStr}
+        locale={locale}
+        phase={phase}
+        displayDay={hasCycles ? displayDay : null}
+        displayDayLabel={displayDayLabel}
+        daysUntilPeriod={hasCycles ? daysUntilPeriod : null}
+        daysUntilOvulation={hasCycles ? daysUntilOvulation : null}
+        symptoms={symptoms}
+        onOpenSymptomPicker={() => openSymptomPicker()}
+      />
 
       {hasCycles && phaseInfo ? (
         <>
@@ -203,15 +237,11 @@ export function Home() {
             <div className="relative flex items-center justify-between">
               <div>
                 <p className="text-white/80 text-sm font-medium uppercase tracking-wider">
-                  {activePeriod
-                    ? (i18n.language === 'ru' ? 'День месячных' : 'Period day')
-                    : t('home.dayOfCycle')}
+                  {displayDayLabel}
                 </p>
-                <p className="text-6xl font-bold mt-1">{activePeriod ? activePeriodDay : cycleDay}</p>
+                <p className="text-6xl font-bold mt-1">{displayDay}</p>
                 <p className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/20 backdrop-blur-sm`}>
-                  {activePeriod
-                    ? (i18n.language === 'ru' ? 'Месячные' : 'Menstruation')
-                    : t(`home.phase.${phaseInfo.key}`)}
+                  {t(`home.phase.${phaseInfo.key}`)}
                 </p>
               </div>
 
@@ -226,16 +256,30 @@ export function Home() {
                     stroke="white"
                     strokeWidth="8"
                     strokeLinecap="round"
-                    strokeDasharray={`${((activePeriod ? activePeriodDay : cycleDay) / (activePeriod ? avgPeriodLength : avgCycleLength)) * 264} 264`}
+                    strokeDasharray={`${((displayDay || 0) / progressTotal) * 264} 264`}
                     className="drop-shadow-[0_0_8px_rgba(255,255,255,0.75)] transition-all duration-1000 ease-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white">
-                  {activePeriod ? avgPeriodLength : avgCycleLength} {t('analytics.days')}
+                  {progressTotal} {t('analytics.days')}
                 </div>
               </div>
             </div>
           </div>
+
+          {cycleDelayed && (
+            <div className="rounded-2xl p-4 bg-orange-500/10 border border-orange-500/20 space-y-2">
+              <p className="text-sm font-semibold text-orange-800">{t('home.cycleDelayed')}</p>
+              <p className="text-sm text-orange-700">{t('home.cycleDelayedHint', { count: cycleDelayDays })}</p>
+              <button
+                onClick={handleStartPeriod}
+                disabled={cyclesLoading || !!activeCycle}
+                className="w-full py-2.5 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+              >
+                {t('home.periodStarted')}
+              </button>
+            </div>
+          )}
 
           {/* Forecast cards */}
           <div className="grid grid-cols-2 gap-4">
@@ -246,7 +290,7 @@ export function Home() {
               </div>
               <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{formatDate(nextPeriod, locale)}</p>
               <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
-                {i18n.language === 'ru' ? `через ${daysUntilPeriod} дн.` : `in ${daysUntilPeriod} days`}
+                {formatDaysUntilI18n(daysUntilPeriod)}
               </p>
             </div>
 
@@ -257,7 +301,7 @@ export function Home() {
               </div>
               <p className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{formatDate(ovulation, locale)}</p>
               <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)] mt-1">
-                {i18n.language === 'ru' ? `через ${daysUntilOvulation} дн.` : `in ${daysUntilOvulation} days`}
+                {formatDaysUntilI18n(daysUntilOvulation)}
               </p>
             </div>
           </div>
@@ -265,25 +309,10 @@ export function Home() {
       ) : (
         <EmptyState
           icon={Heart}
-          title={i18n.language === 'ru' ? 'Пока нет данных' : 'No data yet'}
-          description={i18n.language === 'ru'
-            ? 'Нажмите кнопку ниже, когда начнутся месячные, или введите данные вручную.'
-            : 'Tap the button below when your period starts, or enter data manually.'}
+          title={t('home.noData')}
+          description={t('home.noDataHint')}
         />
       )}
-
-      {/* Medications */}
-      <div className="space-y-3">
-        <MedicationList
-          medications={medications}
-          isLoading={medicationsLoading || medicationsSaving}
-          onSaveMedication={saveMedication}
-          onDeleteMedication={deleteMedication}
-          onToggleReminder={toggleReminder}
-          onOpenHistory={() => setShowMedicationLog(true)}
-          lang={i18n.language === 'ru' ? 'ru' : 'en'}
-        />
-      </div>
 
       {/* Quick actions */}
       <div className="space-y-3">
@@ -321,14 +350,20 @@ export function Home() {
           })}
         </div>
 
-        {activePeriod ? (
+        {periodOverdue && (
+          <p className="text-sm text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3">
+            {t('home.periodOverdueHint')}
+          </p>
+        )}
+
+        {periodTrackingOpen ? (
           <button
             onClick={handleEndPeriod}
             disabled={cyclesLoading}
             className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-teal-500 text-white font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-teal-500/15 disabled:opacity-60"
           >
             {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
-            {i18n.language === 'ru' ? 'Месячные закончились' : 'Period ended'}
+            {t('home.periodEnded')}
           </button>
         ) : isPeriodStartedToday ? (
           <button
@@ -337,16 +372,16 @@ export function Home() {
             className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-red-500/10 hover:text-red-600 border border-[var(--tg-theme-hint-color,#d1d5db)]/30 active:scale-[0.99] transition-all disabled:opacity-60"
           >
             {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
-            {i18n.language === 'ru' ? 'Отменить начало месячных' : 'Cancel period start'}
+            {t('home.cancelPeriodStart')}
           </button>
         ) : (
           <button
             onClick={handleStartPeriod}
-            disabled={cyclesLoading}
+            disabled={cyclesLoading || !!activeCycle}
             className="w-full flex items-center justify-center gap-2 p-4 rounded-3xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 active:scale-[0.99] transition-all shadow-md shadow-red-500/15 disabled:opacity-60"
           >
             {cyclesLoading ? <Spinner size={20} /> : <Droplets size={18} />}
-            {i18n.language === 'ru' ? 'Месячные начались' : 'Period started'}
+            {t('home.periodStarted')}
           </button>
         )}
       </div>
@@ -382,21 +417,27 @@ export function Home() {
                 labels.push(`💬 ${comment}`)
               }
               return (
-                <button
+                <div
                   key={s.id}
-                  onClick={() => openSymptomPicker(s.symptom_type)}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group hover:opacity-80 transition-opacity text-left"
+                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
                 >
-                  <span className="font-semibold">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
-                  <span className="truncate max-w-[200px]">{labels.join(' · ') || '—'}</span>
-                  <span
-                    onClick={(e) => { e.stopPropagation(); handleDeleteSymptomCategory(s.symptom_type) }}
-                    className="text-red-500 hover:text-red-700 font-bold opacity-0 group-hover:opacity-100 transition-opacity px-1"
-                    title={i18n.language === 'ru' ? 'Удалить' : 'Delete'}
+                  <button
+                    type="button"
+                    onClick={() => openSymptomPicker(s.symptom_type)}
+                    className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+                  >
+                    <span className="font-semibold shrink-0">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
+                    <span className="truncate max-w-[200px]">{labels.join(' · ') || '—'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSymptomCategory(s.symptom_type)}
+                    className="text-red-500 hover:text-red-700 opacity-70 group-hover:opacity-100 transition-opacity p-0.5 shrink-0"
+                    aria-label={t('common.delete')}
                   >
                     <Trash2 size={12} />
-                  </span>
-                </button>
+                  </button>
+                </div>
               )
             })}
           </div>
@@ -414,12 +455,6 @@ export function Home() {
         onSaveCategory={handleSaveCategory}
         onDeleteCategory={handleDeleteCategory}
         loading={symptomsLoading}
-      />
-
-      <MedicationLog
-        isOpen={showMedicationLog}
-        onClose={() => setShowMedicationLog(false)}
-        lang={i18n.language === 'ru' ? 'ru' : 'en'}
       />
 
       <ConfirmDialog

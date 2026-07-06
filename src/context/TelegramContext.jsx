@@ -107,7 +107,10 @@ export function TelegramProvider({ children }) {
             if (!isMounted) return
             const updated = tg.themeParams
             setThemeParams(updated)
-            applyThemeParams(updated)
+            const savedTheme = localStorage.getItem('cicle_theme') || 'telegram'
+            if (savedTheme === 'telegram') {
+              applyThemeParams(updated)
+            }
           })
 
           if (initialInitData) {

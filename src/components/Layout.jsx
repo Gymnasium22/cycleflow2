@@ -1,7 +1,18 @@
+import { Home, CalendarDays, BarChart3, Settings } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { useTelegram } from '../context/TelegramContext'
+import { useSwipeTabs, TAB_ORDER } from '../hooks/useSwipeTabs'
+
 export function Layout({ children, activeTab, onTabChange }) {
+  const { onTouchStart, onTouchEnd } = useSwipeTabs(TAB_ORDER, activeTab, onTabChange)
+
   return (
     <div className="flex flex-col min-h-full bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)]">
-      <main className="flex-1 overflow-y-auto px-5 py-6">
+      <main
+        className="flex-1 overflow-y-auto px-5 py-6 touch-pan-y"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         {children}
       </main>
       <BottomNav activeTab={activeTab} onTabChange={onTabChange} />
@@ -9,18 +20,13 @@ export function Layout({ children, activeTab, onTabChange }) {
   )
 }
 
-import { Home, CalendarDays, BarChart3, Settings, History } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { useTelegram } from '../context/TelegramContext'
-
 function BottomNav({ activeTab, onTabChange }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { hapticFeedback } = useTelegram()
 
   const navItems = [
     { id: 'home', icon: Home, label: t('nav.home') },
     { id: 'calendar', icon: CalendarDays, label: t('nav.calendar') },
-    { id: 'history', icon: History, label: i18n.language === 'ru' ? 'История' : 'History' },
     { id: 'analytics', icon: BarChart3, label: t('nav.analytics') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ]

@@ -1,32 +1,37 @@
-import { useState, useEffect } from 'react'
-import { TelegramProvider } from './context/TelegramContext'
+import { useState, useEffect, lazy, Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
+import { TelegramProvider, useTelegram } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { HomeSkeleton } from './components/HomeSkeleton'
+import { Spinner } from './components/Spinner'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
 import { Calendar } from './pages/Calendar'
-import { Analytics } from './pages/Analytics'
 import { Settings } from './pages/Settings'
-import { History } from './pages/History'
 import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
-import { applyTheme } from './utils/theme'
+import { applyTheme, getDefaultTheme } from './utils/theme'
+
+const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })))
 
 const TABS = {
   home: <Home />,
   calendar: <Calendar />,
-  history: <History />,
-  analytics: <Analytics />,
+  analytics: (
+    <Suspense fallback={<div className="flex justify-center py-12"><Spinner size={32} /></div>}>
+      <Analytics />
+    </Suspense>
+  ),
   settings: <Settings />,
 }
 
 function AppContent() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState('home')
   const [showReload, setShowReload] = useState(false)
   const { loading, profile, authTimedOut, error } = useAuth()
 
-  // Show reload button if loading takes too long (before auth timeout kicks in)
   useEffect(() => {
     if (!loading) {
       setShowReload(false)
@@ -36,8 +41,6 @@ function AppContent() {
     return () => clearTimeout(timer)
   }, [loading])
 
-  // Show full loading screen only when there's no cached profile yet
-  // (loading=true with no profile means this is genuinely a first load)
   if (loading && !profile && !showReload) {
     return <HomeSkeleton />
   }
@@ -48,7 +51,7 @@ function AppContent() {
         <HomeSkeleton />
         <div className="mt-6 text-center space-y-3">
           <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">
-            {error || 'Загрузка занимает слишком много времени...'}
+            {error || (authTimedOut ? t('app.loadingFailed') : t('app.loadingSlow'))}
           </p>
           <button
             onClick={() => {
@@ -57,14 +60,13 @@ function AppContent() {
             }}
             className="px-4 py-2 rounded-xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] text-sm font-semibold hover:opacity-90"
           >
-            Перезагрузить приложение
+            {t('app.reload')}
           </button>
         </div>
       </div>
     )
   }
 
-  // Show onboarding for new users who haven't completed setup
   if (!profile || profile.onboarding_completed !== true) {
     return <Onboarding />
   }
@@ -76,18 +78,28 @@ function AppContent() {
   )
 }
 
-function App() {
-  initDebugLogging()
+function ThemeInitializer() {
+  const { webApp } = useTelegram()
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('cicle_theme') || 'sakura'
-    applyTheme(savedTheme)
-  }, [])
+    const theme = getDefaultTheme(!!webApp)
+    applyTheme(theme)
+    if (!localStorage.getItem('cicle_theme')) {
+      localStorage.setItem('cicle_theme', theme)
+    }
+  }, [webApp])
+
+  return null
+}
+
+function App() {
+  initDebugLogging()
 
   return (
     <ErrorBoundary>
       <TelegramProvider>
         <AuthProvider>
+          <ThemeInitializer />
           <AppContent />
           {!import.meta.env.PROD && <DebugPanel />}
         </AuthProvider>

@@ -1,7 +1,10 @@
 {
   "app": {
     "title": "Kolechko",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "loadingSlow": "Loading is taking too long...",
+    "loadingFailed": "Failed to load data. Check your connection and try again.",
+    "reload": "Reload app"
   },
   "nav": {
     "home": "Home",
@@ -9,24 +12,94 @@
     "analytics": "Analytics",
     "settings": "Settings"
   },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "days": "days",
+    "daysShort": "days",
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "yesterday": "yesterday",
+    "inDays": "in {{count}} days",
+    "overdueDays": "{{count}} days overdue",
+    "saved": "✓ Saved"
+  },
   "home": {
     "dayOfCycle": "Cycle day",
+    "periodDay": "Period day",
     "nextPeriod": "Next period",
     "ovulation": "Ovulation",
     "logSymptoms": "Log symptoms",
     "today": "Today",
+    "noData": "No data yet",
+    "noDataHint": "Tap the button below when your period starts, or enter data manually.",
+    "periodStarted": "Period started",
+    "periodEnded": "Period ended",
+    "cancelPeriodStart": "Cancel period start",
+    "periodOverdueHint": "Your period is lasting longer than expected — mark it as ended if it has finished.",
+    "cycleDelayed": "Cycle is delayed",
+    "cycleDelayedHint": "Your period was expected {{count}} days ago. Mark the start if it has begun.",
+    "periodEndPromptTitle": "Period ended?",
+    "periodEndPromptMessage": "Today is day {{day}} of your period. Mark as ended?",
+    "periodEndConfirm": "Yes, ended",
+    "periodEndDismiss": "Still going",
     "phase": {
       "menstruation": "Menstruation",
       "follicular": "Follicular phase",
       "ovulation": "Ovulation",
       "luteal": "Luteal phase"
+    },
+    "dialogs": {
+      "endPeriodTitle": "Period ended",
+      "endPeriodMessage": "Mark period as ended?",
+      "endPeriodConfirm": "Mark",
+      "cancelStartTitle": "Cancel start",
+      "cancelStartMessage": "Cancel period start?",
+      "cancelStartConfirm": "Cancel",
+      "cancelStartNo": "No",
+      "deleteSymptomTitle": "Delete record",
+      "deleteSymptomMessage": "Delete «{{category}}» record?"
     }
   },
   "calendar": {
     "title": "Calendar",
+    "tabCalendar": "Calendar",
+    "tabHistory": "History",
     "periodDay": "P",
     "ovulationDay": "O",
-    "fertileDay": "F"
+    "fertileDay": "F",
+    "empty": "Calendar is empty",
+    "emptyHint": "Mark your first period to see cycle phases and forecasts.",
+    "fertileWindow": "Fertile window",
+    "symptoms": "Symptoms",
+    "period": "Period",
+    "editDates": "Edit dates",
+    "deleteRecord": "Delete record",
+    "markPeriodEndFirst": "Mark the current period as ended first",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "expectedDuration": "Expected duration",
+    "deleteRecordMessage": "Delete record from {{date}}?"
+  },
+  "history": {
+    "title": "History",
+    "subtitle": "All cycle and symptom records",
+    "periods": "Periods",
+    "symptomsForDate": "Symptoms for date",
+    "noPeriods": "No records yet",
+    "noPeriodsHint": "Your cycle history will appear here. Tap + to add the first one.",
+    "noSymptoms": "No records",
+    "noSymptomsHint": "No symptoms logged for this date. Tap + to add.",
+    "daysActual": "days actual",
+    "notes": "Notes",
+    "notesPlaceholder": "Notes about this cycle...",
+    "addRecord": "Add record",
+    "editRecord": "Edit record",
+    "deleteRecordMessage": "Delete record from {{date}}?",
+    "deleteSymptomMessage": "Delete «{{category}}» record for {{date}}?"
   },
   "analytics": {
     "title": "Analytics",
@@ -45,22 +118,72 @@
     "medicationIntake": "Medication intake",
     "takenTotal": "taken / total",
     "often": "often",
-    "times": "times"
+    "times": "times",
+    "needMoreData": "At least 2 period records are needed for accurate predictions. Profile settings are used for now.",
+    "chartCycle": "Cycle",
+    "chartPeriod": "Period",
+    "dailyTip": "Daily tip",
+    "dailyTipText": "Track your cycle regularity — it helps you understand your body better.",
+    "phaseCorrelations": "Symptoms by cycle phase",
+    "phaseCorrelationsHint": "What you log most often in each phase based on your records",
+    "loggedDays": "days logged"
+  },
+  "todayWidget": {
+    "title": "Today"
+  },
+  "dayNotes": {
+    "title": "Day note",
+    "placeholder": "Thoughts, events, observations..."
   },
   "settings": {
     "title": "Settings",
     "language": "Language",
+    "languageNames": {
+      "ru": "Русский",
+      "en": "English"
+    },
+    "errors": {
+      "noSession": "No active session",
+      "noSessionTelegram": "No active session. Please log in via Telegram again.",
+      "deleteFailed": "Error deleting data: ",
+      "exportFailed": "Export failed",
+      "exportCsvFailed": "CSV export failed",
+      "notificationsSent": "Notifications sent: ",
+      "sendFailed": "Send error: ",
+      "jwtExpired": "Supabase key expired. Update VITE_SUPABASE_ANON_KEY and SB_ANON_KEY, then restart the cron job."
+    },
     "cycleLength": "Cycle length",
     "periodLength": "Period length",
     "notifications": "Notifications",
     "notifyPeriod": "Period reminders",
     "notifyOvulation": "Ovulation reminders",
     "save": "Save",
+    "saveAll": "Save all",
     "notifyTimeHint": "Notifications are sent within 15 minutes of the selected time",
     "periodDaysHint": "For example, if set to 2, the message will arrive 2 days before the expected date",
     "ovulationDaysHint": "For example, if set to 1, the message will arrive 1 day before ovulation",
     "timezoneHint": "Used to calculate local notification time",
     "medicationsHint": "Reminders arrive on selected days of the week at the specified time",
+    "theme": "App theme",
+    "timezone": "Timezone",
+    "detectTimezone": "Detect automatically",
+    "daysBeforePeriod": "Days before period to notify",
+    "daysBeforeOvulation": "Days before ovulation to notify",
+    "notifyTime": "Notification time",
+    "data": "Data",
+    "exportJson": "Export data (JSON)",
+    "exportCsv": "Export data (CSV)",
+    "testNotification": "Send test notification",
+    "deleteAllData": "Delete all data",
+    "deleteAllMessage": "All your cycles, symptoms, settings and profile will be permanently deleted. This action cannot be undone.",
+    "info": "Notifications work via Telegram bot and Supabase Edge Functions. Cycle delay alerts are sent on day 3 of being overdue.",
+    "themes": {
+      "telegram": "📱 Like Telegram",
+      "sakura": "🌸 Sakura",
+      "lavender": "🔮 Lavender",
+      "teal": "🌿 Mint Teal",
+      "midnight": "🌌 Midnight"
+    },
     "medications": {
       "title": "Medications",
       "add": "Add medication",
@@ -78,17 +201,50 @@
       "taken": "Taken",
       "skipped": "Skipped",
       "pending": "Pending",
-      "emptyHistory": "No records for this month"
+      "emptyHistory": "No records for this month",
+      "widgetTitle": "Today's medications",
+      "namePlaceholder": "e.g. Vitamin D",
+      "dosagePlaceholder": "e.g. 1000 IU",
+      "weekdays": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     }
   },
   "symptoms": {
     "title": "Symptoms",
     "hint": "Mood, symptoms, activity",
+    "pickerTitle": "How do you feel?",
+    "selectCategory": "Select a category",
+    "intensity": "Intensity",
+    "note": "Note",
+    "notePlaceholder": "Details...",
+    "done": "Done ({{count}})",
     "mood": "Mood",
     "energy": "Energy",
     "pain": "Pain",
     "discharge": "Discharge",
     "notes": "Notes",
-    "save": "Save entry"
+    "save": "Save"
+  },
+  "onboarding": {
+    "welcome": "Welcome to Kolechko",
+    "subtitle": "Let's set up the app for you. Just a few steps.",
+    "cycleLength": "Your cycle length",
+    "cycleLengthHint": "From the first day of period to the next one",
+    "periodLength": "Period duration",
+    "periodLengthHint": "How many days does your period usually last",
+    "lastPeriod": "Last period date",
+    "lastPeriodHint": "You can skip this if unsure",
+    "notifications": "Notifications",
+    "notificationsHint": "Choose when to receive reminders",
+    "notifyPeriod": "Period reminders",
+    "notifyOvulation": "Ovulation reminders",
+    "daysBeforePeriod": "Days before period to notify",
+    "daysBeforeOvulation": "Days before ovulation to notify",
+    "notifyTime": "Notification time",
+    "skip": "Skip",
+    "days": "days",
+    "next": "Next",
+    "back": "Back",
+    "start": "Start",
+    "saving": "Saving..."
   }
 }

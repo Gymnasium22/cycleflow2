@@ -15,7 +15,7 @@ const COLOR_CLASSES = {
 }
 
 export function MedicationWidget() {
-  const { i18n } = useTranslation()
+  const { t } = useTranslation()
   const { hapticFeedback } = useTelegram()
   const { medications, loading: medsLoading } = useMedications()
 
@@ -31,7 +31,6 @@ export function MedicationWidget() {
 
   const dayOfWeek = useMemo(() => new Date().getDay(), [])
 
-  // Find all active reminders scheduled for today
   const todayReminders = useMemo(() => {
     if (!medications) return []
     const list = []
@@ -39,36 +38,16 @@ export function MedicationWidget() {
       if (!med.reminders) continue
       for (const rem of med.reminders) {
         if (rem.enabled && rem.days_of_week?.includes(dayOfWeek)) {
-          list.push({
-            medication: med,
-            reminder: rem,
-          })
+          list.push({ medication: med, reminder: rem })
         }
       }
     }
-    // Sort by time
     return list.sort((a, b) => a.reminder.time.localeCompare(b.reminder.time))
   }, [medications, dayOfWeek])
 
-  if (medsLoading || logsLoading) {
+  if (medsLoading || logsLoading || todayReminders.length === 0) {
     return null
   }
-
-  if (todayReminders.length === 0) {
-    return null
-  }
-
-  const lang = i18n.language === 'ru' ? 'ru' : 'en'
-  const tLocal = {
-    ru: {
-      title: 'Таблетки на сегодня',
-      taken: 'Принято',
-    },
-    en: {
-      title: "Today's medications",
-      taken: 'Taken',
-    },
-  }[lang]
 
   async function handleToggle(reminderId, isTaken) {
     hapticFeedback.impact('medium')
@@ -80,12 +59,12 @@ export function MedicationWidget() {
   }
 
   return (
-    <div className="rounded-3xl p-5 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]/60 border border-[var(--tg-theme-hint-color,#d1d5db)]/10 backdrop-blur-xl space-y-3">
+    <div className="space-y-2.5">
       <h3 className="text-sm font-semibold text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2">
-        <Pill size={16} className="text-emerald-500 animate-pulse" />
-        {tLocal.title}
+        <Pill size={16} className="text-emerald-500" />
+        {t('settings.medications.widgetTitle')}
       </h3>
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {todayReminders.map(({ medication, reminder }) => {
           const log = logs.find((l) => l.reminder_id === reminder.id)
           const isTaken = log?.status === 'taken'
@@ -94,7 +73,7 @@ export function MedicationWidget() {
             <div
               key={reminder.id}
               onClick={() => handleToggle(reminder.id, isTaken)}
-              className="flex items-center justify-between p-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)]/80 hover:bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/15 shadow-sm transition-all duration-200 cursor-pointer active:scale-[0.98]"
+              className="flex items-center justify-between p-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/15 shadow-sm transition-all cursor-pointer active:scale-[0.98]"
             >
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md ${COLOR_CLASSES[medication.color] || COLOR_CLASSES.rose}`}>
@@ -119,7 +98,7 @@ export function MedicationWidget() {
                     : 'border-[var(--tg-theme-hint-color,#d1d5db)] hover:border-emerald-500'
                 }`}
               >
-                {isTaken && <Check size={14} strokeWidth={3} className="animate-fade-in" />}
+                {isTaken && <Check size={14} strokeWidth={3} />}
               </div>
             </div>
           )

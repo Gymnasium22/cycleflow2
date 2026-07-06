@@ -1,7 +1,10 @@
 {
   "app": {
     "title": "Колечко",
-    "loading": "Загрузка..."
+    "loading": "Загрузка...",
+    "loadingSlow": "Загрузка занимает слишком много времени...",
+    "loadingFailed": "Не удалось загрузить данные. Проверьте соединение и попробуйте снова.",
+    "reload": "Перезагрузить приложение"
   },
   "nav": {
     "home": "Главная",
@@ -9,24 +12,94 @@
     "analytics": "Аналитика",
     "settings": "Настройки"
   },
+  "common": {
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "delete": "Удалить",
+    "edit": "Изменить",
+    "add": "Добавить",
+    "days": "дней",
+    "daysShort": "дн.",
+    "today": "сегодня",
+    "tomorrow": "завтра",
+    "yesterday": "вчера",
+    "inDays": "через {{count}} дн.",
+    "overdueDays": "просрочено на {{count}} дн.",
+    "saved": "✓ Сохранено"
+  },
   "home": {
     "dayOfCycle": "День цикла",
+    "periodDay": "День месячных",
     "nextPeriod": "Следующие месячные",
     "ovulation": "Овуляция",
     "logSymptoms": "Записать самочувствие",
     "today": "Сегодня",
+    "noData": "Пока нет данных",
+    "noDataHint": "Нажмите кнопку ниже, когда начнутся месячные, или введите данные вручную.",
+    "periodStarted": "Месячные начались",
+    "periodEnded": "Месячные закончились",
+    "cancelPeriodStart": "Отменить начало месячных",
+    "periodOverdueHint": "Месячные длятся дольше обычного — отметьте окончание, если они уже закончились.",
+    "cycleDelayed": "Цикл задерживается",
+    "cycleDelayedHint": "Месячные ожидались {{count}} дн. назад. Отметьте начало, если они уже начались.",
+    "periodEndPromptTitle": "Месячные закончились?",
+    "periodEndPromptMessage": "Сегодня {{day}}-й день месячных. Отметить окончание?",
+    "periodEndConfirm": "Да, закончились",
+    "periodEndDismiss": "Ещё идут",
     "phase": {
       "menstruation": "Менструация",
       "follicular": "Фолликулярная фаза",
       "ovulation": "Овуляция",
       "luteal": "Лютеиновая фаза"
+    },
+    "dialogs": {
+      "endPeriodTitle": "Окончание месячных",
+      "endPeriodMessage": "Отметить окончание месячных?",
+      "endPeriodConfirm": "Отметить",
+      "cancelStartTitle": "Отменить начало",
+      "cancelStartMessage": "Отменить начало месячных?",
+      "cancelStartConfirm": "Отменить",
+      "cancelStartNo": "Нет",
+      "deleteSymptomTitle": "Удалить запись",
+      "deleteSymptomMessage": "Удалить запись «{{category}}»?"
     }
   },
   "calendar": {
     "title": "Календарь",
+    "tabCalendar": "Календарь",
+    "tabHistory": "История",
     "periodDay": "М",
     "ovulationDay": "О",
-    "fertileDay": "Ф"
+    "fertileDay": "Ф",
+    "empty": "Календарь пока пуст",
+    "emptyHint": "Отметьте первые месячные, чтобы увидеть фазы цикла и прогнозы.",
+    "fertileWindow": "Фертильное окно",
+    "symptoms": "Симптомы",
+    "period": "Менструация",
+    "editDates": "Изменить даты",
+    "deleteRecord": "Удалить запись",
+    "markPeriodEndFirst": "Сначала отметьте окончание текущих месячных",
+    "startDate": "Дата начала",
+    "endDate": "Дата окончания",
+    "expectedDuration": "Ожидаемая длительность",
+    "deleteRecordMessage": "Удалить запись от {{date}}?"
+  },
+  "history": {
+    "title": "История",
+    "subtitle": "Все записи о циклах и самочувствии",
+    "periods": "Менструации",
+    "symptomsForDate": "Симптомы за дату",
+    "noPeriods": "Пока нет записей",
+    "noPeriodsHint": "Здесь будет история ваших циклов. Нажмите +, чтобы добавить первый.",
+    "noSymptoms": "Нет записей",
+    "noSymptomsHint": "За выбранную дату нет симптомов. Нажмите +, чтобы добавить.",
+    "daysActual": "дн. фактически",
+    "notes": "Заметки",
+    "notesPlaceholder": "Особенности этого цикла...",
+    "addRecord": "Добавить запись",
+    "editRecord": "Изменить запись",
+    "deleteRecordMessage": "Удалить запись от {{date}}?",
+    "deleteSymptomMessage": "Удалить запись «{{category}}» за {{date}}?"
   },
   "analytics": {
     "title": "Аналитика",
@@ -45,22 +118,72 @@
     "medicationIntake": "Приём таблеток",
     "takenTotal": "принято / всего",
     "often": "чаще",
-    "times": "раз"
+    "times": "раз",
+    "needMoreData": "Для точного прогноза нужно минимум 2 записи о месячных. Сейчас используются настройки из профиля.",
+    "chartCycle": "Цикл",
+    "chartPeriod": "Месячные",
+    "dailyTip": "Совет дня",
+    "dailyTipText": "Следите за регулярностью цикла — это помогает лучше понимать своё тело.",
+    "phaseCorrelations": "Симптомы по фазам цикла",
+    "phaseCorrelationsHint": "Что чаще отмечается в каждой фазе на основе ваших записей",
+    "loggedDays": "дн. с записями"
+  },
+  "todayWidget": {
+    "title": "Сегодня"
+  },
+  "dayNotes": {
+    "title": "Заметка к дню",
+    "placeholder": "Мысли, события, наблюдения..."
   },
   "settings": {
     "title": "Настройки",
     "language": "Язык",
+    "languageNames": {
+      "ru": "Русский",
+      "en": "English"
+    },
+    "errors": {
+      "noSession": "Нет активной сессии",
+      "noSessionTelegram": "Нет активной сессии. Перезайдите через Telegram.",
+      "deleteFailed": "Ошибка при удалении данных: ",
+      "exportFailed": "Ошибка экспорта",
+      "exportCsvFailed": "Ошибка экспорта CSV",
+      "notificationsSent": "Уведомления отправлены: ",
+      "sendFailed": "Ошибка отправки: ",
+      "jwtExpired": "Ключ Supabase устарел. Обновите VITE_SUPABASE_ANON_KEY и SB_ANON_KEY, затем перезапустите cron job."
+    },
     "cycleLength": "Длина цикла",
     "periodLength": "Длительность месячных",
     "notifications": "Уведомления",
     "notifyPeriod": "Напоминать о месячных",
     "notifyOvulation": "Напоминать об овуляции",
     "save": "Сохранить",
+    "saveAll": "Сохранить все",
     "notifyTimeHint": "Уведомления отправляются в течение 15 минут от указанного времени",
     "periodDaysHint": "Например, если поставить 2, сообщение придёт за 2 дня до ожидаемой даты",
     "ovulationDaysHint": "Например, если поставить 1, сообщение придёт за 1 день до овуляции",
     "timezoneHint": "Используется для расчёта локального времени уведомлений",
     "medicationsHint": "Напоминания приходят в выбранные дни недели в указанное время",
+    "theme": "Тема оформления",
+    "timezone": "Часовой пояс",
+    "detectTimezone": "Определить автоматически",
+    "daysBeforePeriod": "За сколько дней предупреждать о месячных",
+    "daysBeforeOvulation": "За сколько дней предупреждать об овуляции",
+    "notifyTime": "Время уведомлений",
+    "data": "Данные",
+    "exportJson": "Экспортировать данные (JSON)",
+    "exportCsv": "Экспортировать данные (CSV)",
+    "testNotification": "Отправить тестовое уведомление",
+    "deleteAllData": "Удалить все данные",
+    "deleteAllMessage": "Все ваши циклы, симптомы, настройки и профиль будут безвозвратно удалены. Это действие нельзя отменить.",
+    "info": "Уведомления работают через Telegram бота и Supabase Edge Functions. Уведомление о задержке цикла приходит на 3-й день просрочки.",
+    "themes": {
+      "telegram": "📱 Как в Telegram",
+      "sakura": "🌸 Сакура",
+      "lavender": "🔮 Лаванда",
+      "teal": "🌿 Мята",
+      "midnight": "🌌 Полночь"
+    },
     "medications": {
       "title": "Таблетки",
       "add": "Добавить таблетку",
@@ -78,17 +201,50 @@
       "taken": "Принято",
       "skipped": "Пропущено",
       "pending": "Ожидает",
-      "emptyHistory": "Нет записей за этот месяц"
+      "emptyHistory": "Нет записей за этот месяц",
+      "widgetTitle": "Таблетки на сегодня",
+      "namePlaceholder": "Например, Витамин D",
+      "dosagePlaceholder": "Например, 1000 МЕ",
+      "weekdays": ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
     }
   },
   "symptoms": {
     "title": "Самочувствие",
     "hint": "Настроение, симптомы, активность",
+    "pickerTitle": "Самочувствие",
+    "selectCategory": "Выберите категорию",
+    "intensity": "Интенсивность",
+    "note": "Заметка",
+    "notePlaceholder": "Особенности...",
+    "done": "Готово ({{count}})",
     "mood": "Настроение",
     "energy": "Энергия",
     "pain": "Боль",
     "discharge": "Выделения",
     "notes": "Заметки",
-    "save": "Сохранить запись"
+    "save": "Сохранить"
+  },
+  "onboarding": {
+    "welcome": "Добро пожаловать в Колечко",
+    "subtitle": "Давайте настроим приложение под вас. Всего несколько шагов.",
+    "cycleLength": "Длина вашего цикла",
+    "cycleLengthHint": "От первого дня месячных до следующих",
+    "periodLength": "Длительность месячных",
+    "periodLengthHint": "Сколько дней обычно длится менструация",
+    "lastPeriod": "Дата последних месячных",
+    "lastPeriodHint": "Можно указать примерную дату или пропустить",
+    "notifications": "Напоминания",
+    "notificationsHint": "Настройте, когда получать уведомления",
+    "notifyPeriod": "Напоминать о месячных",
+    "notifyOvulation": "Напоминать об овуляции",
+    "daysBeforePeriod": "За сколько дней предупреждать о месячных",
+    "daysBeforeOvulation": "За сколько дней предупреждать об овуляции",
+    "notifyTime": "Время уведомлений",
+    "skip": "Пропустить",
+    "days": "дней",
+    "next": "Далее",
+    "back": "Назад",
+    "start": "Начать",
+    "saving": "Сохранение..."
   }
 }

@@ -1,0 +1,94 @@
+---
+pid: 1968
+cwd: "D:\cikl3"
+command: "cd D:\\cikl3; npm run dev"
+started_at: 2026-07-06T08:43:08.658Z
+running_for_ms: 3250014  
+---
+
+> cikl3@0.0.0 dev
+> vite
+
+11:43:09 [vite] (client) Re-optimizing dependencies because lockfile has changed
+
+  VITE v8.0.16  ready in 552 ms
+
+  ➜  Local:   http://localhost:5173/cycleflow2/
+  ➜  Network: use --host to expose
+11:56:20 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:20 [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:27 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:27 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:27 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:27 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:27 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:38 [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:38 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:56:48 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+11:56:48 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+11:56:48 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+11:56:48 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+11:56:57 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+11:56:57 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+11:56:57 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+11:57:03 [vite] (client) hmr update /src/App.jsx, /src/index.css
+11:57:03 [vite] (client) hmr update /src/pages/Analytics.jsx, /src/index.css
+11:57:03 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+11:57:08 [vite] (client) hmr update /src/context/AuthContext.jsx, /src/index.css
+11:57:08 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+11:57:14 [vite] (client) hmr update /src/pages/Onboarding.jsx, /src/index.css
+11:57:14 [vite] (client) hmr update /src/index.css, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+11:59:19 [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+12:06:14 [vite] (client) hmr update /src/index.css, /src/context/AuthContext.jsx, /src/pages/Calendar.jsx, /src/pages/Home.jsx, /src/pages/Analytics.jsx, /src/pages/Settings.jsx, /src/pages/History.jsx, /src/pages/Onboarding.jsx
+12:06:25 [vite] (client) hmr update /src/pages/History.jsx, /src/index.css
+12:06:25 [vite] (client) hmr update /src/components/Layout.jsx, /src/index.css
+12:06:25 [vite] (client) hmr update /src/pages/History.jsx, /src/index.css
+12:06:25 [vite] (client) hmr update /src/pages/History.jsx, /src/index.css
+12:06:34 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:06:34 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:06:34 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:06:34 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:06:52 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:06:52 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:06:52 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:10:47 [vite] (client) page reload src/i18n/locales/en.json
+12:10:47 [vite] (client) page reload src/i18n/locales/ru.json
+12:10:47 [vite] (client) hmr update /src/App.jsx, /src/pages/Settings.jsx, /src/index.css
+12:11:11 [vite] (client) hmr update /src/components/Layout.jsx, /src/index.css
+12:11:11 [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:11:18 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:11:31 [vite] (client) hmr update /src/context/TelegramContext.jsx, /src/index.css
+12:11:31 [vite] (client) hmr update /src/index.css, /src/pages/Home.jsx, /src/pages/History.jsx
+12:11:31 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:11:38 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:11:38 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:11:38 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:11:38 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:12:32 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:12:32 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:12:32 [vite] (client) hmr update /src/pages/Home.jsx, /src/index.css
+12:12:43 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:12:43 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:12:43 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:12:43 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:13:01 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:13:01 [vite] (client) hmr update /src/pages/Settings.jsx, /src/index.css
+12:13:11 [vite] (client) page reload src/i18n/locales/ru.json
+12:13:11 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:13:11 [vite] (client) page reload src/i18n/locales/en.json
+12:13:11 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:13:11 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:13:11 [vite] (client) hmr update /src/pages/Calendar.jsx, /src/index.css
+12:13:28 [vite] (client) hmr update /src/pages/Analytics.jsx, /src/index.css
+12:13:28 [vite] (client) hmr update /src/index.css, /src/components/SymptomPicker.jsx
+12:13:28 [vite] (client) hmr update /src/pages/Onboarding.jsx, /src/index.css
+12:13:28 [vite] (client) hmr update /src/components/Layout.jsx, /src/index.css
+12:13:28 [vite] (client) hmr update /src/pages/Analytics.jsx, /src/index.css
+12:13:28 [vite] (client) hmr update /src/index.css, /src/components/SymptomPicker.jsx
+12:13:28 [vite] (client) hmr update /src/pages/History.jsx, /src/index.css
+12:13:39 [vite] vite.config.js changed, restarting server...
+12:13:39 [vite] server restarted.
+12:14:15 [vite] vite.config.js changed, restarting server...
+12:14:15 [vite] (client) Re-optimizing dependencies because lockfile has changed
+12:14:15 [vite] server restarted.
+12:14:16 [vite] (client) [optimizer] bundling dependencies...

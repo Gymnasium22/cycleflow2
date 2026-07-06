@@ -1,14 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, ChevronLeft, ChevronRight, Check, XCircle, Circle } from 'lucide-react'
 import { Spinner } from './Spinner'
 import { useMedicationLogs } from '../hooks/useMedicationLogs'
 
-const MONTHS = {
-  ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
-  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
-}
-
-export function MedicationLog({ isOpen, onClose, lang }) {
+export function MedicationLog({ isOpen, onClose }) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
   const [currentDate, setCurrentDate] = useState(new Date())
 
   const year = currentDate.getFullYear()
@@ -42,30 +40,13 @@ export function MedicationLog({ isOpen, onClose, lang }) {
 
   if (!isOpen) return null
 
-  const t = {
-    ru: {
-      title: 'История приёма',
-      empty: 'Нет записей за этот месяц',
-      taken: 'Принято',
-      skipped: 'Пропущено',
-      pending: 'Ожидает',
-      scheduled: 'Запланировано',
-    },
-    en: {
-      title: 'Intake history',
-      empty: 'No records for this month',
-      taken: 'Taken',
-      skipped: 'Skipped',
-      pending: 'Pending',
-      scheduled: 'Scheduled',
-    },
-  }[lang]
+  const monthLabel = new Date(year, month, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' })
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 p-4">
       <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-[var(--tg-theme-bg-color,#ffffff)] p-6 space-y-4 animate-slide-in-bottom">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{t.title}</h3>
+          <h3 className="text-lg font-bold text-[var(--tg-theme-text-color,#111827)]">{t('settings.medications.history')}</h3>
           <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20"
@@ -78,9 +59,7 @@ export function MedicationLog({ isOpen, onClose, lang }) {
           <button onClick={prevMonth} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
             <ChevronLeft size={20} />
           </button>
-          <span className="font-semibold text-[var(--tg-theme-text-color,#111827)]">
-            {MONTHS[lang][month]} {year}
-          </span>
+          <span className="font-semibold text-[var(--tg-theme-text-color,#111827)]">{monthLabel}</span>
           <button onClick={nextMonth} className="p-2 rounded-full hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20">
             <ChevronRight size={20} />
           </button>
@@ -91,7 +70,7 @@ export function MedicationLog({ isOpen, onClose, lang }) {
             <Spinner size={24} />
           </div>
         ) : logs.length === 0 ? (
-          <p className="text-center text-sm text-[var(--tg-theme-hint-color,#6b7280)] py-8">{t.empty}</p>
+          <p className="text-center text-sm text-[var(--tg-theme-hint-color,#6b7280)] py-8">{t('settings.medications.emptyHistory')}</p>
         ) : (
           <div className="space-y-2">
             {logs.map((log) => {
@@ -120,6 +99,7 @@ export function MedicationLog({ isOpen, onClose, lang }) {
                           ? 'bg-green-500 text-white'
                           : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-green-50'
                       }`}
+                      aria-label={t('settings.medications.taken')}
                     >
                       <Check size={16} />
                     </button>
@@ -131,6 +111,7 @@ export function MedicationLog({ isOpen, onClose, lang }) {
                           ? 'bg-red-500 text-white'
                           : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-red-50'
                       }`}
+                      aria-label={t('settings.medications.skipped')}
                     >
                       <XCircle size={16} />
                     </button>
@@ -142,6 +123,7 @@ export function MedicationLog({ isOpen, onClose, lang }) {
                           ? 'bg-amber-500 text-white'
                           : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-amber-50'
                       }`}
+                      aria-label={t('settings.medications.pending')}
                     >
                       <Circle size={16} />
                     </button>
