@@ -76,6 +76,8 @@
     "emptyHint": "Mark your first period to see cycle phases and forecasts.",
     "fertileWindow": "Fertile window",
     "symptoms": "Symptoms",
+    "notes": "Notes",
+    "addSymptoms": "Add symptoms",
     "period": "Period",
     "editDates": "Edit dates",
     "deleteRecord": "Delete record",

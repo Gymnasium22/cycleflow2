@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Check } from 'lucide-react'
 import { Spinner } from './Spinner'
@@ -42,20 +42,27 @@ export function SymptomPicker({
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
 
   const [draft, setDraft] = useState({})
+  const [savedBaseline, setSavedBaseline] = useState({})
   const [activeCategory, setActiveCategory] = useState(null)
   const [savingCategory, setSavingCategory] = useState(null)
+  const [savedCategory, setSavedCategory] = useState(null)
+  const wasOpenRef = useRef(false)
 
   useEffect(() => {
-    if (isOpen) {
-      setDraft(JSON.parse(JSON.stringify(initialSelections)))
+    if (isOpen && !wasOpenRef.current) {
+      const snapshot = JSON.parse(JSON.stringify(initialSelections))
+      setDraft(snapshot)
+      setSavedBaseline(snapshot)
       const validOrder = SYMPTOM_CATEGORY_ORDER.filter((id) => SYMPTOM_CATEGORIES[id])
       const initial = defaultOpenCategory && SYMPTOM_CATEGORIES[defaultOpenCategory]
         ? defaultOpenCategory
         : validOrder[0]
       setActiveCategory(initial)
       setSavingCategory(null)
+      setSavedCategory(null)
     }
-  }, [isOpen, initialSelections, defaultOpenCategory])
+    wasOpenRef.current = isOpen
+  }, [isOpen, defaultOpenCategory, initialSelections])
 
   const toggleOption = useCallback((categoryId, optionId) => {
     setDraft((prev) => {
@@ -115,16 +122,31 @@ export function SymptomPicker({
     setSavingCategory(categoryId)
     if (hasSelection) {
       await onSaveCategory(categoryId, selection.selectedIds, selection.intensity, selection.comment || '')
+      setSavedBaseline((prev) => ({
+        ...prev,
+        [categoryId]: {
+          selectedIds: [...selection.selectedIds],
+          intensity: selection.intensity,
+          comment: selection.comment || '',
+        },
+      }))
     } else {
       await onDeleteCategory(categoryId)
+      setSavedBaseline((prev) => {
+        const next = { ...prev }
+        delete next[categoryId]
+        return next
+      })
     }
     setSavingCategory(null)
+    setSavedCategory(categoryId)
+    setTimeout(() => setSavedCategory((current) => (current === categoryId ? null : current)), 2000)
   }
 
   const changedCategories = useMemo(() => {
     const changed = new Set()
     for (const categoryId of SYMPTOM_CATEGORY_ORDER) {
-      const initial = initialSelections[categoryId] || { selectedIds: [], intensity: null, comment: '' }
+      const initial = savedBaseline[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const current = draft[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const initialIds = initial.selectedIds.slice().sort().join(',')
       const currentIds = current.selectedIds.slice().sort().join(',')
@@ -137,7 +159,7 @@ export function SymptomPicker({
       }
     }
     return changed
-  }, [draft, initialSelections])
+  }, [draft, savedBaseline])
 
   async function handleSaveAll() {
     for (const categoryId of changedCategories) {
@@ -282,7 +304,7 @@ export function SymptomPicker({
             className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {savingCategory === activeCategory && <Spinner size={18} />}
-            {t('symptoms.save')}
+            {savedCategory === activeCategory ? t('common.saved') : t('symptoms.save')}
           </button>
         </div>
 

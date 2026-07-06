@@ -112,6 +112,25 @@ body.theme-midnight .glass-panel {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+body.theme-midnight .warning-banner-amber {
+  color: #fcd34d !important;
+  background: rgba(251, 191, 36, 0.15) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+body.theme-midnight .warning-banner-orange {
+  color: #fdba74 !important;
+}
+
+body.theme-midnight .warning-banner-orange p {
+  color: inherit !important;
+}
+
+body.theme-midnight .warning-banner-orange .text-orange-800,
+body.theme-midnight .warning-banner-orange .text-orange-700 {
+  color: #fdba74 !important;
+}
+
 /* SVG Glow Filter */
 .svg-glow {
   filter: drop-shadow(0 0 8px currentColor);

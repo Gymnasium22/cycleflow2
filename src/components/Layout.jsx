@@ -34,23 +34,29 @@ function BottomNav({ activeTab, onTabChange }) {
   return (
     <nav className="sticky bottom-0 z-50 px-4 pb-5 pt-2 bg-[var(--tg-theme-bg-color,#ffffff)]/90 backdrop-blur-xl border-t border-black/5">
       <div className="flex items-center justify-around">
-        {navItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => {
-              hapticFeedback.impact('light')
-              onTabChange(item.id)
-            }}
-            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all duration-200 outline-none focus-visible:ring-0 ${
-              activeTab === item.id
-                ? 'text-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10'
-                : 'text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
-            }`}
-          >
-            <item.icon size={22} strokeWidth={2} />
-            <span className="text-[10px] font-medium">{item.label}</span>
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                hapticFeedback.impact('light')
+                onTabChange(item.id)
+              }}
+              className={`relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all duration-200 outline-none focus-visible:ring-0 ${
+                isActive
+                  ? 'text-[var(--tg-theme-button-color,#e11d48)]'
+                  : 'text-[var(--tg-theme-hint-color,#6b7280)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
+              }`}
+            >
+              <item.icon size={isActive ? 26 : 22} strokeWidth={isActive ? 2.5 : 2} />
+              <span className={`text-[10px] font-medium ${isActive ? 'font-semibold' : ''}`}>{item.label}</span>
+              {isActive && (
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-[var(--tg-theme-button-color,#e11d48)]" />
+              )}
+            </button>
+          )
+        })}
       </div>
     </nav>
   )

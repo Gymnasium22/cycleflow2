@@ -14,7 +14,7 @@ const COLOR_CLASSES = {
   emerald: 'bg-emerald-500 text-white shadow-emerald-500/20',
 }
 
-export function MedicationWidget() {
+export function MedicationWidget({ inverted = false }) {
   const { t } = useTranslation()
   const { hapticFeedback } = useTelegram()
   const { medications, loading: medsLoading } = useMedications()
@@ -58,10 +58,18 @@ export function MedicationWidget() {
     }
   }
 
+  const cardClass = inverted
+    ? 'bg-white/15 border-white/20'
+    : 'bg-[var(--tg-theme-bg-color,#ffffff)] border-[var(--tg-theme-hint-color,#d1d5db)]/15 shadow-sm'
+  const titleClass = inverted ? 'text-white/90' : 'text-[var(--tg-theme-text-color,#111827)]'
+  const takenTextClass = inverted ? 'line-through text-white/50' : 'line-through text-[var(--tg-theme-hint-color,#6b7280)]'
+  const activeTextClass = inverted ? 'text-white' : 'text-[var(--tg-theme-text-color,#111827)]'
+  const hintClass = inverted ? 'text-white/60' : 'text-[var(--tg-theme-hint-color,#6b7280)]'
+
   return (
     <div className="space-y-2.5">
-      <h3 className="text-sm font-semibold text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2">
-        <Pill size={16} className="text-emerald-500" />
+      <h3 className={`text-sm font-semibold flex items-center gap-2 ${titleClass}`}>
+        <Pill size={16} className={inverted ? 'text-white/80' : 'text-emerald-500'} />
         {t('settings.medications.widgetTitle')}
       </h3>
       <div className="space-y-2">
@@ -73,17 +81,17 @@ export function MedicationWidget() {
             <div
               key={reminder.id}
               onClick={() => handleToggle(reminder.id, isTaken)}
-              className="flex items-center justify-between p-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/15 shadow-sm transition-all cursor-pointer active:scale-[0.98]"
+              className={`flex items-center justify-between p-3 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] ${cardClass}`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-md ${COLOR_CLASSES[medication.color] || COLOR_CLASSES.rose}`}>
                   <Pill size={16} />
                 </div>
                 <div>
-                  <p className={`font-semibold text-sm ${isTaken ? 'line-through text-[var(--tg-theme-hint-color,#6b7280)]' : 'text-[var(--tg-theme-text-color,#111827)]'}`}>
+                  <p className={`font-semibold text-sm ${isTaken ? takenTextClass : activeTextClass}`}>
                     {medication.name}
                   </p>
-                  <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] flex items-center gap-1 mt-0.5">
+                  <p className={`text-xs flex items-center gap-1 mt-0.5 ${hintClass}`}>
                     <Clock size={12} />
                     <span>{reminder.time}</span>
                     {medication.dosage && <span> · {medication.dosage}</span>}

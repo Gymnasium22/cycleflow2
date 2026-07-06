@@ -4,7 +4,7 @@ import { TelegramProvider, useTelegram } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { HomeSkeleton } from './components/HomeSkeleton'
-import { Spinner } from './components/Spinner'
+import { AnalyticsSkeleton } from './components/AnalyticsSkeleton'
 import { Layout } from './components/Layout'
 import { Home } from './pages/Home'
 import { Calendar } from './pages/Calendar'
@@ -19,7 +19,7 @@ const TABS = {
   home: <Home />,
   calendar: <Calendar />,
   analytics: (
-    <Suspense fallback={<div className="flex justify-center py-12"><Spinner size={32} /></div>}>
+    <Suspense fallback={<AnalyticsSkeleton />}>
       <Analytics />
     </Suspense>
   ),

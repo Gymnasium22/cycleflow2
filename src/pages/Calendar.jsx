@@ -1,12 +1,16 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, CalendarDays, Heart } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Pencil, Trash2, Check, Plus, CalendarDays, Heart, StickyNote } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { SymptomPicker } from '../components/SymptomPicker'
+import { CalendarSkeleton } from '../components/CalendarSkeleton'
 import { useAuth } from '../context/AuthContext'
 import { useTelegram } from '../context/TelegramContext'
 import { useCycles, getActiveCycle } from '../hooks/useCycles'
 import { useSymptomHistory } from '../hooks/useSymptomHistory'
+import { useSymptoms } from '../hooks/useSymptoms'
+import { useDayNotesForMonth } from '../hooks/useDayNotesForMonth'
 import { EmptyState } from '../components/EmptyState'
 import { HistorySection } from '../components/HistorySection'
 import { DayNoteEditor } from '../components/DayNoteEditor'
@@ -43,6 +47,10 @@ export function Calendar() {
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState('calendar')
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [showModal, setShowModal] = useState(false)
+  const [showSymptomPicker, setShowSymptomPicker] = useState(false)
+  const touchStartXRef = useRef(null)
 
   const monthStartStr = useMemo(() => {
     return `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`
@@ -52,6 +60,15 @@ export function Calendar() {
     return toISODateString(d)
   }, [currentDate])
   const { symptoms: monthSymptoms } = useSymptomHistory(monthStartStr, monthEndStr)
+  const { noteDates } = useDayNotesForMonth(monthStartStr, monthEndStr)
+
+  const selectedDateStr = selectedDate ? toISODateString(selectedDate) : null
+  const {
+    selections: daySelections,
+    saveCategorySelection,
+    deleteCategory,
+    isLoading: daySymptomsLoading,
+  } = useSymptoms(selectedDateStr)
 
   const sexDates = useMemo(() => {
     const set = new Set()
@@ -82,8 +99,6 @@ export function Calendar() {
     return set
   }, [monthSymptoms])
 
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [showModal, setShowModal] = useState(false)
   const [showEditCycle, setShowEditCycle] = useState(false)
   const [editingCycle, setEditingCycle] = useState(null)
   const [editStart, setEditStart] = useState('')
@@ -103,8 +118,38 @@ export function Calendar() {
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'en-US'
 
-  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
-  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
+  const prevMonth = () => {
+    hapticFeedback.impact('light')
+    setCurrentDate(new Date(year, month - 1, 1))
+  }
+  const nextMonth = () => {
+    hapticFeedback.impact('light')
+    setCurrentDate(new Date(year, month + 1, 1))
+  }
+
+  function handleCalendarTouchStart(e) {
+    touchStartXRef.current = e.touches[0].clientX
+  }
+
+  function handleCalendarTouchEnd(e) {
+    if (touchStartXRef.current === null) return
+    const diff = e.changedTouches[0].clientX - touchStartXRef.current
+    if (Math.abs(diff) > 50) {
+      if (diff < 0) nextMonth()
+      else prevMonth()
+    }
+    touchStartXRef.current = null
+  }
+
+  async function handleSaveDaySymptom(categoryId, selectedIds, intensity, comment) {
+    await saveCategorySelection(categoryId, selectedIds, intensity, comment)
+    hapticFeedback.notification('success')
+  }
+
+  async function handleDeleteDaySymptom(categoryId) {
+    await deleteCategory(categoryId)
+    hapticFeedback.notification('success')
+  }
 
   function getDayType(date) {
     if (!date) return null
@@ -237,8 +282,12 @@ export function Calendar() {
   const selectedCycle = selectedDate ? getCycleForSelectedDate(selectedDate) : null
   const activeCycle = getActiveCycle(cycles)
 
+  if (view === 'calendar' && cyclesLoading && cycles.length === 0) {
+    return <CalendarSkeleton />
+  }
+
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-4 pb-4">
       <div className="flex gap-2 p-1 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
         {['calendar', 'history'].map((tab) => (
           <button
@@ -282,7 +331,11 @@ export function Calendar() {
         />
       )}
 
-      <div className="rounded-3xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]">
+      <div
+        className="rounded-2xl p-4 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] touch-pan-y"
+        onTouchStart={handleCalendarTouchStart}
+        onTouchEnd={handleCalendarTouchEnd}
+      >
         <div className="grid grid-cols-7 mb-2">
           {weekDays[lang].map((day) => (
             <div key={day} className="text-center text-xs font-semibold text-[var(--tg-theme-hint-color,#6b7280)] py-2">
@@ -301,6 +354,7 @@ export function Calendar() {
             const dateStr = toISODateString(date)
             const hasSex = sexDates.has(dateStr)
             const hasSymptoms = symptomDates.has(dateStr)
+            const hasNote = noteDates.has(dateStr)
 
             const cycleForDay = getCycleForDate(date, cycles)
             const cycleDayNumber = cycleForDay
@@ -327,7 +381,10 @@ export function Calendar() {
                   )}
                 </div>
                 {hasSymptoms && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color,#e11d48)] opacity-90" />
+                  <span className="absolute bottom-0.5 right-1 w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color,#e11d48)] opacity-90" />
+                )}
+                {hasNote && (
+                  <StickyNote size={9} className="absolute bottom-0.5 left-1 text-amber-500 opacity-90" />
                 )}
                 {hasSex && (
                   <Heart size={10} className="absolute top-1 right-1 fill-current opacity-90" />
@@ -367,6 +424,12 @@ export function Calendar() {
             {t('calendar.symptoms')}
           </span>
         </div>
+        <div className="flex items-center gap-1.5">
+          <StickyNote size={12} className="text-amber-500" />
+          <span className="text-[var(--tg-theme-hint-color,#6b7280)]">
+            {t('calendar.notes')}
+          </span>
+        </div>
       </div>
 
       {/* Day actions modal */}
@@ -383,6 +446,18 @@ export function Calendar() {
             </div>
 
             <DayNoteEditor date={toISODateString(selectedDate)} compact />
+
+            <button
+              type="button"
+              onClick={() => {
+                hapticFeedback.impact('light')
+                setShowSymptomPicker(true)
+              }}
+              className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 border border-[var(--tg-theme-hint-color,#d1d5db)]/15"
+            >
+              <Plus size={18} />
+              {t('calendar.addSymptoms')}
+            </button>
 
             {selectedCycle ? (
               <div className="space-y-3">
@@ -520,6 +595,15 @@ export function Calendar() {
           </div>
         </div>
       )}
+
+      <SymptomPicker
+        isOpen={showSymptomPicker}
+        onClose={() => setShowSymptomPicker(false)}
+        initialSelections={daySelections}
+        onSaveCategory={handleSaveDaySymptom}
+        onDeleteCategory={handleDeleteDaySymptom}
+        loading={daySymptomsLoading}
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
