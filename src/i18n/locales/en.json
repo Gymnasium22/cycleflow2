@@ -208,7 +208,7 @@
     "deleteAllData": "Delete all data",
     "deleteAllMessage": "All your cycles, symptoms, settings and profile will be permanently deleted. This action cannot be undone.",
     "doctorReport": {
-      "title": "CycleFlow — doctor report",
+      "title": "{{app}} — doctor report",
       "generated": "Generated",
       "summary": "Summary",
       "cyclesTable": "Period history",

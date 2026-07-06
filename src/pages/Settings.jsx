@@ -186,8 +186,9 @@ export function Settings() {
         dayNotes: getExportDayNotes(),
         profile: profile || (storedProfile ? JSON.parse(storedProfile) : {}),
         lang: i18n.language === 'ru' ? 'ru' : 'en',
+        appName: t('app.title'),
         labels: {
-          title: t('settings.doctorReport.title'),
+          title: t('settings.doctorReport.title', { app: t('app.title') }),
           generated: t('settings.doctorReport.generated'),
           summary: t('settings.doctorReport.summary'),
           avgCycle: t('analytics.averageCycle'),
