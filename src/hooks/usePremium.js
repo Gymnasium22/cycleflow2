@@ -56,29 +56,94 @@ export function usePremium() {
   const purchase = useCallback(
     async (productId) => {
       setLastError(null)
-      if (!session?.access_token) {
-        setLastError('AUTH_REQUIRED')
-        return null
-      }
-
       setPurchasing(true)
       hapticFeedback.impact('medium')
 
       try {
+        // Always take a FRESH token from Supabase client (AuthContext can be stale)
+        let accessToken = null
+        try {
+          const { data: sessData, error: sessErr } = await supabase.auth.getSession()
+          if (sessErr) console.warn('[usePremium] getSession error', sessErr)
+          accessToken = sessData?.session?.access_token || null
+
+          // If missing/near-expiry — force refresh
+          const expiresAt = sessData?.session?.expires_at // seconds
+          const nowSec = Math.floor(Date.now() / 1000)
+          if (!accessToken || (expiresAt && expiresAt - nowSec < 60)) {
+            const { data: refreshed, error: refErr } = await supabase.auth.refreshSession()
+            if (refErr) console.warn('[usePremium] refreshSession error', refErr)
+            accessToken = refreshed?.session?.access_token || accessToken
+          }
+        } catch (e) {
+          console.warn('[usePremium] session refresh failed', e)
+        }
+
+        // Last resort: whatever AuthContext still holds
+        if (!accessToken) {
+          accessToken = session?.access_token || null
+        }
+
+        const initData =
+          typeof window !== 'undefined' && window.Telegram?.WebApp?.initData
+            ? window.Telegram.WebApp.initData
+            : ''
+
+        // Re-login via telegram-auth if we have initData but no usable JWT
+        if (!accessToken && initData) {
+          try {
+            const authUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-auth`
+            const authRes = await fetch(authUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                initData,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+              }),
+            })
+            const authData = await authRes.json().catch(() => ({}))
+            if (authRes.ok && authData?.session?.access_token) {
+              const { data: setData } = await supabase.auth.setSession({
+                access_token: authData.session.access_token,
+                refresh_token: authData.session.refresh_token,
+              })
+              accessToken = setData?.session?.access_token || authData.session.access_token
+            }
+          } catch (reauthErr) {
+            console.warn('[usePremium] re-auth failed', reauthErr)
+          }
+        }
+
+        if (!accessToken && !initData) {
+          setLastError('AUTH_REQUIRED')
+          setPurchasing(false)
+          hapticFeedback.notification('error')
+          return 'failed'
+        }
+
         const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-stars-invoice`
+        const headers = {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        }
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`
+        }
+
         const response = await fetch(functionUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ productId }),
+          headers,
+          body: JSON.stringify({ productId, initData: initData || undefined }),
         })
 
         const data = await response.json().catch(() => ({}))
         if (!response.ok || !data.invoiceLink) {
-          setLastError(data.error || 'INVOICE_FAILED')
+          const detail = data.detail ? ` (${data.detail})` : ''
+          setLastError((data.error || 'INVOICE_FAILED') + detail)
+          console.error('[usePremium] invoice failed', response.status, data)
           setPurchasing(false)
           hapticFeedback.notification('error')
           return 'failed'
@@ -119,7 +184,7 @@ export function usePremium() {
         return 'failed'
       }
     },
-    [session, webApp, hapticFeedback, refreshProfile, reportCredits]
+    [session?.access_token, webApp, hapticFeedback, refreshProfile, reportCredits]
   )
 
   const ensureReferralCode = useCallback(async () => {

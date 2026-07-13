@@ -381,7 +381,7 @@ export function AuthProvider({ children }) {
       throw new Error('Invalid session data from server')
     }
 
-    const { error: setSessionError } = await supabase.auth.setSession({
+    const { data: setData, error: setSessionError } = await supabase.auth.setSession({
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token,
     })
@@ -390,7 +390,11 @@ export function AuthProvider({ children }) {
       throw new Error(setSessionError.message)
     }
 
-    setSession(data.session)
+    // Prefer full session object from Supabase client (includes user + correct shape)
+    setSession(setData?.session || {
+      ...data.session,
+      user: data.user ? { id: data.user.id } : undefined,
+    })
     return data.user.id
   }, [])
 
