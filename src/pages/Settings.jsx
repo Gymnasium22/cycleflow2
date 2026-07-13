@@ -369,7 +369,8 @@ export function Settings() {
       return
     }
     const link = getReferralLink(code)
-    const text = t('referral.shareText', { link, app: t('app.title') })
+    // One link only (for clipboard paste into chats)
+    const text = t('referral.shareTextWithLink', { link, app: t('app.title') })
     const ok = await copyText(text)
     if (ok) {
       setShareHint(true)
@@ -397,24 +398,25 @@ export function Settings() {
       return
     }
     const link = getReferralLink(code)
-    const text = t('referral.shareText', { link, app: t('app.title') })
+    // Caption WITHOUT the URL — Telegram already attaches `url` once
+    const caption = t('referral.shareText', { app: t('app.title') })
 
-    // 1) Telegram native share sheet (most reliable in Mini Apps)
-    if (openTelegramShare(link, text)) {
+    // 1) Telegram native share: url=link, text=caption (no second link)
+    if (openTelegramShare(link, caption)) {
       return
     }
 
-    // 2) Web Share API
+    // 2) Web Share API — same rule: text without url, url field separate
     try {
       if (navigator.share) {
-        await navigator.share({ title: t('app.title'), text, url: link })
+        await navigator.share({ title: t('app.title'), text: caption, url: link })
         return
       }
     } catch {
       // cancelled or unsupported — fall through to copy
     }
 
-    // 3) Copy
+    // 3) Copy (includes link once in the pasted block)
     await copyReferral()
   }
 

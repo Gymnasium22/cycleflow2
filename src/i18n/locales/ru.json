@@ -397,7 +397,8 @@
     "copied": "Текст приглашения скопирован",
     "copyFailed": "Не скопировалось — зажмите ссылку",
     "qrAlt": "QR-код приглашения",
-    "shareText": "Трекер цикла {{app}} 🌸 {{link}}"
+    "shareText": "Трекер цикла {{app}} 🌸",
+    "shareTextWithLink": "Трекер цикла {{app}} 🌸\n{{link}}"
   },
   "gamification": {
     "streak": "Серия {{count}} дн.",

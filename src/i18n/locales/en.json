@@ -354,7 +354,8 @@
     "copied": "Invite text copied",
     "copyFailed": "Could not copy — long-press the link",
     "qrAlt": "QR code for invite link",
-    "shareText": "Track your cycle with {{app}} 🌸 {{link}}"
+    "shareText": "Track your cycle with {{app}} 🌸",
+    "shareTextWithLink": "Track your cycle with {{app}} 🌸\n{{link}}"
   },
   "premium": {
     "title": "Kolechko Premium",
