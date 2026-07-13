@@ -15,6 +15,7 @@ import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
 import { ToastProvider } from './components/Toast'
 import { applyTheme, resolveStoredTheme, THEME_STORAGE_KEY } from './utils/theme'
+import { readTelegramStartParam, parseStartParam } from './lib/botLinks'
 
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })))
 const DISCLAIMER_LS_KEY = 'cicle_disclaimer_accepted'
@@ -158,6 +159,29 @@ function ThemeInitializer() {
   return null
 }
 
+/** Capture ?startapp=ref_ / partner_ when friend opens the Mini App link */
+function StartParamCapture() {
+  const { webApp } = useTelegram()
+
+  useEffect(() => {
+    const param = readTelegramStartParam(webApp)
+    if (!param) return
+    const parsed = parseStartParam(param)
+    try {
+      if (parsed.type === 'ref' && parsed.value) {
+        localStorage.setItem('cicle_pending_referral', parsed.value)
+      }
+      if (parsed.type === 'partner' && parsed.value) {
+        localStorage.setItem('cicle_pending_partner', parsed.value)
+      }
+    } catch {
+      // ignore
+    }
+  }, [webApp])
+
+  return null
+}
+
 function App() {
   initDebugLogging()
 
@@ -167,6 +191,7 @@ function App() {
         <AuthProvider>
           <ToastProvider>
             <ThemeInitializer />
+            <StartParamCapture />
             <AppContent />
             {!import.meta.env.PROD && <DebugPanel />}
           </ToastProvider>

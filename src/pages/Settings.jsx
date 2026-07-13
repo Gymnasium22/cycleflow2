@@ -48,6 +48,7 @@ import { buildExportCsv, downloadTextFile } from '../utils/export'
 import { downloadDoctorReport } from '../utils/doctorReport'
 import { buildForecastIcs, downloadIcs } from '../utils/calendarExport'
 import { copyText, openTelegramShare } from '../lib/clipboard'
+import { getReferralMiniAppLink } from '../lib/botLinks'
 
 const THEME_BACKGROUNDS = {
   telegram: 'from-blue-400 to-blue-600',
@@ -56,8 +57,6 @@ const THEME_BACKGROUNDS = {
   teal: 'from-[#D4C4E4] to-[#9B8EC4]',
   midnight: 'bg-[#0f172a]',
 }
-
-const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'KolechkoBot'
 
 export function Settings() {
   const { t, i18n } = useTranslation()
@@ -358,7 +357,8 @@ export function Settings() {
   }
 
   function getReferralLink(code) {
-    return `https://t.me/${BOT_USERNAME}?start=ref_${code}`
+    // Opens Mini App directly: t.me/my_cicle_bot/MyCycle?startapp=ref_...
+    return getReferralMiniAppLink(code)
   }
 
   async function copyReferral() {

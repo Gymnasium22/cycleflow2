@@ -34,6 +34,9 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Production bot @my_cicle_bot — Mini App Direct Link t.me/my_cicle_bot/MyCycle
+          VITE_BOT_USERNAME: my_cicle_bot
+          VITE_MINI_APP_SLUG: MyCycle
         run: npm run build
 
       - name: Verify build output

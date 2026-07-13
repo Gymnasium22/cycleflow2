@@ -8,8 +8,7 @@ import {
   generatePartnerToken,
   buildPartnerSnapshot,
 } from '../utils/partnerShare'
-
-const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'KolechkoBot'
+import { getPartnerMiniAppLink } from '../lib/botLinks'
 
 /** Premium partner read-only share with explicit consent */
 export function PartnerSharePanel({
@@ -58,9 +57,7 @@ export function PartnerSharePanel({
     onToast?.(t('common.saved'))
   }
 
-  const link = state?.token
-    ? `https://t.me/${BOT_USERNAME}?start=partner_${state.token}`
-    : ''
+  const link = state?.token ? getPartnerMiniAppLink(state.token) : ''
 
   return (
     <div className="card-elevated p-4 space-y-3">
