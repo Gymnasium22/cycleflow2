@@ -31,7 +31,8 @@ import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
 } from '../utils/cycle'
-import { applyTheme, AVAILABLE_THEMES } from '../utils/theme'
+import { persistTheme, AVAILABLE_THEMES, THEME_STORAGE_KEY } from '../utils/theme'
+import { createDebouncedSaver, normalizeNotifyTime } from '../utils/settingsDraft'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
 import { downloadDoctorReport } from '../utils/doctorReport'
 
@@ -62,7 +63,13 @@ export function Settings() {
   } = usePremium()
 
   const [language, setLanguage] = useState(i18n.language || 'ru')
-  const [theme, setTheme] = useState(() => localStorage.getItem('cicle_theme') || 'sakura')
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY) || 'sakura'
+    } catch {
+      return 'sakura'
+    }
+  })
   const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
   const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
   const [timezone, setTimezone] = useState(profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
@@ -70,7 +77,7 @@ export function Settings() {
   const [notifyOvulation, setNotifyOvulation] = useState(settings?.notify_ovulation ?? false)
   const [periodReminderDays, setPeriodReminderDays] = useState(settings?.period_reminder_days ?? 2)
   const [ovulationReminderDays, setOvulationReminderDays] = useState(settings?.ovulation_reminder_days ?? 1)
-  const [notifyTime, setNotifyTime] = useState(settings?.notify_time ?? '09:00')
+  const [notifyTime, setNotifyTime] = useState(normalizeNotifyTime(settings?.notify_time) || '09:00')
   const [saved, setSaved] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -81,19 +88,50 @@ export function Settings() {
 
   const { hapticFeedback, webApp } = useTelegram()
 
-  // Skip first auto-save after hydrating from server
+  // Skip hydrating-triggered auto-save once after load
   const skipAutoSaveRef = useRef(true)
-  const profileDebounceRef = useRef(null)
-  const settingsDebounceRef = useRef(null)
   const hydratedRef = useRef(false)
+  const updateSettingsRef = useRef(updateSettings)
+  const updateProfileRef = useRef(updateProfile)
+  updateSettingsRef.current = updateSettings
+  updateProfileRef.current = updateProfile
 
   const showSavedMessage = useCallback(() => {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }, [])
 
+  // Debounced savers that FLUSH on unmount (leaving Settings tab used to cancel timers)
+  const settingsSaverRef = useRef(null)
+  const profileSaverRef = useRef(null)
+  if (!settingsSaverRef.current) {
+    settingsSaverRef.current = createDebouncedSaver(async (payload) => {
+      const result = await updateSettingsRef.current(payload)
+      showSavedMessage()
+      return result
+    }, 350)
+  }
+  if (!profileSaverRef.current) {
+    profileSaverRef.current = createDebouncedSaver(async (payload) => {
+      const result = await updateProfileRef.current(payload)
+      showSavedMessage()
+      return result
+    }, 450)
+  }
+
+  // Hydrate form from cache/server only while auto-save is still locked.
+  // After the user can edit, do not overwrite local controls from async fetches.
   useEffect(() => {
-    if (profile) {
+    if (!settings || !skipAutoSaveRef.current) return
+    setNotifyPeriod(settings.notify_period ?? true)
+    setNotifyOvulation(settings.notify_ovulation ?? false)
+    setPeriodReminderDays(settings.period_reminder_days ?? 2)
+    setOvulationReminderDays(settings.ovulation_reminder_days ?? 1)
+    setNotifyTime(normalizeNotifyTime(settings.notify_time))
+  }, [settings])
+
+  useEffect(() => {
+    if (profile && skipAutoSaveRef.current) {
       setCycleLength(profile.cycle_length || DEFAULT_CYCLE_LENGTH)
       setPeriodLength(profile.period_length || DEFAULT_PERIOD_LENGTH)
       setTimezone(profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
@@ -101,64 +139,44 @@ export function Settings() {
   }, [profile])
 
   useEffect(() => {
-    if (settings) {
-      setNotifyPeriod(settings.notify_period ?? true)
-      setNotifyOvulation(settings.notify_ovulation ?? false)
-      setPeriodReminderDays(settings.period_reminder_days ?? 2)
-      setOvulationReminderDays(settings.ovulation_reminder_days ?? 1)
-      setNotifyTime(settings.notify_time ?? '09:00')
-    }
-  }, [settings])
+    if (hydratedRef.current) return
+    // Unlock auto-save after first paint with whatever cache we already have
+    hydratedRef.current = true
+    const t = setTimeout(() => {
+      skipAutoSaveRef.current = false
+    }, 450)
+    return () => clearTimeout(t)
+  }, [])
 
-  // After profile+settings load once, allow auto-save
-  useEffect(() => {
-    if (profile && settings && !hydratedRef.current) {
-      hydratedRef.current = true
-      // One tick so initial state sync doesn't trigger save
-      const t = setTimeout(() => {
-        skipAutoSaveRef.current = false
-      }, 400)
-      return () => clearTimeout(t)
-    }
-  }, [profile, settings])
-
-  // Auto-save profile fields (debounce sliders)
+  // Schedule settings save when notification fields change
   useEffect(() => {
     if (skipAutoSaveRef.current) return
-    if (profileDebounceRef.current) clearTimeout(profileDebounceRef.current)
-    profileDebounceRef.current = setTimeout(async () => {
-      await updateProfile({
-        cycle_length: cycleLength,
-        period_length: periodLength,
-        timezone,
-      })
-      showSavedMessage()
-    }, 500)
-    return () => {
-      if (profileDebounceRef.current) clearTimeout(profileDebounceRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    settingsSaverRef.current.schedule({
+      notify_period: notifyPeriod,
+      notify_ovulation: notifyOvulation,
+      period_reminder_days: periodReminderDays,
+      ovulation_reminder_days: ovulationReminderDays,
+      notify_time: notifyTime,
+    })
+  }, [notifyPeriod, notifyOvulation, periodReminderDays, ovulationReminderDays, notifyTime])
+
+  // Schedule profile save for cycle length / timezone
+  useEffect(() => {
+    if (skipAutoSaveRef.current) return
+    profileSaverRef.current.schedule({
+      cycle_length: cycleLength,
+      period_length: periodLength,
+      timezone,
+    })
   }, [cycleLength, periodLength, timezone])
 
-  // Auto-save notification settings (debounce)
+  // CRITICAL: flush pending debounced saves when leaving Settings (tab switch unmounts page)
   useEffect(() => {
-    if (skipAutoSaveRef.current) return
-    if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current)
-    settingsDebounceRef.current = setTimeout(async () => {
-      await updateSettings({
-        notify_period: notifyPeriod,
-        notify_ovulation: notifyOvulation,
-        period_reminder_days: periodReminderDays,
-        ovulation_reminder_days: ovulationReminderDays,
-        notify_time: notifyTime,
-      })
-      showSavedMessage()
-    }, 400)
     return () => {
-      if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current)
+      settingsSaverRef.current?.flush()
+      profileSaverRef.current?.flush()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifyPeriod, notifyOvulation, periodReminderDays, ovulationReminderDays, notifyTime])
+  }, [])
 
   useEffect(() => {
     ensureReferralCode()
@@ -166,9 +184,8 @@ export function Settings() {
 
   const handleThemeChange = (newTheme) => {
     hapticFeedback.impact('light')
-    setTheme(newTheme)
-    localStorage.setItem('cicle_theme', newTheme)
-    applyTheme(newTheme)
+    const applied = persistTheme(newTheme)
+    setTheme(applied)
     showSavedMessage()
   }
 

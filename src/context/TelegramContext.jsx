@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { applyTelegramThemeParams } from '../utils/theme'
 
 const TelegramContext = createContext(null)
 
@@ -49,15 +50,8 @@ function waitForTelegramWebApp(timeout = 3000) {
 }
 
 function applyThemeParams(params) {
-  if (!params) return
-  const root = document.documentElement
-  if (params.bg_color) root.style.setProperty('--tg-theme-bg-color', params.bg_color)
-  if (params.text_color) root.style.setProperty('--tg-theme-text-color', params.text_color)
-  if (params.hint_color) root.style.setProperty('--tg-theme-hint-color', params.hint_color)
-  if (params.link_color) root.style.setProperty('--tg-theme-link-color', params.link_color)
-  if (params.button_color) root.style.setProperty('--tg-theme-button-color', params.button_color)
-  if (params.button_text_color) root.style.setProperty('--tg-theme-button-text-color', params.button_text_color)
-  if (params.secondary_bg_color) root.style.setProperty('--tg-theme-secondary-bg-color', params.secondary_bg_color)
+  // Only paint Telegram colors when user selected "Like Telegram"
+  applyTelegramThemeParams(params)
 }
 
 export function TelegramProvider({ children }) {

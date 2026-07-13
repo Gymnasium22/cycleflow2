@@ -13,7 +13,7 @@ import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
 import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
-import { applyTheme, getDefaultTheme } from './utils/theme'
+import { applyTheme, resolveStoredTheme, THEME_STORAGE_KEY } from './utils/theme'
 
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })))
 const DISCLAIMER_LS_KEY = 'cicle_disclaimer_accepted'
@@ -142,10 +142,15 @@ function ThemeInitializer() {
   const { webApp } = useTelegram()
 
   useEffect(() => {
-    const theme = getDefaultTheme(!!webApp)
+    // Always honor user-saved theme (do NOT force "telegram" inside Mini App)
+    const theme = resolveStoredTheme(!!webApp)
     applyTheme(theme)
-    if (!localStorage.getItem('cicle_theme')) {
-      localStorage.setItem('cicle_theme', theme)
+    try {
+      if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+        localStorage.setItem(THEME_STORAGE_KEY, theme)
+      }
+    } catch {
+      // ignore
     }
   }, [webApp])
 
