@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Droplets, Calendar, ChevronRight, X, Trash2, Check, Pill, Settings2 } from 'lucide-react'
+import { Droplets, Calendar, ChevronRight, X, Trash2, Check, Pill, Settings2, Crown } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -9,12 +9,16 @@ import { MedicationManageModal } from '../components/MedicationManageModal'
 import { MedicationWidget } from '../components/MedicationWidget'
 import { DayNoteEditor } from '../components/DayNoteEditor'
 import { CycleRingHero } from '../components/CycleRingHero'
+import { StreakBadge } from '../components/StreakBadge'
+import { PremiumPaywall } from '../components/PremiumPaywall'
 import { getPhaseTheme, CATEGORY_GRADIENTS } from '../utils/phaseTheme'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay, isPeriodOverdue, getActiveCycle } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import { useMedications } from '../hooks/useMedications'
+import { useStreak } from '../hooks/useStreak'
+import { usePremium } from '../hooks/usePremium'
 
 import {
   SYMPTOM_CATEGORIES,
@@ -60,10 +64,13 @@ export function Home({ onNavigateToCalendar }) {
 
   const todayStr = useMemo(() => toISODateString(new Date()), [])
   const { symptoms, selections, saveCategorySelection, deleteCategory, isLoading: symptomsLoading } = useSymptoms(todayStr)
+  const { streak, recordActivity } = useStreak()
+  const { premium } = usePremium()
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
   const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
   const [showMedicationManage, setShowMedicationManage] = useState(false)
+  const [showPremium, setShowPremium] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
 
   const { hapticFeedback } = useTelegram()
@@ -138,6 +145,7 @@ export function Home({ onNavigateToCalendar }) {
       period_length: fallbackPeriodLength,
       cycle_length: fallbackCycleLength,
     })
+    await recordActivity()
     hapticFeedback.notification('success')
   }
 
@@ -178,6 +186,7 @@ export function Home({ onNavigateToCalendar }) {
 
   async function handleSaveCategory(categoryId, selectedIds, intensity, comment) {
     await saveCategorySelection(categoryId, selectedIds, intensity, comment)
+    await recordActivity()
     hapticFeedback.notification('success')
   }
 
@@ -262,6 +271,33 @@ export function Home({ onNavigateToCalendar }) {
       ? 'w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold active:scale-[0.98] transition-all disabled:opacity-60'
       : 'w-full flex items-center justify-center gap-2 p-4 rounded-2xl font-semibold hover:opacity-90 active:scale-[0.99] transition-all disabled:opacity-60'
 
+    // Started today: show Cancel (primary) + optional End if tracking is open
+    if (periodTrackingOpen && isPeriodStartedToday) {
+      return (
+        <div className={hero ? 'w-full space-y-2' : 'w-full space-y-2'}>
+          <button
+            onClick={handleCancelPeriod}
+            disabled={cyclesLoading}
+            className={`${base} ${
+              hero
+                ? 'bg-white/20 border border-white/35 text-white hover:bg-white/28'
+                : 'glass-panel hover:bg-red-500/8 hover:text-red-600'
+            }`}
+          >
+            {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
+            {t('home.cancelPeriodStart')}
+          </button>
+          <button
+            onClick={handleEndPeriod}
+            disabled={cyclesLoading}
+            className={`${base} ${hero ? 'bg-white text-[var(--phase-menstruation-deep)] shadow-lg shadow-black/10' : 'btn-secondary-action hover:opacity-90'}`}
+          >
+            {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
+            {t('home.periodEnded')}
+          </button>
+        </div>
+      )
+    }
     if (periodTrackingOpen) {
       return (
         <button
@@ -271,22 +307,6 @@ export function Home({ onNavigateToCalendar }) {
         >
           {cyclesLoading ? <Spinner size={20} /> : <Check size={18} />}
           {t('home.periodEnded')}
-        </button>
-      )
-    }
-    if (isPeriodStartedToday) {
-      return (
-        <button
-          onClick={handleCancelPeriod}
-          disabled={cyclesLoading}
-          className={`${base} ${
-            hero
-              ? 'bg-white/20 border border-white/35 text-white hover:bg-white/28'
-              : 'glass-panel hover:bg-red-500/8 hover:text-red-600'
-          }`}
-        >
-          {cyclesLoading ? <Spinner size={20} /> : <X size={18} />}
-          {t('home.cancelPeriodStart')}
         </button>
       )
     }
@@ -308,11 +328,29 @@ export function Home({ onNavigateToCalendar }) {
 
   return (
     <div className="space-y-4 pb-4">
-      <header>
-        <h1 className="page-title">{t('app.title')}</h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1 tabular-nums">
-          {formatDate(new Date(), locale)}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title">{t('app.title')}</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1 tabular-nums">
+            {formatDate(new Date(), locale)}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <StreakBadge streak={streak} />
+          {!premium && (
+            <button
+              type="button"
+              onClick={() => {
+                hapticFeedback.impact('light')
+                setShowPremium(true)
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-amber-400/20 to-rose-400/20 text-amber-800 border border-amber-500/25"
+            >
+              <Crown size={12} />
+              {t('premium.upgrade')}
+            </button>
+          )}
+        </div>
       </header>
 
       {hasCycles && phaseInfo ? (
@@ -449,7 +487,7 @@ export function Home({ onNavigateToCalendar }) {
                 return (
                   <div
                     key={s.id}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/30 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/35 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
                   >
                     <button
                       type="button"
@@ -508,6 +546,8 @@ export function Home({ onNavigateToCalendar }) {
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirmDialog}
       />
+
+      <PremiumPaywall isOpen={showPremium} onClose={() => setShowPremium(false)} mode="premium" />
     </div>
   )
 }

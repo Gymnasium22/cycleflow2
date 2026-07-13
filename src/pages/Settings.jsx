@@ -1,13 +1,32 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Globe, Bell, Moon, Info, Download, Clock, Trash2, MapPin, Palette, FileText } from 'lucide-react'
+import {
+  Globe,
+  Bell,
+  Moon,
+  Info,
+  Download,
+  Clock,
+  Trash2,
+  MapPin,
+  Palette,
+  FileText,
+  Crown,
+  Star,
+  Users,
+  Share2,
+  Shield,
+  Scale,
+} from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { PremiumPaywall } from '../components/PremiumPaywall'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
+import { usePremium } from '../hooks/usePremium'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
@@ -24,22 +43,26 @@ const THEME_BACKGROUNDS = {
   midnight: 'bg-[#0f172a]',
 }
 
+const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'KolechkoBot'
+
 export function Settings() {
   const { t, i18n } = useTranslation()
   const { profile, updateProfile, isLoading: profileLoading } = useAuth()
   const { settings, updateSettings, isLoading: settingsLoading } = useSettings()
   const { cycles } = useCycles()
+  const {
+    premium,
+    daysLeft,
+    canDoctorPdf,
+    reportCredits,
+    purchase,
+    purchasing,
+    ensureReferralCode,
+    referralCode,
+  } = usePremium()
 
   const [language, setLanguage] = useState(i18n.language || 'ru')
   const [theme, setTheme] = useState(() => localStorage.getItem('cicle_theme') || 'sakura')
-
-  const handleThemeChange = (newTheme) => {
-    hapticFeedback.impact('light')
-    setTheme(newTheme)
-    localStorage.setItem('cicle_theme', newTheme)
-    applyTheme(newTheme)
-    showSavedMessage()
-  }
   const [cycleLength, setCycleLength] = useState(profile?.cycle_length || DEFAULT_CYCLE_LENGTH)
   const [periodLength, setPeriodLength] = useState(profile?.period_length || DEFAULT_PERIOD_LENGTH)
   const [timezone, setTimezone] = useState(profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
@@ -52,17 +75,23 @@ export function Settings() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [showPremium, setShowPremium] = useState(false)
+  const [paywallMode, setPaywallMode] = useState('premium')
+  const [shareHint, setShareHint] = useState(false)
 
-  const { hapticFeedback } = useTelegram()
+  const { hapticFeedback, webApp } = useTelegram()
 
-
+  // Skip first auto-save after hydrating from server
+  const skipAutoSaveRef = useRef(true)
+  const profileDebounceRef = useRef(null)
+  const settingsDebounceRef = useRef(null)
+  const hydratedRef = useRef(false)
 
   const showSavedMessage = useCallback(() => {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }, [])
 
-  // Sync profile into local state
   useEffect(() => {
     if (profile) {
       setCycleLength(profile.cycle_length || DEFAULT_CYCLE_LENGTH)
@@ -71,7 +100,6 @@ export function Settings() {
     }
   }, [profile])
 
-  // Sync settings into local state
   useEffect(() => {
     if (settings) {
       setNotifyPeriod(settings.notify_period ?? true)
@@ -81,6 +109,68 @@ export function Settings() {
       setNotifyTime(settings.notify_time ?? '09:00')
     }
   }, [settings])
+
+  // After profile+settings load once, allow auto-save
+  useEffect(() => {
+    if (profile && settings && !hydratedRef.current) {
+      hydratedRef.current = true
+      // One tick so initial state sync doesn't trigger save
+      const t = setTimeout(() => {
+        skipAutoSaveRef.current = false
+      }, 400)
+      return () => clearTimeout(t)
+    }
+  }, [profile, settings])
+
+  // Auto-save profile fields (debounce sliders)
+  useEffect(() => {
+    if (skipAutoSaveRef.current) return
+    if (profileDebounceRef.current) clearTimeout(profileDebounceRef.current)
+    profileDebounceRef.current = setTimeout(async () => {
+      await updateProfile({
+        cycle_length: cycleLength,
+        period_length: periodLength,
+        timezone,
+      })
+      showSavedMessage()
+    }, 500)
+    return () => {
+      if (profileDebounceRef.current) clearTimeout(profileDebounceRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cycleLength, periodLength, timezone])
+
+  // Auto-save notification settings (debounce)
+  useEffect(() => {
+    if (skipAutoSaveRef.current) return
+    if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current)
+    settingsDebounceRef.current = setTimeout(async () => {
+      await updateSettings({
+        notify_period: notifyPeriod,
+        notify_ovulation: notifyOvulation,
+        period_reminder_days: periodReminderDays,
+        ovulation_reminder_days: ovulationReminderDays,
+        notify_time: notifyTime,
+      })
+      showSavedMessage()
+    }, 400)
+    return () => {
+      if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifyPeriod, notifyOvulation, periodReminderDays, ovulationReminderDays, notifyTime])
+
+  useEffect(() => {
+    ensureReferralCode()
+  }, [ensureReferralCode])
+
+  const handleThemeChange = (newTheme) => {
+    hapticFeedback.impact('light')
+    setTheme(newTheme)
+    localStorage.setItem('cicle_theme', newTheme)
+    applyTheme(newTheme)
+    showSavedMessage()
+  }
 
   const handleLanguageChange = (langCode) => {
     hapticFeedback.impact('light')
@@ -101,7 +191,9 @@ export function Settings() {
     setIsDeleting(true)
     hapticFeedback.notification('warning')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
       const accessToken = session?.access_token
       if (!accessToken) {
         throw new Error(t('settings.errors.noSession'))
@@ -112,7 +204,7 @@ export function Settings() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       })
 
@@ -121,9 +213,7 @@ export function Settings() {
         throw new Error(data.error || 'Failed to delete data')
       }
 
-      // Clear all local storage
       localStorage.clear()
-      // Sign out and reload
       hapticFeedback.notification('success')
       await supabase.auth.signOut()
       window.location.reload()
@@ -132,29 +222,6 @@ export function Settings() {
       alert(t('settings.errors.deleteFailed') + (err?.message || JSON.stringify(err) || 'Unknown error'))
       setIsDeleting(false)
     }
-  }
-
-  const handleCycleLengthChange = (value) => {
-    setCycleLength(value)
-  }
-
-  const handlePeriodLengthChange = (value) => {
-    setPeriodLength(value)
-  }
-
-  async function saveAllSettings() {
-    hapticFeedback.impact('light')
-    await Promise.all([
-      updateProfile({ cycle_length: cycleLength, period_length: periodLength, timezone }),
-      updateSettings({
-        notify_period: notifyPeriod,
-        notify_ovulation: notifyOvulation,
-        period_reminder_days: periodReminderDays,
-        ovulation_reminder_days: ovulationReminderDays,
-        notify_time: notifyTime,
-      }),
-    ])
-    showSavedMessage()
   }
 
   function getExportSymptoms() {
@@ -177,6 +244,11 @@ export function Settings() {
 
   async function exportDoctorPdf() {
     hapticFeedback.impact('light')
+    if (!canDoctorPdf) {
+      setPaywallMode('doctor_report')
+      setShowPremium(true)
+      return
+    }
     setIsExportingPdf(true)
     try {
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
@@ -214,6 +286,10 @@ export function Settings() {
           },
         },
       })
+      // Consume one credit if not premium
+      if (!premium && reportCredits > 0 && profile) {
+        await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
+      }
       hapticFeedback.notification('success')
     } catch (e) {
       console.error('PDF export failed:', e)
@@ -245,9 +321,104 @@ export function Settings() {
     }
   }
 
+  async function shareReferral() {
+    hapticFeedback.impact('light')
+    const code = referralCode || (await ensureReferralCode())
+    if (!code) return
+    const link = `https://t.me/${BOT_USERNAME}?start=ref_${code}`
+    const text = t('referral.shareText', { link, app: t('app.title') })
+    try {
+      if (webApp?.openTelegramLink) {
+        // Prefer system share if available
+        if (navigator.share) {
+          await navigator.share({ text, url: link })
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text)
+          setShareHint(true)
+          setTimeout(() => setShareHint(false), 2500)
+        } else {
+          webApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`)
+        }
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+        setShareHint(true)
+        setTimeout(() => setShareHint(false), 2500)
+      }
+    } catch {
+      // user cancelled share
+    }
+  }
+
   return (
     <div className="space-y-4 pb-4 animate-fade-in">
-      <h1 className="page-title">{t('settings.title')}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="page-title">{t('settings.title')}</h1>
+        {saved && (
+          <span className="text-xs font-medium text-[var(--accent-success-deep)] animate-fade-in">
+            {t('common.saved')}
+          </span>
+        )}
+      </div>
+
+      {/* Premium / Stars */}
+      <div className="card-elevated p-4 space-y-3 border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-rose-500/5">
+        <div className="flex items-center gap-2 text-[var(--tg-theme-text-color,#111827)]">
+          <Crown size={20} className="text-amber-500" />
+          <span className="font-semibold">{t('premium.title')}</span>
+        </div>
+        {premium ? (
+          <p className="text-sm text-[var(--tg-theme-hint-color,#4b5563)]">
+            {t('premium.activeDays', { count: daysLeft })}
+          </p>
+        ) : (
+          <p className="text-sm text-[var(--tg-theme-hint-color,#4b5563)]">{t('premium.settingsHint')}</p>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setPaywallMode('premium')
+            setShowPremium(true)
+          }}
+          disabled={purchasing}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-white font-semibold shadow-md shadow-rose-500/15 active:scale-[0.99]"
+        >
+          <Star size={18} className="fill-white" />
+          {premium ? t('premium.extend') : t('premium.upgrade')}
+        </button>
+        <button
+          type="button"
+          onClick={() => purchase('premium_1m')}
+          disabled={purchasing}
+          className="w-full text-xs text-center text-[var(--tg-theme-hint-color,#6b7280)] hover:underline"
+        >
+          {t('premium.quickBuy1m')}
+        </button>
+      </div>
+
+      {/* Referral */}
+      <div className="card-elevated p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Users size={20} className="text-violet-500" />
+          <span className="font-semibold">{t('referral.title')}</span>
+        </div>
+        <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t('referral.hint')}</p>
+        {referralCode && (
+          <p className="text-xs font-mono px-3 py-2 rounded-xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25">
+            {referralCode}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={shareReferral}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25 font-semibold text-sm hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/15"
+        >
+          <Share2 size={16} />
+          {t('referral.share')}
+        </button>
+        {shareHint && (
+          <p className="text-xs text-center text-[var(--accent-success-deep)]">{t('referral.copied')}</p>
+        )}
+      </div>
 
       {/* Language */}
       <div className="card-elevated p-4 space-y-3">
@@ -263,7 +434,7 @@ export function Settings() {
               className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 language === langCode
                   ? 'bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)]'
-                  : 'bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
+                  : 'bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20'
               }`}
             >
               {t(`settings.languageNames.${langCode}`)}
@@ -286,7 +457,7 @@ export function Settings() {
               className={`py-3 px-4 rounded-xl text-xs font-bold transition-all relative overflow-hidden flex items-center justify-between border ${
                 theme === themeId
                   ? 'border-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10 text-[var(--tg-theme-text-color,#111827)] shadow-sm'
-                  : 'border-[var(--tg-theme-hint-color,#d1d5db)]/20 bg-[var(--tg-theme-bg-color,#ffffff)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/10'
+                  : 'border-[var(--tg-theme-hint-color,#d1d5db)]/20 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-[var(--tg-theme-text-color,#111827)] hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/10'
               }`}
             >
               <span>{t(`settings.themes.${themeId}`)}</span>
@@ -310,15 +481,16 @@ export function Settings() {
           </p>
           <button
             onClick={handleDetectTimezone}
-            className="w-full py-2 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] text-sm font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
+            className="w-full py-2 rounded-xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] text-sm font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
           >
             {t('settings.detectTimezone')}
           </button>
         </div>
       </div>
 
-      {/* Cycle settings */}
+      {/* Cycle settings — auto-saved */}
       <div className="card-elevated p-4 space-y-4">
+        <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.autoSaveHint')}</p>
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-[var(--tg-theme-text-color,#111827)]">
             <Moon size={18} className="text-rose-500" />
@@ -329,12 +501,14 @@ export function Settings() {
             min="21"
             max="35"
             value={cycleLength}
-            onChange={(e) => handleCycleLengthChange(Number(e.target.value))}
+            onChange={(e) => setCycleLength(Number(e.target.value))}
             className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
           />
           <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
             <span>21</span>
-            <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{cycleLength} {t('analytics.days')}</span>
+            <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">
+              {cycleLength} {t('analytics.days')}
+            </span>
             <span>35</span>
           </div>
         </div>
@@ -349,12 +523,14 @@ export function Settings() {
             min="2"
             max="8"
             value={periodLength}
-            onChange={(e) => handlePeriodLengthChange(Number(e.target.value))}
+            onChange={(e) => setPeriodLength(Number(e.target.value))}
             className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
           />
           <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
             <span>2</span>
-            <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{periodLength} {t('analytics.days')}</span>
+            <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">
+              {periodLength} {t('analytics.days')}
+            </span>
             <span>8</span>
           </div>
         </div>
@@ -367,7 +543,7 @@ export function Settings() {
           <span className="font-semibold">{t('settings.notifications')}</span>
         </div>
 
-        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
+        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
           <span className="text-sm font-medium">{t('settings.notifyPeriod')}</span>
           <input
             type="checkbox"
@@ -379,7 +555,9 @@ export function Settings() {
 
         {notifyPeriod && (
           <div className="space-y-2 pl-2">
-            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.daysBeforePeriod')}</label>
+            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">
+              {t('settings.daysBeforePeriod')}
+            </label>
             <input
               type="range"
               min="1"
@@ -390,7 +568,9 @@ export function Settings() {
             />
             <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
               <span>1</span>
-              <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{periodReminderDays} {t('analytics.days')}</span>
+              <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">
+                {periodReminderDays} {t('analytics.days')}
+              </span>
               <span>7</span>
             </div>
             <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -400,7 +580,7 @@ export function Settings() {
           </div>
         )}
 
-        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
+        <label className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 cursor-pointer">
           <span className="text-sm font-medium">{t('settings.notifyOvulation')}</span>
           <input
             type="checkbox"
@@ -412,7 +592,9 @@ export function Settings() {
 
         {notifyOvulation && (
           <div className="space-y-2 pl-2">
-            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.daysBeforeOvulation')}</label>
+            <label className="text-xs font-medium text-[var(--tg-theme-hint-color,#6b7280)]">
+              {t('settings.daysBeforeOvulation')}
+            </label>
             <input
               type="range"
               min="1"
@@ -423,7 +605,9 @@ export function Settings() {
             />
             <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
               <span>1</span>
-              <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">{ovulationReminderDays} {t('analytics.days')}</span>
+              <span className="font-bold text-[var(--tg-theme-text-color,#111827)]">
+                {ovulationReminderDays} {t('analytics.days')}
+              </span>
               <span>5</span>
             </div>
             <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -442,7 +626,7 @@ export function Settings() {
             type="time"
             value={notifyTime}
             onChange={(e) => setNotifyTime(e.target.value)}
-            className="w-full px-4 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-bg-color,#ffffff)] text-center"
+            className="w-full px-4 py-2 rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/50 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] text-center"
           />
           <p className="flex items-start gap-1 text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
             <Info size={12} className="shrink-0 mt-0.5" />
@@ -465,10 +649,15 @@ export function Settings() {
         >
           {isExportingPdf ? <Spinner size={18} /> : <FileText size={18} />}
           {t('settings.exportDoctorPdf')}
+          {!canDoctorPdf && (
+            <span className="text-[10px] opacity-90 flex items-center gap-0.5">
+              <Star size={10} /> 75
+            </span>
+          )}
         </button>
         <button
           onClick={exportCsv}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
         >
           <Download size={18} />
           {t('settings.exportCsv')}
@@ -479,29 +668,40 @@ export function Settings() {
             setShowDeleteDialog(true)
           }}
           disabled={isDeleting}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-600 font-semibold hover:bg-red-100 transition-colors disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-red-500/10 border border-red-500/25 text-red-600 font-semibold hover:bg-red-500/15 transition-colors disabled:opacity-60"
         >
           {isDeleting ? <Spinner size={18} /> : <Trash2 size={18} />}
           {t('settings.deleteAllData')}
         </button>
       </div>
 
-      {/* Save button and confirmation */}
-      <div className="space-y-2">
+      {/* Legal */}
+      <div className="card-elevated p-4 space-y-2">
         <button
-          onClick={saveAllSettings}
-          disabled={profileLoading || settingsLoading}
-          className="w-full py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('cicle:open-legal', { detail: 'privacy' }))}
+          className="w-full flex items-center gap-2 py-2.5 text-sm font-medium text-left hover:opacity-80"
         >
-          {(profileLoading || settingsLoading) && <Spinner size={18} />}
-          {t('settings.saveAll')}
+          <Shield size={16} className="text-blue-500" />
+          {t('legal.privacy')}
         </button>
-        {saved && (
-          <p className="text-center text-sm text-[var(--accent-success-deep)] font-medium">
-            {t('common.saved')}
-          </p>
-        )}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('cicle:open-legal', { detail: 'terms' }))}
+          className="w-full flex items-center gap-2 py-2.5 text-sm font-medium text-left hover:opacity-80"
+        >
+          <Scale size={16} className="text-violet-500" />
+          {t('legal.terms')}
+        </button>
+        <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)] pt-1">{t('disclaimer.notMedical')}</p>
       </div>
+
+      {(profileLoading || settingsLoading) && (
+        <p className="text-center text-xs text-[var(--tg-theme-hint-color,#6b7280)] flex items-center justify-center gap-2">
+          <Spinner size={14} />
+          {t('settings.saving')}
+        </p>
+      )}
 
       <ConfirmDialog
         isOpen={showDeleteDialog}
@@ -512,6 +712,12 @@ export function Settings() {
         destructive
         onConfirm={deleteAllData}
         onCancel={() => setShowDeleteDialog(false)}
+      />
+
+      <PremiumPaywall
+        isOpen={showPremium}
+        onClose={() => setShowPremium(false)}
+        mode={paywallMode}
       />
     </div>
   )

@@ -119,6 +119,10 @@ export function AuthProvider({ children }) {
       timezone: overrides.timezone ?? userTimezone,
       cycle_length: overrides.cycle_length ?? DEFAULT_CYCLE_LENGTH,
       period_length: overrides.period_length ?? DEFAULT_PERIOD_LENGTH,
+      // Short unique code for invite links (ref_<code>)
+      referral_code:
+        overrides.referral_code ??
+        Math.random().toString(36).slice(2, 10),
       ...overrides,
     }
 

@@ -38,20 +38,20 @@
     "logSymptoms": "Log symptoms",
     "loggedToday": "Logged today",
     "today": "Today",
-    "noData": "No data yet",
-    "noDataHint": "Tap the button below when your period starts, or enter data manually.",
-    "periodStarted": "Period started",
-    "periodEnded": "Period ended",
-    "cancelPeriodStart": "Cancel period start",
-    "periodOverdueHint": "Your period is lasting longer than expected — mark it as ended if it has finished.",
-    "cycleDelayed": "Cycle is delayed",
-    "cycleDelayedHint": "Your period was expected {{count}} days ago. Mark the start if it has begun.",
-    "periodEndPromptTitle": "Period ended?",
-    "periodEndPromptMessage": "Today is day {{day}} of your period. Mark as ended?",
-    "periodEndConfirm": "Yes, ended",
+    "noData": "Your cycle story starts here",
+    "noDataHint": "When your period begins, tap the button below — or add a past date from the calendar.",
+    "periodStarted": "My period started",
+    "periodEnded": "My period ended",
+    "cancelPeriodStart": "Undo — period didn’t start",
+    "periodOverdueHint": "Your period is lasting longer than usual — mark it as ended if bleeding has stopped.",
+    "cycleDelayed": "Your cycle seems delayed",
+    "cycleDelayedHint": "Your period was expected about {{count}} days ago. Log the start if it has begun.",
+    "periodEndPromptTitle": "Has your period ended?",
+    "periodEndPromptMessage": "Today is day {{day}} of your period. Would you like to mark it as ended?",
+    "periodEndConfirm": "Yes, it ended",
     "periodEndDismiss": "Still going",
     "phase": {
-      "menstruation": "Menstruation",
+      "menstruation": "Period",
       "follicular": "Follicular phase",
       "ovulation": "Ovulation",
       "luteal": "Luteal phase"
@@ -63,22 +63,22 @@
       "ringAria": "Cycle ring — tap for phase legend",
       "openCalendar": "Open calendar",
       "phaseHint": {
-        "menstruation": "Your body is renewing. Rest and warmth make these days easier.",
-        "follicular": "Energy is rising — a good time for new plans and activity.",
-        "ovulation": "Peak fertility. Listen to your body and log how you feel.",
-        "luteal": "Time to slow down. Self-care and sleep matter most now."
+        "menstruation": "Your body is renewing. Rest and warmth can make these days gentler.",
+        "follicular": "Energy often rises — a lovely time for new plans and movement.",
+        "ovulation": "You’re near peak fertility. Log how you feel if you want clearer patterns.",
+        "luteal": "A slower season for many. Self-care and sleep matter most now."
       }
     },
     "dialogs": {
-      "endPeriodTitle": "Period ended",
-      "endPeriodMessage": "Mark period as ended?",
-      "endPeriodConfirm": "Mark",
-      "cancelStartTitle": "Cancel start",
-      "cancelStartMessage": "Cancel period start?",
-      "cancelStartConfirm": "Cancel",
-      "cancelStartNo": "No",
-      "deleteSymptomTitle": "Delete record",
-      "deleteSymptomMessage": "Delete «{{category}}» record?"
+      "endPeriodTitle": "End period?",
+      "endPeriodMessage": "Mark today’s date as the last day of your period?",
+      "endPeriodConfirm": "Yes, end it",
+      "cancelStartTitle": "Undo period start?",
+      "cancelStartMessage": "This removes today’s period start. You can always log it again.",
+      "cancelStartConfirm": "Undo",
+      "cancelStartNo": "Keep it",
+      "deleteSymptomTitle": "Remove this log?",
+      "deleteSymptomMessage": "Delete your «{{category}}» entry for today?"
     }
   },
   "calendar": {
@@ -190,6 +190,8 @@
     "notifyOvulation": "Ovulation reminders",
     "save": "Save",
     "saveAll": "Save all",
+    "autoSaveHint": "Changes save automatically",
+    "saving": "Saving…",
     "notifyTimeHint": "Notifications are sent within 15 minutes of the selected time",
     "periodDaysHint": "For example, if set to 2, the message will arrive 2 days before the expected date",
     "ovulationDaysHint": "For example, if set to 1, the message will arrive 1 day before ovulation",
@@ -271,25 +273,117 @@
   },
   "onboarding": {
     "welcome": "Welcome to Kolechko",
-    "subtitle": "Let's set up the app for you. Just a few steps.",
-    "cycleLength": "Your cycle length",
-    "cycleLengthHint": "From the first day of period to the next one",
-    "periodLength": "Period duration",
-    "periodLengthHint": "How many days does your period usually last",
-    "lastPeriod": "Last period date",
-    "lastPeriodHint": "You can skip this if unsure",
-    "notifications": "Notifications",
-    "notificationsHint": "Choose when to receive reminders",
+    "subtitle": "A calm space to understand your cycle — just a few steps to get started.",
+    "cycleLength": "Your typical cycle length",
+    "cycleLengthHint": "From the first day of one period to the first day of the next",
+    "periodLength": "How long your period usually lasts",
+    "periodLengthHint": "Most people bleed for 3–7 days — yours may differ",
+    "lastPeriod": "When did your last period start?",
+    "lastPeriodHint": "Skip if you're not sure — you can add it later",
+    "notifications": "Gentle reminders",
+    "notificationsHint": "Optional alerts for your period and fertile window",
     "notifyPeriod": "Period reminders",
     "notifyOvulation": "Ovulation reminders",
-    "daysBeforePeriod": "Days before period to notify",
-    "daysBeforeOvulation": "Days before ovulation to notify",
-    "notifyTime": "Notification time",
+    "daysBeforePeriod": "Days before your period to notify you",
+    "daysBeforeOvulation": "Days before ovulation to notify you",
+    "notifyTime": "Preferred reminder time",
     "skip": "Skip",
     "days": "days",
     "next": "Next",
     "back": "Back",
-    "start": "Start",
+    "start": "Get started",
     "saving": "Saving..."
+  },
+  "premium": {
+    "title": "Kolechko Premium",
+    "doctorTitle": "Doctor report",
+    "upgrade": "Go Premium",
+    "extend": "Extend Premium",
+    "payWithStars": "Pay securely with Telegram Stars",
+    "activeDays": "Premium active — {{count}} days left",
+    "settingsHint": "Unlock unlimited history, richer insights, and full doctor PDFs.",
+    "quickBuy1m": "Or buy 1 month instantly (250 ⭐)",
+    "popular": "Popular",
+    "bestValue": "Best value",
+    "doctorHint": "You have {{credits}} report credit(s). Premium includes unlimited doctor PDFs.",
+    "starsHint": "Stars are purchased via App Store, Google Play, or @PremiumBot. Digital goods only — no refunds for consumed content per Telegram policy.",
+    "features": {
+      "history": "Unlimited cycle history (no free-tier cap)",
+      "analytics": "Advanced patterns and phase insights",
+      "pdf": "Unlimited doctor-ready PDF reports",
+      "priority": "Priority reminder delivery window",
+      "export": "Full data export anytime"
+    },
+    "products": {
+      "premium_1m": {
+        "title": "Premium — 1 month",
+        "desc": "Recurring subscription · full features for 30 days"
+      },
+      "premium_3m": {
+        "title": "Premium — 3 months",
+        "desc": "One-time purchase · save vs monthly"
+      },
+      "doctor_report": {
+        "title": "Full doctor report",
+        "desc": "One detailed PDF for your clinician"
+      }
+    },
+    "errors": {
+      "generic": "Payment could not be completed"
+    }
+  },
+  "referral": {
+    "title": "Invite a friend",
+    "hint": "Share Kolechko with a friend. When they join and make their first Stars purchase, you both get 7 days of Premium.",
+    "share": "Share invite link",
+    "copied": "Invite text copied",
+    "shareText": "Track your cycle with {{app}} 🌸 {{link}}"
+  },
+  "gamification": {
+    "streak": "{{count}}-day streak",
+    "streakHint": "Log how you feel each day to keep your streak"
+  },
+  "disclaimer": {
+    "title": "Important notice",
+    "subtitle": "Please read before using Kolechko",
+    "notMedical": "This is not medical advice. Always consult a qualified healthcare professional for medical decisions.",
+    "body": "Kolechko is a personal wellness and cycle-tracking tool. Predictions, fertile windows, and insights are estimates based on the data you enter. They are not a diagnosis, contraception method, or fertility treatment.",
+    "point1": "Do not rely on this app alone for pregnancy planning or prevention.",
+    "point2": "If you notice unusual symptoms, severe pain, or irregular bleeding, seek medical care.",
+    "point3": "You control your data — export or delete it anytime in Settings.",
+    "privacyNote": "By continuing you confirm you are 16+ (or the age of digital consent in your country) and accept our Privacy Policy and Terms.",
+    "acceptCheckbox": "I understand this is not medical advice and I accept the Privacy Policy and Terms of Service.",
+    "continue": "I understand — continue"
+  },
+  "legal": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "lastUpdated": "Last updated: July 2026",
+    "privacyBody": [
+      "Operator: Kolechko Mini App (“we”). Contact: support via the Telegram bot used to open this app.",
+      "Data we process: Telegram user id, name/username (if provided by Telegram), cycle dates, symptoms, notes, medication entries, notification preferences, timezone, and purchase metadata (Telegram Stars payment ids). We do not store your card details — Stars payments are handled by Telegram.",
+      "Purpose: provide cycle tracking, reminders, analytics, Premium features, fraud prevention, and legal compliance. Legal bases (GDPR): contract performance, legitimate interests (security, product improvement with aggregated stats), and consent where required.",
+      "Storage: data is stored in Supabase (EU/US cloud region as configured for the project) and, for offline fallback, on your device (localStorage). Payment events are logged to fulfill digital goods delivery.",
+      "Sharing: we do not sell personal data. Processors include Supabase (hosting/DB) and Telegram (auth, payments, messaging). Transfers outside the EEA rely on appropriate safeguards offered by those providers.",
+      "Retention: we keep data while your account is active. You may delete all data in Settings; residual backups may be purged within a reasonable period.",
+      "Your rights (EEA/UK and similar): access, rectification, erasure, restriction, portability, and objection. Contact us via the bot. You may lodge a complaint with your local supervisory authority.",
+      "Minors: the app is not directed at children under 16 (or higher age required by local law).",
+      "Security: access is gated by Telegram WebApp auth and row-level security. No method is 100% secure — please protect your device."
+    ],
+    "termsBody": [
+      "By using Kolechko you agree to these Terms. The app provides informational cycle tracking only and is not a medical device.",
+      "You must be legally able to use Telegram Mini Apps in your country. You are responsible for the accuracy of data you enter.",
+      "Premium and one-time products are sold for Telegram Stars (XTR) as digital goods. Prices are shown before purchase. Subscriptions renew per Telegram Stars subscription rules until cancelled in Telegram. Refunds are subject to Telegram’s policies and applicable law.",
+      "Referral rewards are promotional, may change, and can be revoked for abuse.",
+      "We may modify features, pricing, or these Terms with notice in the app or bot. Continued use after changes means acceptance.",
+      "To the fullest extent permitted by law, the app is provided “as is” without warranties of fitness for a particular medical purpose. Our liability is limited to the amount you paid us for Premium in the 3 months before a claim (or zero if free).",
+      "Governing law: unless mandatory consumer law says otherwise, disputes are handled under the laws applicable to the operator’s place of establishment, without prejudice to your mandatory rights as a consumer in the EU/UK."
+    ]
+  },
+  "tips": {
+    "follicular": "Energy often rises after your period — a good window for workouts and new plans.",
+    "ovulation": "Your fertile window is near. Log cervical fluid or mood if that helps you learn your patterns.",
+    "luteal": "PMS can show up here. Rest, hydration, and noting symptoms help you spot patterns.",
+    "menstruation": "Warmth, iron-rich foods, and rest can ease period days — listen to your body."
   }
 }

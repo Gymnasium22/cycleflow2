@@ -58,7 +58,15 @@
    ```bash
    supabase functions deploy telegram-auth
    supabase functions deploy send-notifications
+   supabase functions deploy delete-all-data
+   supabase functions deploy create-stars-invoice
+   supabase functions deploy telegram-webhook --no-verify-jwt
    ```
+
+5. **Telegram Stars (монетизация)** — полная инструкция: [`STARS_DEPLOY.md`](./STARS_DEPLOY.md)
+   - SQL: `supabase/migrations/20260713_premium_stars_referrals.sql` (уже можно выполнить в SQL Editor)
+   - Webhook: `setWebhook` → `.../functions/v1/telegram-webhook`
+   - Frontend: `VITE_BOT_USERNAME` для реферальных ссылок
 
 ## 7. Настрой автодеплой Edge Functions через GitHub Actions (рекомендуется)
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TelegramProvider, useTelegram } from './context/TelegramContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -6,6 +6,8 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { HomeSkeleton } from './components/HomeSkeleton'
 import { AnalyticsSkeleton } from './components/AnalyticsSkeleton'
 import { Layout } from './components/Layout'
+import { DisclaimerModal } from './components/DisclaimerModal'
+import { LegalModal } from './components/LegalModal'
 import { Home } from './pages/Home'
 import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
@@ -14,6 +16,7 @@ import { DebugPanel, initDebugLogging } from './components/DebugPanel'
 import { applyTheme, getDefaultTheme } from './utils/theme'
 
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })))
+const DISCLAIMER_LS_KEY = 'cicle_disclaimer_accepted'
 
 function renderActiveTab(activeTab, setActiveTab) {
   switch (activeTab) {
@@ -38,7 +41,9 @@ function AppContent() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState('home')
   const [showReload, setShowReload] = useState(false)
-  const { loading, profile, authTimedOut, error } = useAuth()
+  const [legalDoc, setLegalDoc] = useState(null)
+  const [acceptingDisclaimer, setAcceptingDisclaimer] = useState(false)
+  const { loading, profile, authTimedOut, error, updateProfile } = useAuth()
 
   useEffect(() => {
     if (!loading) {
@@ -48,6 +53,40 @@ function AppContent() {
     const timer = setTimeout(() => setShowReload(true), 8000)
     return () => clearTimeout(timer)
   }, [loading])
+
+  useEffect(() => {
+    function onLegal(e) {
+      setLegalDoc(e.detail === 'terms' ? 'terms' : 'privacy')
+    }
+    window.addEventListener('cicle:open-legal', onLegal)
+    return () => window.removeEventListener('cicle:open-legal', onLegal)
+  }, [])
+
+  const localDisclaimer = (() => {
+    try {
+      return localStorage.getItem(DISCLAIMER_LS_KEY) === '1'
+    } catch {
+      return false
+    }
+  })()
+
+  const needsDisclaimer =
+    !!profile &&
+    profile.onboarding_completed === true &&
+    !profile.disclaimer_accepted_at &&
+    !localDisclaimer
+
+  const handleAcceptDisclaimer = useCallback(async () => {
+    setAcceptingDisclaimer(true)
+    const ts = new Date().toISOString()
+    try {
+      localStorage.setItem(DISCLAIMER_LS_KEY, '1')
+    } catch {
+      // ignore
+    }
+    await updateProfile({ disclaimer_accepted_at: ts })
+    setAcceptingDisclaimer(false)
+  }, [updateProfile])
 
   if (loading && !profile && !showReload) {
     return <HomeSkeleton />
@@ -76,13 +115,26 @@ function AppContent() {
   }
 
   if (!profile || profile.onboarding_completed !== true) {
-    return <Onboarding />
+    return (
+      <>
+        <Onboarding />
+        <LegalModal isOpen={!!legalDoc} doc={legalDoc || 'privacy'} onClose={() => setLegalDoc(null)} />
+      </>
+    )
   }
 
   return (
-    <Layout activeTab={activeTab} onTabChange={setActiveTab}>
-      {renderActiveTab(activeTab, setActiveTab)}
-    </Layout>
+    <>
+      <Layout activeTab={activeTab} onTabChange={setActiveTab}>
+        {renderActiveTab(activeTab, setActiveTab)}
+      </Layout>
+      <DisclaimerModal
+        isOpen={needsDisclaimer}
+        onAccept={handleAcceptDisclaimer}
+        loading={acceptingDisclaimer}
+      />
+      <LegalModal isOpen={!!legalDoc} doc={legalDoc || 'privacy'} onClose={() => setLegalDoc(null)} />
+    </>
   )
 }
 
