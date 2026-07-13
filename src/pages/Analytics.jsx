@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TrendingUp, AlertCircle, Heart, Activity, Pill, Smile, Sparkles } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
@@ -6,6 +6,12 @@ import { useAuth } from '../context/AuthContext'
 import { useCycles } from '../hooks/useCycles'
 import { useSymptomHistory } from '../hooks/useSymptomHistory'
 import { useMedicationLogs } from '../hooks/useMedicationLogs'
+import { EmptyState } from '../components/EmptyState'
+import { InsightsCard } from '../components/InsightsCard'
+import { PremiumPaywall } from '../components/PremiumPaywall'
+import { usePremium } from '../hooks/usePremium'
+import { buildCycleInsights, filterInsightsForPlan } from '../utils/insights'
+import { computeMedicationStreak } from '../utils/medStreak'
 import {
   getAverageCycleLength,
   getAveragePeriodLength,
@@ -67,6 +73,13 @@ export function Analytics() {
   const { cycles } = useCycles()
   const { symptoms: allSymptoms } = useSymptomHistory('2000-01-01', '2100-12-31')
   const { logs: medicationLogs } = useMedicationLogs({ startDate: '2000-01-01', endDate: '2100-12-31' })
+  const { premium } = usePremium()
+  const [showPremium, setShowPremium] = useState(false)
+  const medStreak = useMemo(() => computeMedicationStreak(medicationLogs), [medicationLogs])
+  const smartInsights = useMemo(
+    () => filterInsightsForPlan(buildCycleInsights(cycles), premium),
+    [cycles, premium]
+  )
 
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
   const fallbackCycle = profile?.cycle_length || DEFAULT_CYCLE_LENGTH
@@ -187,14 +200,31 @@ export function Analytics() {
 
   return (
     <div className="space-y-5 pb-4 animate-fade-in">
+      <PremiumPaywall isOpen={showPremium} onClose={() => setShowPremium(false)} mode="premium" />
       <header>
         <h1 className="page-title">{t('analytics.title')}</h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">{t('analytics.subtitle')}</p>
       </header>
 
       {cycles.length < 2 && (
-        <p className="text-sm text-[var(--text-muted)] glass-panel rounded-2xl px-4 py-3">
-          {t('analytics.needMoreData')}
+        <EmptyState
+          illustration="analytics"
+          title={t('analytics.emptyTitle')}
+          description={t('analytics.needMoreData')}
+        />
+      )}
+
+      {smartInsights.length > 0 && cycles.length >= 2 && (
+        <InsightsCard
+          insights={smartInsights}
+          isPremium={premium}
+          onUnlock={() => setShowPremium(true)}
+        />
+      )}
+
+      {medStreak.streak > 0 && (
+        <p className="text-sm chip-contrast rounded-2xl px-4 py-3 font-medium">
+          {t('analytics.medStreakLine', { count: medStreak.streak, adherence: medStreak.adherence ?? '—' })}
         </p>
       )}
 

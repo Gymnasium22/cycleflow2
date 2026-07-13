@@ -120,6 +120,10 @@ export function CycleRingHero({
   return (
     <div
       ref={cardRef}
+      role="region"
+      aria-label={t('home.hero.ringAria')}
+      aria-live="polite"
+      aria-atomic="false"
       className={`relative overflow-hidden rounded-2xl text-white elevation-2 phase-glow phase-${phase} hero-shimmer ${seasonal} ${
         phasePulse ? 'hero-phase-pulse' : ''
       }`}

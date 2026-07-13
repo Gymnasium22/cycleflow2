@@ -129,6 +129,13 @@ body {
 }
 
 /* ─── Themes ─── */
+/* WCAG-friendlier chips on dark Telegram / midnight */
+.chip-contrast {
+  background: color-mix(in srgb, var(--tg-theme-secondary-bg-color, #f3f4f6) 92%, var(--tg-theme-text-color, #111827) 8%);
+  border: 1px solid color-mix(in srgb, var(--tg-theme-hint-color, #6b7280) 45%, transparent);
+  color: var(--tg-theme-text-color, #111827);
+}
+
 body.theme-sakura {
   --tg-theme-button-color: #C45C6A;
   --tg-theme-button-text-color: #ffffff;

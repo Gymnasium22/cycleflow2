@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowRight, Calendar, Droplets, Bell } from 'lucide-react'
+import { ArrowRight, Calendar, Droplets, Bell, Palette } from 'lucide-react'
 import { CycleRingIllustration } from '../components/Illustrations'
 import { Spinner } from '../components/Spinner'
 import { useTelegram } from '../context/TelegramContext'
@@ -13,6 +13,7 @@ import {
   parseDate,
   toISODateString,
 } from '../utils/cycle'
+import { AVAILABLE_THEMES, persistTheme, THEME_STORAGE_KEY } from '../utils/theme'
 
 export function Onboarding() {
   const { t } = useTranslation()
@@ -29,12 +30,21 @@ export function Onboarding() {
   const [periodReminderDays, setPeriodReminderDays] = useState(2)
   const [ovulationReminderDays, setOvulationReminderDays] = useState(1)
   const [notifyTime, setNotifyTime] = useState('09:00')
+  const [themeChoice, setThemeChoice] = useState(() => {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY) || 'sakura'
+    } catch {
+      return 'sakura'
+    }
+  })
   const [saving, setSaving] = useState(false)
   const { hapticFeedback } = useTelegram()
 
   async function handleFinish() {
     hapticFeedback.impact('light')
     setSaving(true)
+
+    persistTheme(themeChoice)
 
     await updateProfile({
       cycle_length: cycleLength,
@@ -82,7 +92,7 @@ export function Onboarding() {
         </div>
 
         <div className="flex items-center justify-center gap-2">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3, 4, 5].map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all ${
@@ -244,9 +254,58 @@ export function Onboarding() {
                 {t('onboarding.back')}
               </button>
               <button
+                onClick={() => setStep(5)}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity"
+              >
+                {t('onboarding.next')}
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <Palette size={24} className="text-pink-500" />
+                <h2 className="text-lg font-semibold text-center">{t('onboarding.themeTitle')}</h2>
+              </div>
+              <p className="text-sm text-center text-[var(--tg-theme-hint-color,#6b7280)]">{t('onboarding.themeHint')}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {AVAILABLE_THEMES.map((themeId) => (
+                <button
+                  key={themeId}
+                  type="button"
+                  onClick={() => {
+                    hapticFeedback.impact('light')
+                    setThemeChoice(themeId)
+                    persistTheme(themeId)
+                  }}
+                  className={`py-3 px-3 rounded-xl text-xs font-bold border transition-all ${
+                    themeChoice === themeId
+                      ? 'border-[var(--tg-theme-button-color,#e11d48)] bg-[var(--tg-theme-button-color,#e11d48)]/10'
+                      : 'border-[var(--tg-theme-hint-color,#d1d5db)]/25 bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)]'
+                  }`}
+                >
+                  {t(`settings.themes.${themeId}`)}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setStep(4)}
+                className="flex-1 py-3.5 rounded-2xl glass-panel font-semibold"
+              >
+                {t('onboarding.back')}
+              </button>
+              <button
                 onClick={handleFinish}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold disabled:opacity-50"
               >
                 {saving && <Spinner size={18} />}
                 {saving ? t('onboarding.saving') : t('onboarding.start')}

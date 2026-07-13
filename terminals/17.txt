@@ -1,0 +1,8 @@
+---
+pid: 18600
+cwd: "D:\cikl3"
+command: "cd D:\\cikl3; Invoke-WebRequest -Uri \"https://cdn.jsdelivr.net/npm/roboto-font@0.1.0/fonts/Roboto/roboto-regular-webfont.ttf\" -OutFile \"src/assets/pdfFonts/Roboto-Regular.ttf\"; (Get-Item \"src/assets/pdfFonts/Roboto-Regular.ttf\").Length"
+started_at: 2026-07-06T11:54:31.461Z
+running_for_ms: 3700002  
+---
+141952

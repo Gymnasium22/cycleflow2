@@ -1,0 +1,82 @@
+---
+pid: 5256
+cwd: "D:\cikl3"
+command: "cd D:\\cikl3; npm run lint; npm run test; npm run build"
+started_at: 2026-07-06T11:24:48.446Z
+running_for_ms: 5484999  
+---
+
+> cikl3@0.0.0 lint
+> eslint .
+
+
+> cikl3@0.0.0 test
+> vitest run
+
+
+ RUN  v4.1.10 D:/cikl3
+
+ ✓ src/utils/cycle.test.js (19 tests) 8ms
+ ✓ src/utils/symptomPhaseCorrelation.test.js (2 tests) 4ms
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  14:24:55
+   Duration  368ms (transform 110ms, setup 0ms, import 219ms, tests 12ms, environment 0ms)
+
+
+> cikl3@0.0.0 build
+> vite build
+
+vite v8.0.16 building client environment for production...
+plugin-legacy overrode 'build.target'. You should pass 'targets' as an option to this plugin with the list of legacy browsers to support instead.
+transforming...✓ 2647 modules transformed.
+rendering chunks...
+computing gzip size...
+[PLUGIN_TIMINGS] Your build spent significant time in plugins. Here is a breakdown:
+  - vite:legacy-post-process (67%)
+  - vite:terser (20%)
+  - vite:build-import-analysis (10%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+dist/assets/typeof-legacy-Dnu0ycG3.js            0.32 kB │ gzip:   0.18 kB
+dist/assets/defineProperty-legacy-Bo6d8V0Z.js    0.74 kB │ gzip:   0.39 kB
+dist/assets/purify.es-legacy-CKYsFuZQ.js        30.49 kB │ gzip:  11.09 kB
+dist/assets/polyfills-legacy-yEF4SRJ_.js       167.18 kB │ gzip:  60.13 kB
+dist/assets/index.es-legacy-DT01YvxG.js        172.60 kB │ gzip:  53.45 kB
+dist/assets/html2canvas-legacy-Bfyiw2aD.js     199.43 kB │ gzip:  46.31 kB
+dist/assets/Analytics-legacy-BqJJ5OK3.js       397.92 kB │ gzip: 114.45 kB
+dist/assets/jspdf.es.min-legacy-BD-GWxtt.js    410.66 kB │ gzip: 131.66 kB
+dist/assets/index-legacy-Cs72kGt9.js           889.29 kB │ gzip: 218.66 kB
+
+transforming...✓ 2647 modules transformed.
+rendering chunks...
+computing gzip size...
+[PLUGIN_TIMINGS] Your build spent significant time in plugins. Here is a breakdown:
+  - vite:legacy-post-process (76%)
+  - vite:build-import-analysis (15%)
+See https://rolldown.rs/options/checks#plugintimings for more details.
+
+dist/index.html                           2.47 kB │ gzip:   1.09 kB
+dist/assets/index-BTTZBdBz.css           84.92 kB │ gzip:  13.63 kB
+dist/assets/typeof-B5XbjTb1.js            0.27 kB │ gzip:   0.16 kB
+dist/assets/defineProperty-BbfpZ9Tg.js    0.70 kB │ gzip:   0.39 kB
+dist/assets/purify.es-CzfyfaV-.js        26.12 kB │ gzip:  10.28 kB
+dist/assets/polyfills-DKPIvZDQ.js        61.39 kB │ gzip:  21.77 kB
+dist/assets/index.es-GHkL9ar9.js        151.53 kB │ gzip:  48.91 kB
+dist/assets/html2canvas-M5_JbXQo.js     199.59 kB │ gzip:  46.80 kB
+dist/assets/Analytics-B5eSngsP.js       351.43 kB │ gzip: 104.16 kB
+dist/assets/jspdf.es.min-DLiHyLXM.js    400.01 kB │ gzip: 129.75 kB
+dist/assets/index-D7FnnGI1.js           643.00 kB │ gzip: 178.68 kB
+
+✓ built in 34.39s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

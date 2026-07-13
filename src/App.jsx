@@ -13,6 +13,7 @@ import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
 import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
+import { ToastProvider } from './components/Toast'
 import { applyTheme, resolveStoredTheme, THEME_STORAGE_KEY } from './utils/theme'
 
 const Analytics = lazy(() => import('./pages/Analytics').then((m) => ({ default: m.Analytics })))
@@ -164,9 +165,11 @@ function App() {
     <ErrorBoundary>
       <TelegramProvider>
         <AuthProvider>
-          <ThemeInitializer />
-          <AppContent />
-          {!import.meta.env.PROD && <DebugPanel />}
+          <ToastProvider>
+            <ThemeInitializer />
+            <AppContent />
+            {!import.meta.env.PROD && <DebugPanel />}
+          </ToastProvider>
         </AuthProvider>
       </TelegramProvider>
     </ErrorBoundary>

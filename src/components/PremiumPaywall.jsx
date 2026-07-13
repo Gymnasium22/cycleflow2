@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { Star, Crown, FileText, Check, X } from 'lucide-react'
+import { Star, Crown, FileText, Check, X, BarChart3, Tags, HeartHandshake, Sparkles } from 'lucide-react'
 import { ModalPortal } from './ModalPortal'
 import { Spinner } from './Spinner'
 import { PREMIUM_PRODUCTS, PRODUCTS } from '../lib/products'
 import { usePremium } from '../hooks/usePremium'
 
 /**
- * Premium / Stars paywall modal.
+ * Premium / Stars paywall modal with Analytics-style preview.
  * @param {'premium'|'doctor_report'} mode
  */
 export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
@@ -16,11 +16,12 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
   if (!isOpen) return null
 
   const features = [
-    t('premium.features.history'),
-    t('premium.features.analytics'),
-    t('premium.features.pdf'),
-    t('premium.features.priority'),
-    t('premium.features.export'),
+    { icon: BarChart3, text: t('premium.features.analytics') },
+    { icon: Tags, text: t('premium.features.customSymptoms') },
+    { icon: HeartHandshake, text: t('premium.features.partner') },
+    { icon: FileText, text: t('premium.features.pdf') },
+    { icon: Sparkles, text: t('premium.features.insights') },
+    { icon: Check, text: t('premium.features.history') },
   ]
 
   async function handleBuy(productId) {
@@ -29,8 +30,8 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
   }
 
   return (
-    <ModalPortal>
-      <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <ModalPortal onEscape={onClose}>
+      <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="paywall-title">
         <button
           type="button"
           className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
@@ -41,10 +42,10 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center text-white shadow-md">
-                <Crown size={22} />
+                <Crown size={22} aria-hidden />
               </div>
               <div>
-                <h2 className="font-display text-lg font-semibold">
+                <h2 id="paywall-title" className="font-display text-lg font-semibold">
                   {mode === 'doctor_report' ? t('premium.doctorTitle') : t('premium.title')}
                 </h2>
                 <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -58,20 +59,43 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
               type="button"
               onClick={onClose}
               className="p-2 rounded-xl hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20"
+              aria-label={t('common.cancel')}
             >
               <X size={18} />
             </button>
           </div>
 
           {mode !== 'doctor_report' && (
-            <ul className="space-y-2">
-              {features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm">
-                  <Check size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
+            <>
+              {/* Mock Analytics unlock preview */}
+              <div
+                className="rounded-2xl p-4 text-white bg-gradient-to-br from-violet-500 to-rose-500 shadow-md relative overflow-hidden"
+                aria-hidden
+              >
+                <p className="text-[10px] uppercase tracking-wide text-white/80 font-bold">{t('premium.previewBadge')}</p>
+                <p className="font-display text-3xl font-semibold tabular-nums mt-1">28</p>
+                <p className="text-xs text-white/85">{t('analytics.averageCycle')} · {t('analytics.days')}</p>
+                <div className="mt-3 flex gap-1.5 items-end h-12">
+                  {[40, 70, 55, 85, 60, 75, 90].map((h, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-t-md bg-white/35"
+                      style={{ height: `${h}%` }}
+                    />
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-white/90">{t('premium.previewCaption')}</p>
+              </div>
+
+              <ul className="space-y-2">
+                {features.map((f) => (
+                  <li key={f.text} className="flex items-start gap-2 text-sm">
+                    <f.icon size={16} className="text-emerald-500 shrink-0 mt-0.5" aria-hidden />
+                    <span>{f.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {mode === 'doctor_report' && (
@@ -81,10 +105,7 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
           )}
 
           <div className="space-y-2">
-            {(mode === 'doctor_report'
-              ? [PRODUCTS.doctor_report]
-              : PREMIUM_PRODUCTS
-            ).map((p) => (
+            {(mode === 'doctor_report' ? [PRODUCTS.doctor_report] : PREMIUM_PRODUCTS).map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -111,7 +132,7 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
                     {t(p.descKey)}
                   </p>
                 </div>
-                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-400/20 text-amber-800 font-bold text-sm">
+                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-400/20 text-amber-900 font-bold text-sm">
                   {purchasing ? <Spinner size={14} /> : <Star size={14} className="fill-amber-500 text-amber-500" />}
                   {p.stars}
                 </span>

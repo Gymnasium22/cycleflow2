@@ -11,14 +11,20 @@ import { DayNoteEditor } from '../components/DayNoteEditor'
 import { CycleRingHero } from '../components/CycleRingHero'
 import { StreakBadge } from '../components/StreakBadge'
 import { PremiumPaywall } from '../components/PremiumPaywall'
+import { TodaySummaryCard } from '../components/TodaySummaryCard'
+import { InsightsCard } from '../components/InsightsCard'
 import { getPhaseTheme, CATEGORY_GRADIENTS } from '../utils/phaseTheme'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
 import { useCycles, isPeriodActive, getActivePeriodDay, isPeriodOverdue, getActiveCycle } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import { useMedications } from '../hooks/useMedications'
+import { useMedicationLogs } from '../hooks/useMedicationLogs'
 import { useStreak } from '../hooks/useStreak'
 import { usePremium } from '../hooks/usePremium'
+import { buildCycleInsights, filterInsightsForPlan } from '../utils/insights'
+import { computeMedicationStreak } from '../utils/medStreak'
+import { loadCustomSymptoms } from '../utils/customSymptoms'
 
 import {
   SYMPTOM_CATEGORIES,
@@ -66,6 +72,14 @@ export function Home({ onNavigateToCalendar }) {
   const { symptoms, selections, saveCategorySelection, deleteCategory, isLoading: symptomsLoading } = useSymptoms(todayStr)
   const { streak, recordActivity } = useStreak()
   const { premium } = usePremium()
+  const { logs: medLogs } = useMedicationLogs()
+  const medStreakInfo = useMemo(() => computeMedicationStreak(medLogs), [medLogs])
+  const allInsights = useMemo(() => buildCycleInsights(cycles), [cycles])
+  const visibleInsights = useMemo(
+    () => filterInsightsForPlan(allInsights, premium),
+    [allInsights, premium]
+  )
+  const customSymptoms = useMemo(() => (premium ? loadCustomSymptoms() : []), [premium, symptoms.length])
 
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
   const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
@@ -429,9 +443,27 @@ export function Home({ onNavigateToCalendar }) {
       )}
 
       {periodOverdue && (
-        <p className="text-sm warning-banner-amber text-amber-700 bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-3">
+        <p className="text-sm warning-banner-amber text-amber-800 bg-amber-500/15 border border-amber-500/30 rounded-2xl px-4 py-3">
           {t('home.periodOverdueHint')}
         </p>
+      )}
+
+      {hasCycles && phaseInfo && (
+        <TodaySummaryCard
+          phaseLabel={t(`home.phase.${phaseInfo.key}`)}
+          phaseHint={t(`home.hero.phaseHint.${phaseInfo.key}`)}
+          streak={streak}
+          medStreak={medStreakInfo.streak}
+          onLogWellbeing={() => openSymptomPicker()}
+        />
+      )}
+
+      {visibleInsights.length > 0 && (
+        <InsightsCard
+          insights={visibleInsights}
+          isPremium={premium}
+          onUnlock={() => setShowPremium(true)}
+        />
       )}
 
       <div className="space-y-3">
@@ -458,6 +490,20 @@ export function Home({ onNavigateToCalendar }) {
         <div className="flex flex-wrap gap-2">
           {TEST_SYMPTOM_CHIPS.map(renderSymptomChip)}
         </div>
+
+        {customSymptoms.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {customSymptoms.map((cs) => (
+              <span
+                key={cs.id}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium chip-contrast"
+              >
+                <span aria-hidden>{cs.emoji}</span>
+                {cs.label}
+              </span>
+            ))}
+          </div>
+        )}
 
         {symptoms.length > 0 && (
           <div className="card-elevated p-4 space-y-2">
@@ -487,7 +533,7 @@ export function Home({ onNavigateToCalendar }) {
                 return (
                   <div
                     key={s.id}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/35 text-[var(--tg-theme-text-color,#111827)] flex items-center gap-2 group"
+                    className="px-3 py-1.5 rounded-full text-xs font-medium chip-contrast flex items-center gap-2 group"
                   >
                     <button
                       type="button"

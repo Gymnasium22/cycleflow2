@@ -1,0 +1,32 @@
+---
+pid: 9924
+cwd: "D:\cikl3"
+command: "Start-Sleep -Seconds 90; $runs = Invoke-RestMethod -Uri \"https://api.github.com/repos/Gymnasium22/cycleflow2/actions/runs?per_page=3\"; $run = $runs.workflow_runs[0]; Write-Host \"Run #$($run.run_number) status=$($run.status) conclusion=$($run.conclusion)\"; $jobs = Invoke-RestMethod -Uri $run.jobs_url; $jobs.jobs | ForEach-Object { \"$($_.name): $($_.conclusion)\"; $_.steps | Where-Object { $_.conclusion -eq 'failure' } | ForEach-Object { \"  FAIL: $($_.name)\" } }"
+started_at: 2026-07-06T11:18:17.480Z
+running_for_ms: 5874994  
+---
+Run # status= conclusion=Invoke-RestMethod : ��������� ᮥ�������� � 㤠����� �ࢥ஬
+
+: 
+��ப�:1 ����:34
++ ... 90; $runs = Invoke-RestMethod -Uri "https://api.github.com/repos/Gymn ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (System.Net.HttpWebRequest:HttpWebRequest) [Invoke-RestMethod], WebExc 
+   eption
+    + FullyQualifiedErrorId : WebCmdletWebResponseException,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+ 
+� 㤠���� ������஢��� � ���ᨢ NULL.
+��ப�:1 ����:136
++ ... flow2/actions/runs?per_page=3"; $run = $runs.workflow_runs[0]; Write- ...
++                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
+    + FullyQualifiedErrorId : NullArray
+ 
+Invoke-RestMethod : � 㤠���� �஢���� ��㬥�� ��� ��ࠬ��� "Uri". �㬥�� ���⮩ ��� ����� ���祭�� NULL. �����
+ �����⮩ ��㬥��, �� ����騩 ���祭�� NULL, ��᫥ 祣� ������ �믮������ �������.
+��ப�:1 ����:288
++ ... un.conclusion)"; $jobs = Invoke-RestMethod -Uri $run.jobs_url; $jobs. ...
++                                                     ~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Invoke-RestMethod], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationError,Microsoft.PowerShell.Commands.InvokeRestMethodCommand
+ 

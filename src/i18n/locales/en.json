@@ -146,7 +146,9 @@
     "adherence": "adherence",
     "often": "often",
     "times": "times",
-    "needMoreData": "At least 2 period records are needed for accurate predictions. Profile settings are used for now.",
+    "needMoreData": "Log at least 2 periods to unlock charts and richer patterns. Your profile defaults are used until then.",
+    "emptyTitle": "Analytics needs a little more history",
+    "medStreakLine": "Medication streak: {{count}} days · adherence {{adherence}}%",
     "chartCycle": "Cycle",
     "chartPeriod": "Period",
     "personalInsight": "Personal insight",
@@ -292,7 +294,67 @@
     "next": "Next",
     "back": "Back",
     "start": "Get started",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "themeTitle": "Choose your look",
+    "themeHint": "You can change this anytime in Settings — we will remember it."
+  },
+  "todayCard": {
+    "title": "Today",
+    "aria": "Today’s summary",
+    "noPhase": "Start logging your cycle",
+    "cta": "How do you feel?",
+    "medStreak": "Meds {{count}}d"
+  },
+  "insights": {
+    "title": "Patterns from your logs",
+    "disclaimer": "Educational patterns only — not a diagnosis or medical advice.",
+    "unlockMore": "Unlock more insights with Premium",
+    "shorterStreak": "Your last {{count}} cycles were shorter than your usual average (about {{avg}} days).",
+    "longerStreak": "Your last {{count}} cycles were longer than your usual average (about {{avg}} days).",
+    "stable": "Your recent cycles look fairly steady around {{avg}} days.",
+    "variable": "Cycle length has varied (about {{range}} days) — logging more helps refine forecasts.",
+    "periodAvg": "Your logged period length averages about {{days}} days.",
+    "trendingShorter": "Recent cycles trend a bit shorter than your earlier ones.",
+    "trendingLonger": "Recent cycles trend a bit longer than your earlier ones.",
+    "keepLogging": "You have {{count}} cycle(s) logged — keep going for clearer patterns."
+  },
+  "customSymptoms": {
+    "title": "Custom tags",
+    "hint": "Add your own wellbeing labels (Premium).",
+    "unlock": "Unlock custom tags",
+    "placeholder": "e.g. Migraine aura",
+    "empty": "No custom tags yet."
+  },
+  "partner": {
+    "title": "Partner share",
+    "hint": "Share a read-only summary (next period, ovulation, phase) — no private notes. Requires consent.",
+    "consent": "I understand a partner can see forecast dates and phase only, not my notes or symptoms.",
+    "enable": "Create partner link",
+    "disable": "Turn off partner share",
+    "unlock": "Unlock partner share",
+    "enabled": "Partner share is on",
+    "disabled": "Partner share is off",
+    "refresh": "Refresh summary",
+    "linkCopied": "Partner link copied"
+  },
+  "calendarExport": {
+    "button": "Add forecasts to calendar (.ics)",
+    "period": "Expected period",
+    "ovulation": "Expected ovulation",
+    "periodHint": "Forecast from Kolechko — not medical advice.",
+    "ovulationHint": "Estimated fertile peak — not contraception.",
+    "done": "Calendar file ready",
+    "failed": "Could not create calendar file"
+  },
+  "referral": {
+    "title": "Invite a friend",
+    "hint": "Share Kolechko. When a friend joins and makes their first Stars purchase, you both get 7 days of Premium.",
+    "share": "Share link",
+    "copy": "Copy",
+    "copied": "Invite text copied",
+    "copyFailed": "Could not copy — long-press the link",
+    "qrAlt": "QR code for invite link",
+    "shareText": "Track your cycle with {{app}} 🌸 {{link}}"
   },
   "premium": {
     "title": "Kolechko Premium",
@@ -305,11 +367,16 @@
     "quickBuy1m": "Or buy 1 month instantly (250 ⭐)",
     "popular": "Popular",
     "bestValue": "Best value",
+    "previewBadge": "Premium Analytics preview",
+    "previewCaption": "Deeper charts, custom tags, partner share & more",
     "doctorHint": "You have {{credits}} report credit(s). Premium includes unlimited doctor PDFs.",
     "starsHint": "Stars are purchased via App Store, Google Play, or @PremiumBot. Digital goods only — no refunds for consumed content per Telegram policy.",
     "features": {
       "history": "Unlimited cycle history (no free-tier cap)",
       "analytics": "Advanced patterns and phase insights",
+      "customSymptoms": "Custom wellbeing tags",
+      "partner": "Partner read-only share link",
+      "insights": "Full smart insights pack",
       "pdf": "Unlimited doctor-ready PDF reports",
       "priority": "Priority reminder delivery window",
       "export": "Full data export anytime"
@@ -331,13 +398,6 @@
     "errors": {
       "generic": "Payment could not be completed"
     }
-  },
-  "referral": {
-    "title": "Invite a friend",
-    "hint": "Share Kolechko with a friend. When they join and make their first Stars purchase, you both get 7 days of Premium.",
-    "share": "Share invite link",
-    "copied": "Invite text copied",
-    "shareText": "Track your cycle with {{app}} 🌸 {{link}}"
   },
   "gamification": {
     "streak": "{{count}}-day streak",

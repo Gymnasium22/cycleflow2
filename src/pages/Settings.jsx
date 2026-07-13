@@ -17,12 +17,17 @@ import {
   Share2,
   Shield,
   Scale,
+  Copy,
+  CalendarPlus,
 } from 'lucide-react'
 import { Spinner } from '../components/Spinner'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { PremiumPaywall } from '../components/PremiumPaywall'
+import { CustomSymptomsPanel } from '../components/CustomSymptomsPanel'
+import { PartnerSharePanel } from '../components/PartnerSharePanel'
 import { useTelegram } from '../context/TelegramContext'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../components/Toast'
 import { supabase } from '../lib/supabase'
 import { useSettings } from '../hooks/useSettings'
 import { useCycles } from '../hooks/useCycles'
@@ -30,11 +35,19 @@ import { usePremium } from '../hooks/usePremium'
 import {
   DEFAULT_CYCLE_LENGTH,
   DEFAULT_PERIOD_LENGTH,
+  getAverageCycleLength,
+  getAveragePeriodLength,
+  getNextPeriodDateFromHistory,
+  getUpcomingOvulationDateFromHistory,
+  getPhaseForDate,
+  toISODateString,
 } from '../utils/cycle'
 import { persistTheme, AVAILABLE_THEMES, THEME_STORAGE_KEY } from '../utils/theme'
 import { createDebouncedSaver, normalizeNotifyTime } from '../utils/settingsDraft'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
 import { downloadDoctorReport } from '../utils/doctorReport'
+import { buildForecastIcs, downloadIcs } from '../utils/calendarExport'
+import { copyText, openTelegramShare } from '../lib/clipboard'
 
 const THEME_BACKGROUNDS = {
   telegram: 'from-blue-400 to-blue-600',
@@ -87,6 +100,8 @@ export function Settings() {
   const [shareHint, setShareHint] = useState(false)
 
   const { hapticFeedback, webApp } = useTelegram()
+  const { showToast } = useToast()
+  const [savePulse, setSavePulse] = useState(false)
 
   // Skip hydrating-triggered auto-save once after load
   const skipAutoSaveRef = useRef(true)
@@ -98,8 +113,12 @@ export function Settings() {
 
   const showSavedMessage = useCallback(() => {
     setSaved(true)
+    setSavePulse(true)
+    showToast(t('common.saved'))
+    hapticFeedback.notification('success')
     setTimeout(() => setSaved(false), 2000)
-  }, [])
+    setTimeout(() => setSavePulse(false), 600)
+  }, [showToast, t, hapticFeedback])
 
   // Debounced savers that FLUSH on unmount (leaving Settings tab used to cancel timers)
   const settingsSaverRef = useRef(null)
@@ -338,32 +357,98 @@ export function Settings() {
     }
   }
 
+  function getReferralLink(code) {
+    return `https://t.me/${BOT_USERNAME}?start=ref_${code}`
+  }
+
+  async function copyReferral() {
+    hapticFeedback.impact('light')
+    const code = referralCode || (await ensureReferralCode())
+    if (!code) {
+      showToast(t('referral.copyFailed'))
+      return
+    }
+    const link = getReferralLink(code)
+    const text = t('referral.shareText', { link, app: t('app.title') })
+    const ok = await copyText(text)
+    if (ok) {
+      setShareHint(true)
+      showToast(t('referral.copied'))
+      setTimeout(() => setShareHint(false), 2500)
+    } else {
+      // Last resort: show link via Telegram popup so user can long-press
+      try {
+        webApp?.showPopup?.({
+          title: t('referral.title'),
+          message: link,
+          buttons: [{ type: 'close' }],
+        })
+      } catch {
+        showToast(t('referral.copyFailed'))
+      }
+    }
+  }
+
   async function shareReferral() {
     hapticFeedback.impact('light')
     const code = referralCode || (await ensureReferralCode())
-    if (!code) return
-    const link = `https://t.me/${BOT_USERNAME}?start=ref_${code}`
+    if (!code) {
+      showToast(t('referral.copyFailed'))
+      return
+    }
+    const link = getReferralLink(code)
     const text = t('referral.shareText', { link, app: t('app.title') })
+
+    // 1) Telegram native share sheet (most reliable in Mini Apps)
+    if (openTelegramShare(link, text)) {
+      return
+    }
+
+    // 2) Web Share API
     try {
-      if (webApp?.openTelegramLink) {
-        // Prefer system share if available
-        if (navigator.share) {
-          await navigator.share({ text, url: link })
-        } else if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text)
-          setShareHint(true)
-          setTimeout(() => setShareHint(false), 2500)
-        } else {
-          webApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`)
-        }
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text)
-        setShareHint(true)
-        setTimeout(() => setShareHint(false), 2500)
+      if (navigator.share) {
+        await navigator.share({ title: t('app.title'), text, url: link })
+        return
       }
     } catch {
-      // user cancelled share
+      // cancelled or unsupported — fall through to copy
     }
+
+    // 3) Copy
+    await copyReferral()
+  }
+
+  function exportCalendarIcs() {
+    hapticFeedback.impact('light')
+    try {
+      const avgC = getAverageCycleLength(cycles, cycleLength)
+      const avgP = getAveragePeriodLength(cycles, periodLength)
+      const ics = buildForecastIcs({
+        cycles,
+        cycleLength: avgC,
+        periodLength: avgP,
+        count: 6,
+        appName: t('app.title'),
+        labels: {
+          period: t('calendarExport.period'),
+          ovulation: t('calendarExport.ovulation'),
+          periodHint: t('calendarExport.periodHint'),
+          ovulationHint: t('calendarExport.ovulationHint'),
+        },
+      })
+      downloadIcs(`kolechko-forecast-${toISODateString(new Date())}.ics`, ics)
+      showToast(t('calendarExport.done'))
+      hapticFeedback.notification('success')
+    } catch (e) {
+      console.error(e)
+      showToast(t('calendarExport.failed'))
+    }
+  }
+
+  async function handleCopyAny(text, toastMsg) {
+    const ok = await copyText(text)
+    if (ok) showToast(toastMsg || t('referral.copied'))
+    else showToast(t('referral.copyFailed'))
   }
 
   return (
@@ -412,30 +497,79 @@ export function Settings() {
         </button>
       </div>
 
-      {/* Referral */}
+      {/* Referral — free viral loop */}
       <div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2">
-          <Users size={20} className="text-violet-500" />
+          <Users size={20} className="text-violet-500" aria-hidden />
           <span className="font-semibold">{t('referral.title')}</span>
         </div>
         <p className="text-sm text-[var(--tg-theme-hint-color,#6b7280)]">{t('referral.hint')}</p>
         {referralCode && (
-          <p className="text-xs font-mono px-3 py-2 rounded-xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25">
-            {referralCode}
-          </p>
+          <>
+            <p className="text-xs font-mono px-3 py-2 rounded-xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25 break-all">
+              {getReferralLink(referralCode)}
+            </p>
+            <div className="flex justify-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(getReferralLink(referralCode))}`}
+                alt={t('referral.qrAlt')}
+                width={160}
+                height={160}
+                className="rounded-xl border border-[var(--tg-theme-hint-color,#d1d5db)]/25 bg-white p-2"
+                loading="lazy"
+              />
+            </div>
+          </>
         )}
-        <button
-          type="button"
-          onClick={shareReferral}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25 font-semibold text-sm hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/15"
-        >
-          <Share2 size={16} />
-          {t('referral.share')}
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={copyReferral}
+            className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25 font-semibold text-sm"
+          >
+            <Copy size={16} aria-hidden />
+            {t('referral.copy')}
+          </button>
+          <button
+            type="button"
+            onClick={shareReferral}
+            className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold text-sm"
+          >
+            <Share2 size={16} aria-hidden />
+            {t('referral.share')}
+          </button>
+        </div>
         {shareHint && (
           <p className="text-xs text-center text-[var(--accent-success-deep)]">{t('referral.copied')}</p>
         )}
       </div>
+
+      <CustomSymptomsPanel
+        isPremium={premium}
+        onNeedPremium={() => {
+          setPaywallMode('premium')
+          setShowPremium(true)
+        }}
+      />
+
+      <PartnerSharePanel
+        isPremium={premium}
+        onNeedPremium={() => {
+          setPaywallMode('premium')
+          setShowPremium(true)
+        }}
+        snapshotArgs={{
+          cycles,
+          avgCycle: getAverageCycleLength(cycles, cycleLength),
+          avgPeriod: getAveragePeriodLength(cycles, periodLength),
+          nextPeriod: getNextPeriodDateFromHistory(cycles, getAverageCycleLength(cycles, cycleLength)),
+          ovulation: getUpcomingOvulationDateFromHistory(cycles, getAverageCycleLength(cycles, cycleLength)),
+          phase: getPhaseForDate(new Date(), cycles, getAverageCycleLength(cycles, cycleLength), getAveragePeriodLength(cycles, periodLength)),
+          streak: profile?.log_streak || 0,
+        }}
+        onCopy={handleCopyAny}
+        onToast={showToast}
+      />
 
       {/* Language */}
       <div className="card-elevated p-4 space-y-3">
@@ -506,7 +640,7 @@ export function Settings() {
       </div>
 
       {/* Cycle settings — auto-saved */}
-      <div className="card-elevated p-4 space-y-4">
+      <div className={`card-elevated p-4 space-y-4 transition-shadow duration-500 ${savePulse ? 'ring-2 ring-emerald-400/60 shadow-lg shadow-emerald-500/10' : ''}`}>
         <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.autoSaveHint')}</p>
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm font-semibold text-[var(--tg-theme-text-color,#111827)]">
@@ -518,7 +652,10 @@ export function Settings() {
             min="21"
             max="35"
             value={cycleLength}
-            onChange={(e) => setCycleLength(Number(e.target.value))}
+            onChange={(e) => {
+              hapticFeedback.impact('light')
+              setCycleLength(Number(e.target.value))
+            }}
             className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
           />
           <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -540,7 +677,10 @@ export function Settings() {
             min="2"
             max="8"
             value={periodLength}
-            onChange={(e) => setPeriodLength(Number(e.target.value))}
+            onChange={(e) => {
+              hapticFeedback.impact('light')
+              setPeriodLength(Number(e.target.value))
+            }}
             className="w-full accent-[var(--tg-theme-button-color,#e11d48)]"
           />
           <div className="flex justify-between text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
@@ -659,6 +799,14 @@ export function Settings() {
           <span className="font-semibold">{t('settings.data')}</span>
         </div>
         <p className="text-xs text-[var(--text-muted)]">{t('settings.exportHint')}</p>
+        <button
+          type="button"
+          onClick={exportCalendarIcs}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/25 text-[var(--tg-theme-text-color,#111827)] font-semibold"
+        >
+          <CalendarPlus size={18} aria-hidden />
+          {t('calendarExport.button')}
+        </button>
         <button
           onClick={exportDoctorPdf}
           disabled={isExportingPdf}

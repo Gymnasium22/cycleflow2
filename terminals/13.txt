@@ -1,0 +1,25 @@
+---
+pid: 1520
+cwd: "D:\cikl3"
+command: "cd D:\\cikl3; npm ci 2>&1"
+started_at: 2026-07-06T11:15:41.640Z
+running_for_ms: 6029989  
+---
+npm warn deprecated @telegram-apps/types@2.0.3: This package is not supported anymore. Use @tma.js/types instead
+npm warn deprecated @telegram-apps/transformers@2.2.6: This package is not supported anymore. Use @tma.js/transfomers instead
+npm warn deprecated @telegram-apps/bridge@2.11.0: This package is not supported anymore. Use @tma.js/bridge instead
+
+added 356 packages, and audited 357 packages in 30s
+
+53 packages are looking for funding
+  run `npm fund` for details
+
+5 high severity vulnerabilities
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
