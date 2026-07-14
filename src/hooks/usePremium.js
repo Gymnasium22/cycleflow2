@@ -141,39 +141,60 @@ export function usePremium() {
 
         const data = await response.json().catch(() => ({}))
         if (!response.ok || !data.invoiceLink) {
-          const detail = data.detail ? ` (${data.detail})` : ''
-          setLastError((data.error || 'INVOICE_FAILED') + detail)
+          const detail = data.detail || data.details || data.hint || ''
+          setLastError((data.error || 'INVOICE_FAILED') + (detail ? ` (${detail})` : ''))
           console.error('[usePremium] invoice failed', response.status, data)
           setPurchasing(false)
           hapticFeedback.notification('error')
           return 'failed'
         }
 
+        // openInvoice accepts the full link from createInvoiceLink (https://t.me/$...)
+        const invoiceUrl = String(data.invoiceLink).trim()
+        console.log('[usePremium] opening invoice', invoiceUrl.slice(0, 48))
+
         // openInvoice is the Mini App payment entry point for Stars
         if (webApp?.openInvoice) {
           return await new Promise((resolve) => {
-            webApp.openInvoice(data.invoiceLink, async (status) => {
-              if (status === 'paid') {
-                hapticFeedback.notification('success')
-                // Webhook updates DB; poll profile a few times for realtime UX
-                for (let i = 0; i < 5; i++) {
-                  await new Promise((r) => setTimeout(r, 600))
-                  const fresh = await refreshProfile()
-                  if (fresh && (isPremiumActive(fresh) || (fresh.doctor_report_credits || 0) > reportCredits)) {
-                    break
+            try {
+              webApp.openInvoice(invoiceUrl, async (status) => {
+                if (status === 'paid') {
+                  hapticFeedback.notification('success')
+                  for (let i = 0; i < 5; i++) {
+                    await new Promise((r) => setTimeout(r, 600))
+                    const fresh = await refreshProfile()
+                    if (
+                      fresh &&
+                      (isPremiumActive(fresh) || (fresh.doctor_report_credits || 0) > reportCredits)
+                    ) {
+                      break
+                    }
                   }
+                } else if (status === 'failed') {
+                  hapticFeedback.notification('error')
+                  setLastError('WebAppInvoiceFailed')
+                } else if (status === 'cancelled') {
+                  // user closed sheet — not an error toast storm
+                } else if (status === 'pending') {
+                  // keep quiet
+                } else {
+                  // e.g. invalid url surfaces as failed in some clients
+                  setLastError(String(status || 'INVOICE_STATUS'))
                 }
-              } else if (status === 'failed') {
-                hapticFeedback.notification('error')
-              }
+                setPurchasing(false)
+                resolve(status)
+              })
+            } catch (openErr) {
+              console.error('[usePremium] openInvoice throw', openErr)
+              setLastError(openErr?.message || 'WebAppInvoiceUrlInvalid')
               setPurchasing(false)
-              resolve(status)
-            })
+              resolve('failed')
+            }
           })
         }
 
         // Fallback outside Telegram: open link
-        window.open(data.invoiceLink, '_blank')
+        window.open(invoiceUrl, '_blank')
         setPurchasing(false)
         return 'pending'
       } catch (err) {

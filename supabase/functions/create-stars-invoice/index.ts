@@ -228,25 +228,44 @@ serve(async (req) => {
       console.error('[create-stars-invoice] insert pending:', insertError)
     }
 
+    // Stars (XTR): provider_token must be OMITTED (not empty string) — Bot API changelog.
+    // payload max 128 bytes; prices must be exactly one item for XTR.
+    const safePayload = payload.slice(0, 128)
     const invoiceBody: Record<string, unknown> = {
       title: product.title.slice(0, 32),
       description: product.description.slice(0, 255),
-      payload,
-      provider_token: '',
+      payload: safePayload,
       currency: 'XTR',
-      prices: [{ label: product.title.slice(0, 32), amount: product.stars }],
+      prices: [{ label: product.title.slice(0, 32), amount: Number(product.stars) }],
     }
 
+    // Subscriptions: only attach if product requests it (Bot API: 2592000 = 30 days)
     if (product.kind === 'subscription' && product.subscriptionPeriod) {
       invoiceBody.subscription_period = product.subscriptionPeriod
     }
 
-    const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/createInvoiceLink`, {
+    let tgRes = await fetch(`https://api.telegram.org/bot${botToken}/createInvoiceLink`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(invoiceBody),
     })
-    const tgData = await tgRes.json()
+    let tgData = await tgRes.json()
+
+    // If subscription invoices are not enabled for this bot, retry as one-time Stars charge
+    if (
+      !tgData.ok &&
+      invoiceBody.subscription_period &&
+      typeof tgData.description === 'string'
+    ) {
+      console.warn('[create-stars-invoice] subscription invoice failed, retry one-time', tgData)
+      delete invoiceBody.subscription_period
+      tgRes = await fetch(`https://api.telegram.org/bot${botToken}/createInvoiceLink`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceBody),
+      })
+      tgData = await tgRes.json()
+    }
 
     if (!tgData.ok || !tgData.result) {
       console.error('[create-stars-invoice] Telegram error:', tgData)
@@ -254,17 +273,25 @@ serve(async (req) => {
         {
           error: 'Failed to create invoice',
           details: tgData.description || 'Telegram API error',
+          // Helps debug wrong-bot-token vs API validation without leaking the token
+          hint: 'Invoice bot token must be the same bot as the Mini App (@my_cicle_bot).',
         },
         502,
         origin
       )
     }
 
-    console.log('[create-stars-invoice] ok', { userId, productId: product.id, authVia })
+    const invoiceLink = String(tgData.result).trim()
+    console.log('[create-stars-invoice] ok', {
+      userId,
+      productId: product.id,
+      authVia,
+      linkPrefix: invoiceLink.slice(0, 32),
+    })
 
     return jsonResponse(
       {
-        invoiceLink: tgData.result,
+        invoiceLink,
         product: {
           id: product.id,
           title: product.title,
