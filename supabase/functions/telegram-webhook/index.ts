@@ -194,17 +194,44 @@ serve(async (req) => {
     const admin = createClient(sbUrl, serviceKey)
 
     // --- pre_checkout_query ---
+    // Must answer within ~10s or Telegram shows a transaction error.
     if (update.pre_checkout_query) {
       const q = update.pre_checkout_query
-      const payload = parseInvoicePayload(q.invoice_payload || '')
+      const rawPayload = q.invoice_payload || ''
+      const payload = parseInvoicePayload(rawPayload)
       const product = payload ? getProduct(payload.productId) : null
-      const ok = !!(product && q.currency === 'XTR')
-      await tg(botToken, 'answerPreCheckoutQuery', {
+      // Stars digital goods: currency is XTR (case-insensitive). Approve only known catalog SKUs.
+      const currencyOk = String(q.currency || '').toUpperCase() === 'XTR'
+      const ok = !!(product && currencyOk)
+
+      console.log('[webhook] pre_checkout', {
+        ok,
+        currency: q.currency,
+        payload: rawPayload,
+        productId: payload?.productId,
+        known: !!product,
+        total: q.total_amount,
+      })
+
+      const answer = await tg(botToken, 'answerPreCheckoutQuery', {
         pre_checkout_query_id: q.id,
         ok,
-        error_message: ok ? undefined : 'Invalid product or currency',
+        ...(ok
+          ? {}
+          : {
+              error_message: !currencyOk
+                ? 'Unsupported currency'
+                : !payload
+                  ? 'Invalid invoice payload'
+                  : !product
+                    ? `Unknown product: ${payload.productId}`
+                    : 'Payment rejected',
+            }),
       })
-      return new Response(JSON.stringify({ ok: true }), {
+      if (!answer?.ok) {
+        console.error('[webhook] answerPreCheckoutQuery failed', answer)
+      }
+      return new Response(JSON.stringify({ ok: true, approved: ok }), {
         headers: { 'Content-Type': 'application/json' },
       })
     }
