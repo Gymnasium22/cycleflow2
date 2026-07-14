@@ -24,7 +24,11 @@ import { useStreak } from '../hooks/useStreak'
 import { usePremium } from '../hooks/usePremium'
 import { buildCycleInsights, filterInsightsForPlan } from '../utils/insights'
 import { computeMedicationStreak } from '../utils/medStreak'
-import { loadCustomSymptoms } from '../utils/customSymptoms'
+import {
+  loadCustomSymptoms,
+  CUSTOM_CATEGORY_ID,
+  buildCustomCategory,
+} from '../utils/customSymptoms'
 
 import {
   SYMPTOM_CATEGORIES,
@@ -79,13 +83,25 @@ export function Home({ onNavigateToCalendar }) {
     () => filterInsightsForPlan(allInsights, premium),
     [allInsights, premium]
   )
-  const customSymptoms = useMemo(() => (premium ? loadCustomSymptoms() : []), [premium, symptoms.length])
-
   const [showSymptomPicker, setShowSymptomPicker] = useState(false)
   const [symptomPickerCategory, setSymptomPickerCategory] = useState(null)
   const [showMedicationManage, setShowMedicationManage] = useState(false)
   const [showPremium, setShowPremium] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null, destructive: false })
+  const [customTick, setCustomTick] = useState(0)
+
+  // Reload custom tags when list may have changed (settings) or after logging
+  const customSymptoms = useMemo(
+    () => (premium ? loadCustomSymptoms() : []),
+    [premium, symptoms.length, customTick, showSymptomPicker]
+  )
+  const labelCategories = useMemo(() => {
+    const map = { ...SYMPTOM_CATEGORIES }
+    if (customSymptoms.length > 0) {
+      map[CUSTOM_CATEGORY_ID] = buildCustomCategory(customSymptoms)
+    }
+    return map
+  }, [customSymptoms])
 
   const { hapticFeedback } = useTelegram()
 
@@ -212,7 +228,9 @@ export function Home({ onNavigateToCalendar }) {
   async function handleDeleteSymptomCategory(categoryId) {
     openConfirmDialog({
       title: t('home.dialogs.deleteSymptomTitle'),
-      message: t('home.dialogs.deleteSymptomMessage', { category: getCategoryLabel(categoryId, i18n.language) }),
+      message: t('home.dialogs.deleteSymptomMessage', {
+        category: getCategoryLabel(categoryId, i18n.language, labelCategories),
+      }),
       confirmText: t('common.delete'),
       cancelText: t('common.cancel'),
       destructive: true,
@@ -492,16 +510,30 @@ export function Home({ onNavigateToCalendar }) {
         </div>
 
         {customSymptoms.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {customSymptoms.map((cs) => (
-              <span
-                key={cs.id}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium chip-contrast"
+          <div className="space-y-1.5">
+            <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">
+              {t('customSymptoms.homeHint')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openSymptomPicker(CUSTOM_CATEGORY_ID)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium glass-panel text-[var(--tg-theme-text-color,#111827)] hover:elevation-1 active:scale-[0.97] bg-gradient-to-br ${CATEGORY_GRADIENTS.custom || ''}`}
               >
-                <span aria-hidden>{cs.emoji}</span>
-                {cs.label}
-              </span>
-            ))}
+                ✨ {t('customSymptoms.categoryChip')}
+              </button>
+              {customSymptoms.slice(0, 6).map((cs) => (
+                <button
+                  key={cs.id}
+                  type="button"
+                  onClick={() => openSymptomPicker(CUSTOM_CATEGORY_ID)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium chip-contrast active:scale-[0.97]"
+                >
+                  <span aria-hidden>{cs.emoji}</span>
+                  {cs.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -526,7 +558,10 @@ export function Home({ onNavigateToCalendar }) {
                     return { selectedIds: [], comment: '' }
                   }
                 })()
-                const labels = parsedNotes.selectedIds.map((id) => `${getOptionEmoji(s.symptom_type, id)} ${getOptionLabel(s.symptom_type, id, i18n.language)}`)
+                const labels = parsedNotes.selectedIds.map(
+                  (id) =>
+                    `${getOptionEmoji(s.symptom_type, id, labelCategories)} ${getOptionLabel(s.symptom_type, id, i18n.language, labelCategories)}`
+                )
                 if (s.intensity) labels.push(`${s.intensity}/3`)
                 if (parsedNotes.comment) labels.push(`💬 ${parsedNotes.comment}`)
 
@@ -540,7 +575,9 @@ export function Home({ onNavigateToCalendar }) {
                       onClick={() => openSymptomPicker(s.symptom_type)}
                       className="flex items-center gap-2 min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
                     >
-                      <span className="font-semibold shrink-0">{getCategoryLabel(s.symptom_type, i18n.language)}:</span>
+                      <span className="font-semibold shrink-0">
+                        {getCategoryLabel(s.symptom_type, i18n.language, labelCategories)}:
+                      </span>
                       <span className="truncate max-w-[200px]">{labels.join(' · ') || '—'}</span>
                     </button>
                     <button
@@ -564,12 +601,14 @@ export function Home({ onNavigateToCalendar }) {
         onClose={() => {
           setShowSymptomPicker(false)
           setSymptomPickerCategory(null)
+          setCustomTick((n) => n + 1)
         }}
         defaultOpenCategory={symptomPickerCategory}
         initialSelections={selections}
         onSaveCategory={handleSaveCategory}
         onDeleteCategory={handleDeleteCategory}
         loading={symptomsLoading}
+        customSymptoms={customSymptoms}
       />
 
       <MedicationManageModal

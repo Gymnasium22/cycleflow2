@@ -223,5 +223,70 @@ export async function downloadDoctorReport({
 
   const slug = appName.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/^-|-$/g, '') || 'report'
   const datePart = new Date().toISOString().split('T')[0]
-  doc.save(`${slug}-doctor-report-${datePart}.pdf`)
+  const filename = `${slug}-doctor-report-${datePart}.pdf`
+
+  // Telegram WebView often ignores doc.save() — use blob + share/download fallbacks
+  const blob = doc.output('blob')
+  return savePdfBlob(blob, filename)
+}
+
+/**
+ * Save/share PDF in browser and Telegram Mini App environments.
+ */
+export async function savePdfBlob(blob, filename) {
+  const file = new File([blob], filename, { type: 'application/pdf' })
+
+  // 1) Web Share Level 2 (works in many mobile WebViews including some Telegram builds)
+  try {
+    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: filename,
+      })
+      return 'shared'
+    }
+  } catch (err) {
+    // User cancelled share or unsupported — continue
+    if (err?.name === 'AbortError') return 'cancelled'
+  }
+
+  const url = URL.createObjectURL(blob)
+
+  // 2) Classic <a download> (desktop + some Android Telegram)
+  try {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.rel = 'noopener'
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } catch (err) {
+    console.warn('[pdf] anchor download failed', err)
+  }
+
+  // 3) Open blob in same/new context so user can "Share" / "Save" from viewer
+  try {
+    const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : null
+    // Prefer opening the blob URL; openLink only accepts http(s) remote URLs
+    const opened = window.open(url, '_blank')
+    if (!opened && tg) {
+      // Popup blocked — leave object URL and show no throw; caller shows toast
+      console.warn('[pdf] window.open blocked in WebView')
+    }
+  } catch (err) {
+    console.warn('[pdf] open blob failed', err)
+  }
+
+  // Revoke later so open/download can finish
+  setTimeout(() => {
+    try {
+      URL.revokeObjectURL(url)
+    } catch {
+      // ignore
+    }
+  }, 60_000)
+
+  return 'download'
 }

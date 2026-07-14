@@ -1,4 +1,7 @@
+import { Sparkles } from 'lucide-react'
+
 const STORAGE_KEY = 'cicle_custom_symptoms'
+export const CUSTOM_CATEGORY_ID = 'custom'
 export const MAX_CUSTOM_SYMPTOMS_FREE = 0
 export const MAX_CUSTOM_SYMPTOMS_PREMIUM = 20
 
@@ -24,4 +27,47 @@ export function createCustomSymptom({ label, emoji = '✨' }) {
     label: (label || '').trim().slice(0, 40),
     created_at: new Date().toISOString(),
   }
+}
+
+/**
+ * Build a SymptomPicker category from user-defined tags so they can be
+ * selected, given intensity, saved and shown in "logged today".
+ */
+export function buildCustomCategory(list = []) {
+  const options = (list || [])
+    .filter((s) => s?.id && s?.label)
+    .map((s) => ({
+      id: s.id,
+      emoji: s.emoji || '✨',
+      labels: {
+        ru: s.label,
+        en: s.label,
+      },
+    }))
+
+  return {
+    id: CUSTOM_CATEGORY_ID,
+    mode: 'multiple',
+    hasIntensity: true,
+    icon: Sparkles,
+    labels: {
+      ru: 'Мои теги',
+      en: 'My tags',
+    },
+    intensityLabels: {
+      ru: ['Слабо', 'Средне', 'Сильно'],
+      en: ['Mild', 'Moderate', 'Severe'],
+    },
+    options,
+  }
+}
+
+export function resolveCustomOptionLabel(optionId, list = []) {
+  const item = (list || []).find((s) => s.id === optionId)
+  return item?.label || optionId
+}
+
+export function resolveCustomOptionEmoji(optionId, list = []) {
+  const item = (list || []).find((s) => s.id === optionId)
+  return item?.emoji || '✨'
 }

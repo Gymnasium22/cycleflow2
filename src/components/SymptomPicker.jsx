@@ -12,11 +12,12 @@ import {
   getOptionLabel,
   getOptionEmoji,
 } from '../data/symptomCategories'
+import { CUSTOM_CATEGORY_ID, buildCustomCategory, loadCustomSymptoms } from '../utils/customSymptoms'
 
-function getSelectedSummary(categoryId, selection, lang) {
+function getSelectedSummary(categoryId, selection, lang, categories) {
   if (!selection?.selectedIds?.length) return ''
   return selection.selectedIds
-    .map((id) => `${getOptionEmoji(categoryId, id)} ${getOptionLabel(categoryId, id, lang)}`)
+    .map((id) => `${getOptionEmoji(categoryId, id, categories)} ${getOptionLabel(categoryId, id, lang, categories)}`)
     .join(' · ')
 }
 
@@ -28,9 +29,32 @@ export function SymptomPicker({
   onDeleteCategory,
   loading,
   defaultOpenCategory = null,
+  /** Optional list of custom tags; if omitted, loads from localStorage */
+  customSymptoms: customSymptomsProp = null,
 }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language === 'ru' ? 'ru' : 'en'
+
+  const customList = useMemo(() => {
+    if (Array.isArray(customSymptomsProp)) return customSymptomsProp
+    return loadCustomSymptoms()
+  }, [customSymptomsProp, isOpen])
+
+  const categories = useMemo(() => {
+    const map = { ...SYMPTOM_CATEGORIES }
+    if (customList.length > 0) {
+      map[CUSTOM_CATEGORY_ID] = buildCustomCategory(customList)
+    }
+    return map
+  }, [customList])
+
+  const categoryOrder = useMemo(() => {
+    const order = SYMPTOM_CATEGORY_ORDER.filter((id) => categories[id])
+    if (categories[CUSTOM_CATEGORY_ID]?.options?.length) {
+      order.push(CUSTOM_CATEGORY_ID)
+    }
+    return order
+  }, [categories])
 
   const [draft, setDraft] = useState({})
   const [savedBaseline, setSavedBaseline] = useState({})
@@ -44,26 +68,29 @@ export function SymptomPicker({
       const snapshot = JSON.parse(JSON.stringify(initialSelections))
       setDraft(snapshot)
       setSavedBaseline(snapshot)
-      const validOrder = SYMPTOM_CATEGORY_ORDER.filter((id) => SYMPTOM_CATEGORIES[id])
-      const initial = defaultOpenCategory && SYMPTOM_CATEGORIES[defaultOpenCategory]
-        ? defaultOpenCategory
-        : validOrder[0]
+      const initial =
+        defaultOpenCategory && categories[defaultOpenCategory]
+          ? defaultOpenCategory
+          : categoryOrder[0]
       setActiveCategory(initial)
       setSavingCategory(null)
       setSavedCategory(null)
     }
     wasOpenRef.current = isOpen
-  }, [isOpen, defaultOpenCategory, initialSelections])
+  }, [isOpen, defaultOpenCategory, initialSelections, categories, categoryOrder])
 
   const toggleOption = useCallback((categoryId, optionId) => {
     setDraft((prev) => {
-      const cat = SYMPTOM_CATEGORIES[categoryId]
+      const cat = categories[categoryId]
       const current = prev[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const selected = new Set(current.selectedIds)
 
-      if (cat.mode === 'single') {
+      if (cat?.mode === 'single') {
         if (selected.has(optionId)) selected.delete(optionId)
-        else { selected.clear(); selected.add(optionId) }
+        else {
+          selected.clear()
+          selected.add(optionId)
+        }
       } else {
         if (selected.has(optionId)) selected.delete(optionId)
         else selected.add(optionId)
@@ -71,7 +98,7 @@ export function SymptomPicker({
 
       return { ...prev, [categoryId]: { ...current, selectedIds: Array.from(selected) } }
     })
-  }, [])
+  }, [categories])
 
   const setIntensity = useCallback((categoryId, intensity) => {
     setDraft((prev) => ({
@@ -117,7 +144,7 @@ export function SymptomPicker({
 
   const changedCategories = useMemo(() => {
     const changed = new Set()
-    for (const categoryId of SYMPTOM_CATEGORY_ORDER) {
+    for (const categoryId of categoryOrder) {
       const initial = savedBaseline[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const current = draft[categoryId] || { selectedIds: [], intensity: null, comment: '' }
       const initialIds = initial.selectedIds.slice().sort().join(',')
@@ -131,7 +158,7 @@ export function SymptomPicker({
       }
     }
     return changed
-  }, [draft, savedBaseline])
+  }, [draft, savedBaseline, categoryOrder])
 
   async function handleSaveAll() {
     for (const categoryId of changedCategories) {
@@ -142,131 +169,152 @@ export function SymptomPicker({
 
   if (!isOpen || !activeCategory) return null
 
-  const category = SYMPTOM_CATEGORIES[activeCategory]
+  const category = categories[activeCategory]
   if (!category) return null
 
   const selection = draft[activeCategory] || { selectedIds: [], intensity: null, comment: '' }
 
   return (
-    <ModalPortal>
-    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-md max-h-[min(92vh,100dvh)] rounded-t-3xl bg-[var(--surface-elevated)] flex flex-col animate-slide-in-bottom elevation-3 mb-0">
-        <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
-          <div>
-            <h3 className="font-display text-lg font-semibold">{t('symptoms.pickerTitle')}</h3>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {getSelectedSummary(activeCategory, selection, lang) || t('symptoms.selectCategory')}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5">
-            <X size={20} className="text-[var(--text-muted)]" />
-          </button>
-        </div>
-
-        {/* Category carousel */}
-        <div className="px-4 pt-3 pb-2 border-b border-[var(--border-subtle)]">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-            {SYMPTOM_CATEGORY_ORDER.map((categoryId) => {
-              const cat = SYMPTOM_CATEGORIES[categoryId]
-              if (!cat) return null
-              const Icon = cat.icon
-              const isActive = activeCategory === categoryId
-              const hasSelection = (draft[categoryId]?.selectedIds?.length || 0) > 0
-              const grad = CATEGORY_GRADIENTS[categoryId] || 'from-slate-200/80 to-slate-300/60'
-
-              return (
-                <button
-                  key={categoryId}
-                  onClick={() => setActiveCategory(categoryId)}
-                  className={`snap-start flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
-                    isActive
-                      ? `bg-gradient-to-br ${grad} category-pill-active text-[var(--tg-theme-text-color)] scale-105`
-                      : hasSelection
-                      ? 'glass-panel text-[var(--tg-theme-text-color)]'
-                      : 'text-[var(--text-muted)] hover:bg-black/[0.04]'
-                  }`}
-                >
-                  <Icon size={14} />
-                  <span>{getCategoryLabel(categoryId, lang)}</span>
-                  {hasSelection && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color)] animate-bounce-in" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            {category.options.map((option) => {
-              const selected = selection.selectedIds.includes(option.id)
-              return (
-                <button
-                  key={option.id}
-                  onClick={() => toggleOption(activeCategory, option.id)}
-                  className={`flex items-center gap-2 p-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
-                    selected
-                      ? 'symptom-chip-selected animate-bounce-in'
-                      : 'card-elevated hover:elevation-2 text-[var(--tg-theme-text-color)]'
-                  }`}
-                >
-                  <span className="text-lg">{option.emoji}</span>
-                  <span className="truncate text-left">{option.labels[lang]}</span>
-                  {selected && category.mode === 'multiple' && (
-                    <Check size={14} className="ml-auto shrink-0 opacity-80" />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {category.hasIntensity && selection.selectedIds.length > 0 && (
-            <div className="space-y-2 card-elevated p-4">
-              <p className="label-caps text-[var(--text-muted)]">{t('symptoms.intensity')}</p>
-              <IntensitySlider
-                value={selection.intensity || 1}
-                onChange={(level) => setIntensity(activeCategory, level)}
-                labels={category.intensityLabels[lang]}
-              />
+    <ModalPortal onEscape={onClose}>
+      <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40 backdrop-blur-sm">
+        <div
+          className="w-full max-w-md max-h-[min(92vh,100dvh)] rounded-t-3xl bg-[var(--surface-elevated)] flex flex-col animate-slide-in-bottom elevation-3 mb-0"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('symptoms.pickerTitle')}
+        >
+          <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
+            <div>
+              <h3 className="font-display text-lg font-semibold">{t('symptoms.pickerTitle')}</h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                {getSelectedSummary(activeCategory, selection, lang, categories) ||
+                  t('symptoms.selectCategory')}
+              </p>
             </div>
-          )}
+            <button type="button" onClick={onClose} className="p-2 rounded-full hover:bg-black/5" aria-label={t('common.cancel')}>
+              <X size={20} className="text-[var(--text-muted)]" />
+            </button>
+          </div>
 
-          {selection.selectedIds.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="label-caps text-[var(--text-muted)]">{t('symptoms.note')}</p>
-              <textarea
-                value={selection.comment || ''}
-                onChange={(e) => setComment(activeCategory, e.target.value)}
-                placeholder={t('symptoms.notePlaceholder')}
-                rows={2}
-                className="w-full px-3 py-2.5 rounded-xl text-sm border border-[var(--border-subtle)] bg-[var(--surface-elevated)] resize-none focus:outline-none focus:border-[var(--tg-theme-button-color)]"
-              />
+          <div className="px-4 pt-3 pb-2 border-b border-[var(--border-subtle)]">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+              {categoryOrder.map((categoryId) => {
+                const cat = categories[categoryId]
+                if (!cat) return null
+                const Icon = cat.icon
+                const isActive = activeCategory === categoryId
+                const hasSelection = (draft[categoryId]?.selectedIds?.length || 0) > 0
+                const grad = CATEGORY_GRADIENTS[categoryId] || 'from-slate-200/80 to-slate-300/60'
+
+                return (
+                  <button
+                    key={categoryId}
+                    type="button"
+                    onClick={() => setActiveCategory(categoryId)}
+                    className={`snap-start flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
+                      isActive
+                        ? `bg-gradient-to-br ${grad} category-pill-active text-[var(--tg-theme-text-color)] scale-105`
+                        : hasSelection
+                          ? 'glass-panel text-[var(--tg-theme-text-color)]'
+                          : 'text-[var(--text-muted)] hover:bg-black/[0.04]'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    <span>{getCategoryLabel(categoryId, lang, categories)}</span>
+                    {hasSelection && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--tg-theme-button-color)] animate-bounce-in" />
+                    )}
+                  </button>
+                )
+              })}
             </div>
-          )}
+          </div>
 
-          <button
-            onClick={() => handleSaveCategory(activeCategory)}
-            disabled={savingCategory === activeCategory || loading}
-            className="w-full py-3.5 rounded-2xl bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)] font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 elevation-1"
-          >
-            {savingCategory === activeCategory && <Spinner size={18} />}
-            {savedCategory === activeCategory ? t('common.saved') : t('symptoms.save')}
-          </button>
-        </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {activeCategory === CUSTOM_CATEGORY_ID && (
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                {t('customSymptoms.pickerHint')}
+              </p>
+            )}
 
-        <div className="p-4 border-t border-[var(--border-subtle)]">
-          <button
-            onClick={handleSaveAll}
-            disabled={changedCategories.size === 0 || loading}
-            className="w-full py-3.5 rounded-2xl glass-panel font-semibold hover:elevation-1 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading && <Spinner size={18} />}
-            {t('symptoms.done', { count: changedCategories.size })}
-          </button>
+            {category.options.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-6">
+                {t('customSymptoms.empty')}
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {category.options.map((option) => {
+                  const selected = selection.selectedIds.includes(option.id)
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggleOption(activeCategory, option.id)}
+                      className={`flex items-center gap-2 p-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
+                        selected
+                          ? 'symptom-chip-selected animate-bounce-in'
+                          : 'card-elevated hover:elevation-2 text-[var(--tg-theme-text-color)]'
+                      }`}
+                    >
+                      <span className="text-lg">{option.emoji}</span>
+                      <span className="truncate text-left">{option.labels[lang] || option.labels.en}</span>
+                      {selected && category.mode === 'multiple' && (
+                        <Check size={14} className="ml-auto shrink-0 opacity-80" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {category.hasIntensity && selection.selectedIds.length > 0 && (
+              <div className="space-y-2 card-elevated p-4">
+                <p className="label-caps text-[var(--text-muted)]">{t('symptoms.intensity')}</p>
+                <IntensitySlider
+                  value={selection.intensity || 1}
+                  onChange={(level) => setIntensity(activeCategory, level)}
+                  labels={category.intensityLabels[lang]}
+                />
+              </div>
+            )}
+
+            {selection.selectedIds.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="label-caps text-[var(--text-muted)]">{t('symptoms.note')}</p>
+                <textarea
+                  value={selection.comment || ''}
+                  onChange={(e) => setComment(activeCategory, e.target.value)}
+                  placeholder={t('symptoms.notePlaceholder')}
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm border border-[var(--border-subtle)] bg-[var(--surface-elevated)] resize-none focus:outline-none focus:border-[var(--tg-theme-button-color)]"
+                />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleSaveCategory(activeCategory)}
+              disabled={savingCategory === activeCategory || loading}
+              className="w-full py-3.5 rounded-2xl bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)] font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 elevation-1"
+            >
+              {savingCategory === activeCategory && <Spinner size={18} />}
+              {savedCategory === activeCategory ? t('common.saved') : t('symptoms.save')}
+            </button>
+          </div>
+
+          <div className="p-4 border-t border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={changedCategories.size === 0 || loading}
+              className="w-full py-3.5 rounded-2xl glass-panel font-semibold hover:elevation-1 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading && <Spinner size={18} />}
+              {t('symptoms.done', { count: changedCategories.size })}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
     </ModalPortal>
   )
 }

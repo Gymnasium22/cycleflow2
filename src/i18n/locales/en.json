@@ -208,6 +208,9 @@
     "data": "Data",
     "exportHint": "PDF report is easy to share with your doctor. CSV is for spreadsheets.",
     "exportDoctorPdf": "Doctor report (PDF)",
+    "exportPdfStarted": "PDF ready — check downloads or the share sheet",
+    "exportPdfShared": "PDF shared",
+    "exportPdfTelegramHint": "In Telegram: if the file doesn’t appear, use the system share sheet / open the PDF preview and tap Share → Save.",
     "exportCsv": "Export spreadsheet (CSV)",
     "deleteAllData": "Delete all data",
     "deleteAllMessage": "All your cycles, symptoms, settings and profile will be permanently deleted. This action cannot be undone.",
@@ -321,9 +324,13 @@
   "customSymptoms": {
     "title": "Custom tags",
     "hint": "Add your own wellbeing labels (Premium).",
+    "howToUse": "After adding tags, open Home → log wellbeing → category «My tags». Select tags, set intensity, Save — they appear in Logged today and in exports.",
+    "pickerHint": "Tap your tags, set how strong it feels, then Save.",
+    "homeHint": "Tap a tag to log it for today",
+    "categoryChip": "My tags",
     "unlock": "Unlock custom tags",
     "placeholder": "e.g. Migraine aura",
-    "empty": "No custom tags yet."
+    "empty": "No custom tags yet — add them in Settings."
   },
   "partner": {
     "title": "Partner share",

@@ -197,16 +197,21 @@ export const SYMPTOM_CATEGORY_ORDER = [
   'other',
 ]
 
-export function getCategoryLabel(categoryId, lang = 'ru') {
-  return SYMPTOM_CATEGORIES[categoryId]?.labels[lang] || categoryId
+/**
+ * @param {string} categoryId
+ * @param {string} lang
+ * @param {Record<string, any>} [categories] — optional merge map (e.g. with custom tags)
+ */
+export function getCategoryLabel(categoryId, lang = 'ru', categories = SYMPTOM_CATEGORIES) {
+  return categories[categoryId]?.labels?.[lang] || categories[categoryId]?.labels?.en || categoryId
 }
 
-export function getOptionLabel(categoryId, optionId, lang = 'ru') {
-  const option = SYMPTOM_CATEGORIES[categoryId]?.options.find((o) => o.id === optionId)
-  return option?.labels[lang] || optionId
+export function getOptionLabel(categoryId, optionId, lang = 'ru', categories = SYMPTOM_CATEGORIES) {
+  const option = categories[categoryId]?.options?.find((o) => o.id === optionId)
+  return option?.labels?.[lang] || option?.labels?.en || optionId
 }
 
-export function getOptionEmoji(categoryId, optionId) {
-  const option = SYMPTOM_CATEGORIES[categoryId]?.options.find((o) => o.id === optionId)
+export function getOptionEmoji(categoryId, optionId, categories = SYMPTOM_CATEGORIES) {
+  const option = categories[categoryId]?.options?.find((o) => o.id === optionId)
   return option?.emoji || ''
 }

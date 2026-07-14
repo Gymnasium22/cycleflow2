@@ -72,6 +72,7 @@ export function getSeasonalClass() {
 }
 
 export const CATEGORY_GRADIENTS = {
+  custom: 'from-amber-200/70 to-rose-200/50',
   mood: 'from-amber-200/80 to-amber-400/60',
   symptoms: 'from-rose-200/80 to-rose-400/60',
   sex: 'from-pink-200/80 to-pink-400/60',

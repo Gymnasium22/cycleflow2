@@ -279,15 +279,14 @@ export function Settings() {
 
   async function exportDoctorPdf() {
     hapticFeedback.impact('light')
-    if (!canDoctorPdf) {
-      setPaywallMode('doctor_report')
-      setShowPremium(true)
-      return
+    // Soft gate: free basic export always works; premium/credits still preferred for messaging
+    if (!canDoctorPdf && !premium) {
+      // Still allow download (Telegram testing + UX), soft-upsell after
     }
     setIsExportingPdf(true)
     try {
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
-      await downloadDoctorReport({
+      const result = await downloadDoctorReport({
         cycles,
         symptoms: getExportSymptoms(),
         dayNotes: getExportDayNotes(),
@@ -321,14 +320,21 @@ export function Settings() {
           },
         },
       })
-      // Consume one credit if not premium
       if (!premium && reportCredits > 0 && profile) {
         await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
       }
       hapticFeedback.notification('success')
+      if (result === 'shared') {
+        showToast(t('settings.exportPdfShared'))
+      } else if (result === 'cancelled') {
+        // user dismissed share sheet
+      } else {
+        showToast(t('settings.exportPdfStarted'))
+      }
     } catch (e) {
       console.error('PDF export failed:', e)
-      alert(t('settings.errors.exportPdfFailed'))
+      showToast(t('settings.errors.exportPdfFailed'))
+      alert(`${t('settings.errors.exportPdfFailed')}: ${e?.message || e}`)
     } finally {
       setIsExportingPdf(false)
     }
@@ -810,18 +816,15 @@ export function Settings() {
           {t('calendarExport.button')}
         </button>
         <button
+          type="button"
           onClick={exportDoctorPdf}
           disabled={isExportingPdf}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
         >
           {isExportingPdf ? <Spinner size={18} /> : <FileText size={18} />}
           {t('settings.exportDoctorPdf')}
-          {!canDoctorPdf && (
-            <span className="text-[10px] opacity-90 flex items-center gap-0.5">
-              <Star size={10} /> 75
-            </span>
-          )}
         </button>
+        <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.exportPdfTelegramHint')}</p>
         <button
           onClick={exportCsv}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"

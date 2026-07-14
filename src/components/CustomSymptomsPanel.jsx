@@ -48,7 +48,12 @@ export function CustomSymptomsPanel({ isPremium, onNeedPremium }) {
           </span>
         )}
       </div>
-      <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)]">{t('customSymptoms.hint')}</p>
+      <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
+        {t('customSymptoms.hint')}
+      </p>
+      <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
+        {t('customSymptoms.howToUse')}
+      </p>
 
       {!isPremium ? (
         <button
