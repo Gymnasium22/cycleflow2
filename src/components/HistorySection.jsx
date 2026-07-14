@@ -9,7 +9,11 @@ import { useCycles } from '../hooks/useCycles'
 import { useSymptoms } from '../hooks/useSymptoms'
 import { EmptyState } from './EmptyState'
 import { ModalPortal } from './ModalPortal'
-import { getCategoryLabel, getOptionLabel, getOptionEmoji } from '../data/symptomCategories'
+import {
+  getCategoryLabel,
+  formatSymptomOptionText,
+} from '../data/symptomCategories'
+import { loadCustomSymptoms } from '../utils/customSymptoms'
 import {
   formatDate,
   getActualPeriodLength,
@@ -204,10 +208,15 @@ export function HistorySection() {
               const parsed = (() => {
                 try {
                   const p = JSON.parse(symptom.notes || '{}')
-                  return Array.isArray(p) ? { selectedIds: p, comment: '' } : { selectedIds: p.selectedIds || [], comment: p.comment || '' }
-                } catch { return { selectedIds: [], comment: '' } }
+                  return Array.isArray(p)
+                    ? { selectedIds: p, comment: '' }
+                    : { selectedIds: p.selectedIds || [], comment: p.comment || '' }
+                } catch {
+                  return { selectedIds: [], comment: '' }
+                }
               })()
-              const optionsText = parsed.selectedIds.map((id) => `${getOptionEmoji(symptom.symptom_type, id)} ${getOptionLabel(symptom.symptom_type, id, i18n.language)}`).join(' · ')
+              // Resolve custom tag labels from localStorage + optionMeta in notes
+              const optionsText = formatSymptomOptionText(symptom, i18n.language === 'ru' ? 'ru' : 'en')
               return (
                 <div key={symptom.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--tg-theme-bg-color,#ffffff)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20">
                   <div className="flex-1 min-w-0 pr-2">
@@ -272,7 +281,25 @@ export function HistorySection() {
         </ModalPortal>
       )}
 
-      <SymptomPicker isOpen={showSymptomPicker} onClose={() => { setShowSymptomPicker(false); setSymptomPickerCategory(null) }} defaultOpenCategory={symptomPickerCategory} initialSelections={selections} onSaveCategory={async (a, b, c, d) => { await saveCategorySelection(a, b, c, d); hapticFeedback.notification('success') }} onDeleteCategory={async (id) => { await deleteCategory(id); hapticFeedback.notification('success') }} loading={symptomsLoading} />
+      <SymptomPicker
+        isOpen={showSymptomPicker}
+        onClose={() => {
+          setShowSymptomPicker(false)
+          setSymptomPickerCategory(null)
+        }}
+        defaultOpenCategory={symptomPickerCategory}
+        initialSelections={selections}
+        onSaveCategory={async (a, b, c, d) => {
+          await saveCategorySelection(a, b, c, d)
+          hapticFeedback.notification('success')
+        }}
+        onDeleteCategory={async (id) => {
+          await deleteCategory(id)
+          hapticFeedback.notification('success')
+        }}
+        loading={symptomsLoading}
+        customSymptoms={loadCustomSymptoms()}
+      />
       <ConfirmDialog isOpen={confirmDialog.isOpen} title={confirmDialog.title} message={confirmDialog.message} confirmText={confirmDialog.confirmText} cancelText={confirmDialog.cancelText} destructive={confirmDialog.destructive} onConfirm={confirmDialog.onConfirm} onCancel={closeConfirmDialog} />
     </div>
   )

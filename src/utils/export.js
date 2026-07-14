@@ -1,4 +1,4 @@
-import { getCategoryLabel, getOptionLabel } from '../data/symptomCategories'
+import { getCategoryLabel, formatSymptomOptionText } from '../data/symptomCategories'
 import { getActualPeriodLength } from './cycle'
 
 function escapeCsvCell(value) {
@@ -44,11 +44,9 @@ export function buildExportCsv({ cycles = [], symptoms = [], dayNotes = [], prof
   }
 
   for (const symptom of symptoms) {
-    const { selectedIds, comment } = parseSymptomNotes(symptom.notes)
+    const { comment } = parseSymptomNotes(symptom.notes)
     const category = getCategoryLabel(symptom.symptom_type, lang)
-    const options = selectedIds
-      .map((id) => getOptionLabel(symptom.symptom_type, id, lang))
-      .join('; ')
+    const options = formatSymptomOptionText(symptom, lang)
 
     rows.push(['symptom', symptom.date, 'category', category].map(escapeCsvCell).join(','))
     if (options) {

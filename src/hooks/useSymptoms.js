@@ -116,9 +116,29 @@ export function useSymptoms(date) {
     setIsLoading(true)
     setError(null)
 
+    // Snapshot labels for custom tags so History/PDF never show raw ids
+    let optionMeta = undefined
+    if (categoryId === 'custom' || (selectedIds || []).some((id) => String(id).startsWith('custom_'))) {
+      try {
+        const raw = localStorage.getItem('cicle_custom_symptoms')
+        const list = raw ? JSON.parse(raw) : []
+        optionMeta = (selectedIds || []).map((id) => {
+          const tag = Array.isArray(list) ? list.find((s) => s.id === id) : null
+          return {
+            id,
+            label: tag?.label || id,
+            emoji: tag?.emoji || '✨',
+          }
+        })
+      } catch {
+        optionMeta = (selectedIds || []).map((id) => ({ id, label: id, emoji: '✨' }))
+      }
+    }
+
     const notes = JSON.stringify({
       selectedIds: selectedIds || [],
       comment: comment || '',
+      ...(optionMeta ? { optionMeta } : {}),
     })
     const payload = {
       date,

@@ -33,8 +33,7 @@ import {
 import {
   SYMPTOM_CATEGORIES,
   getCategoryLabel,
-  getOptionLabel,
-  getOptionEmoji,
+  formatSymptomOptionText,
 } from '../data/symptomCategories'
 import {
   getAverageCycleLength,
@@ -558,10 +557,13 @@ export function Home({ onNavigateToCalendar }) {
                     return { selectedIds: [], comment: '' }
                   }
                 })()
-                const labels = parsedNotes.selectedIds.map(
-                  (id) =>
-                    `${getOptionEmoji(s.symptom_type, id, labelCategories)} ${getOptionLabel(s.symptom_type, id, i18n.language, labelCategories)}`
+                const optionLine = formatSymptomOptionText(
+                  s,
+                  i18n.language === 'ru' ? 'ru' : 'en',
+                  labelCategories
                 )
+                const labels = []
+                if (optionLine) labels.push(optionLine)
                 if (s.intensity) labels.push(`${s.intensity}/3`)
                 if (parsedNotes.comment) labels.push(`💬 ${parsedNotes.comment}`)
 

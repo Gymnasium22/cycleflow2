@@ -45,7 +45,8 @@ import {
 import { persistTheme, AVAILABLE_THEMES, THEME_STORAGE_KEY } from '../utils/theme'
 import { createDebouncedSaver, normalizeNotifyTime } from '../utils/settingsDraft'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
-import { downloadDoctorReport } from '../utils/doctorReport'
+import { downloadDoctorReport, sharePdfBlob, openPdfBlob } from '../utils/doctorReport'
+import { PdfPreviewModal } from '../components/PdfPreviewModal'
 import { buildForecastIcs, downloadIcs } from '../utils/calendarExport'
 import { copyText, openTelegramShare } from '../lib/clipboard'
 import { getReferralMiniAppLink } from '../lib/botLinks'
@@ -97,6 +98,8 @@ export function Settings() {
   const [showPremium, setShowPremium] = useState(false)
   const [paywallMode, setPaywallMode] = useState('premium')
   const [shareHint, setShareHint] = useState(false)
+  const [pdfPreview, setPdfPreview] = useState({ open: false, url: null, blob: null, filename: '' })
+  const [pdfSharing, setPdfSharing] = useState(false)
 
   const { hapticFeedback, webApp } = useTelegram()
   const { showToast } = useToast()
@@ -277,16 +280,23 @@ export function Settings() {
     }
   }
 
+  function closePdfPreview() {
+    if (pdfPreview.url) {
+      try {
+        URL.revokeObjectURL(pdfPreview.url)
+      } catch {
+        // ignore
+      }
+    }
+    setPdfPreview({ open: false, url: null, blob: null, filename: '' })
+  }
+
   async function exportDoctorPdf() {
     hapticFeedback.impact('light')
-    // Soft gate: free basic export always works; premium/credits still preferred for messaging
-    if (!canDoctorPdf && !premium) {
-      // Still allow download (Telegram testing + UX), soft-upsell after
-    }
     setIsExportingPdf(true)
     try {
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
-      const result = await downloadDoctorReport({
+      const { blob, filename } = await downloadDoctorReport({
         cycles,
         symptoms: getExportSymptoms(),
         dayNotes: getExportDayNotes(),
@@ -320,17 +330,15 @@ export function Settings() {
           },
         },
       })
+
       if (!premium && reportCredits > 0 && profile) {
         await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
       }
+
+      const url = URL.createObjectURL(blob)
+      setPdfPreview({ open: true, url, blob, filename })
       hapticFeedback.notification('success')
-      if (result === 'shared') {
-        showToast(t('settings.exportPdfShared'))
-      } else if (result === 'cancelled') {
-        // user dismissed share sheet
-      } else {
-        showToast(t('settings.exportPdfStarted'))
-      }
+      showToast(t('settings.exportPdfReady'))
     } catch (e) {
       console.error('PDF export failed:', e)
       showToast(t('settings.errors.exportPdfFailed'))
@@ -338,6 +346,26 @@ export function Settings() {
     } finally {
       setIsExportingPdf(false)
     }
+  }
+
+  async function handlePdfShare() {
+    if (!pdfPreview.blob) return
+    setPdfSharing(true)
+    try {
+      const result = await sharePdfBlob(pdfPreview.blob, pdfPreview.filename)
+      if (result === 'shared') showToast(t('settings.exportPdfShared'))
+      else if (result === 'download') showToast(t('settings.exportPdfStarted'))
+    } catch (e) {
+      console.error(e)
+      showToast(t('settings.errors.exportPdfFailed'))
+    } finally {
+      setPdfSharing(false)
+    }
+  }
+
+  function handlePdfOpen() {
+    if (!pdfPreview.blob) return
+    openPdfBlob(pdfPreview.blob)
   }
 
   function exportCsv() {
@@ -824,7 +852,9 @@ export function Settings() {
           {isExportingPdf ? <Spinner size={18} /> : <FileText size={18} />}
           {t('settings.exportDoctorPdf')}
         </button>
-        <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)]">{t('settings.exportPdfTelegramHint')}</p>
+        <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
+          {t('settings.exportPdfTelegramHint')}
+        </p>
         <button
           onClick={exportCsv}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
@@ -888,6 +918,16 @@ export function Settings() {
         isOpen={showPremium}
         onClose={() => setShowPremium(false)}
         mode={paywallMode}
+      />
+
+      <PdfPreviewModal
+        isOpen={pdfPreview.open}
+        onClose={closePdfPreview}
+        blobUrl={pdfPreview.url}
+        filename={pdfPreview.filename}
+        onShare={handlePdfShare}
+        onOpen={handlePdfOpen}
+        sharing={pdfSharing}
       />
     </div>
   )

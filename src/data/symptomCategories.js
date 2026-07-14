@@ -197,21 +197,89 @@ export const SYMPTOM_CATEGORY_ORDER = [
   'other',
 ]
 
+const CUSTOM_STORAGE_KEY = 'cicle_custom_symptoms'
+
+function readCustomList() {
+  try {
+    if (typeof localStorage === 'undefined') return []
+    const raw = localStorage.getItem(CUSTOM_STORAGE_KEY)
+    const list = raw ? JSON.parse(raw) : []
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+function findCustomTag(optionId) {
+  return readCustomList().find((s) => s.id === optionId) || null
+}
+
 /**
  * @param {string} categoryId
  * @param {string} lang
  * @param {Record<string, any>} [categories] — optional merge map (e.g. with custom tags)
  */
 export function getCategoryLabel(categoryId, lang = 'ru', categories = SYMPTOM_CATEGORIES) {
-  return categories[categoryId]?.labels?.[lang] || categories[categoryId]?.labels?.en || categoryId
+  const fromMap = categories[categoryId]?.labels?.[lang] || categories[categoryId]?.labels?.en
+  if (fromMap) return fromMap
+  if (categoryId === 'custom') return lang === 'ru' ? 'Мои теги' : 'My tags'
+  return categoryId
 }
 
 export function getOptionLabel(categoryId, optionId, lang = 'ru', categories = SYMPTOM_CATEGORIES) {
   const option = categories[categoryId]?.options?.find((o) => o.id === optionId)
-  return option?.labels?.[lang] || option?.labels?.en || optionId
+  if (option?.labels?.[lang] || option?.labels?.en) {
+    return option.labels[lang] || option.labels.en
+  }
+  // Custom tags live in localStorage (history/analytics don't pass merged map)
+  if (categoryId === 'custom' || String(optionId || '').startsWith('custom_')) {
+    const tag = findCustomTag(optionId)
+    if (tag?.label) return tag.label
+  }
+  return optionId
 }
 
 export function getOptionEmoji(categoryId, optionId, categories = SYMPTOM_CATEGORIES) {
   const option = categories[categoryId]?.options?.find((o) => o.id === optionId)
-  return option?.emoji || ''
+  if (option?.emoji) return option.emoji
+  if (categoryId === 'custom' || String(optionId || '').startsWith('custom_')) {
+    const tag = findCustomTag(optionId)
+    if (tag?.emoji) return tag.emoji
+  }
+  return ''
+}
+
+/**
+ * Format selected options for history/PDF — prefers labels stored in notes.optionMeta
+ * (so custom tags keep readable names even if renamed later).
+ */
+export function formatSymptomOptionText(symptom, lang = 'ru', categories = SYMPTOM_CATEGORIES) {
+  let selectedIds = []
+  let optionMeta = null
+  try {
+    const parsed = JSON.parse(symptom?.notes || '{}')
+    if (Array.isArray(parsed)) {
+      selectedIds = parsed
+    } else {
+      selectedIds = Array.isArray(parsed.selectedIds) ? parsed.selectedIds : []
+      optionMeta = Array.isArray(parsed.optionMeta) ? parsed.optionMeta : null
+    }
+  } catch {
+    selectedIds = []
+  }
+
+  if (optionMeta?.length) {
+    return optionMeta
+      .map((m) => `${m.emoji || ''} ${m.label || m.id}`.trim())
+      .filter(Boolean)
+      .join(' · ')
+  }
+
+  return selectedIds
+    .map(
+      (id) =>
+        `${getOptionEmoji(symptom.symptom_type, id, categories)} ${getOptionLabel(symptom.symptom_type, id, lang, categories)}`.trim()
+    )
+    .filter(Boolean)
+    .join(' · ')
 }
