@@ -11,6 +11,9 @@ const OPEN_INVOICE_RE = /^https?:\/\/t\.me\/(\$|invoice\/)([A-Za-z0-9\-_=]+)$/i
 
 /**
  * Normalize createInvoiceLink result into a URL openInvoice will accept.
+ * Telegram API often returns https://telegram.me/$SLUG but WebApp only
+ * accepts hostname t.me (see telegram-web-app.js).
+ *
  * @returns {{ ok: boolean, url: string|null, slug: string|null, reason?: string }}
  */
 export function normalizeInvoiceUrl(raw) {
@@ -20,6 +23,9 @@ export function normalizeInvoiceUrl(raw) {
   s = s.replace(/^["']|["']$/g, '')
   // collapse whitespace
   s = s.replace(/\s+/g, '')
+  // CRITICAL: telegram.me → t.me (openInvoice rejects telegram.me)
+  s = s.replace(/^https?:\/\/(www\.)?telegram\.me\//i, 'https://t.me/')
+  s = s.replace(/^https?:\/\/(www\.)?t\.me\//i, 'https://t.me/')
 
   // Already perfect
   if (OPEN_INVOICE_RE.test(s)) {
@@ -31,7 +37,8 @@ export function normalizeInvoiceUrl(raw) {
   try {
     if (/^https?:\/\//i.test(s)) {
       const u = new URL(s)
-      if (u.hostname === 't.me' || u.hostname === 'telegram.me') {
+      const host = (u.hostname || '').replace(/^www\./, '')
+      if (host === 't.me' || host === 'telegram.me') {
         let path = u.pathname.replace(/\/+$/, '') // drop trailing slashes
         // path like /$SLUG or /invoice/SLUG
         let m = path.match(/^\/(\$)([A-Za-z0-9\-_=]+)$/)

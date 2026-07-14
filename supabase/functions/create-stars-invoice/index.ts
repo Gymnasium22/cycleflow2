@@ -314,9 +314,12 @@ serve(async (req) => {
     }
 
     // Normalize to form openInvoice accepts: https://t.me/$SLUG
+    // Bot API often returns https://telegram.me/$... which WebApp REJECTS (host must be t.me).
     let invoiceLink = String(tgData.result || '').trim()
     try {
-      // strip trailing slash / query that break WebApp pathname check
+      invoiceLink = invoiceLink
+        .replace(/^https?:\/\/(www\.)?telegram\.me\//i, 'https://t.me/')
+        .replace(/^https?:\/\/(www\.)?t\.me\//i, 'https://t.me/')
       if (invoiceLink.includes('t.me')) {
         const u = new URL(invoiceLink.startsWith('http') ? invoiceLink : `https://${invoiceLink}`)
         const path = u.pathname.replace(/\/+$/, '')

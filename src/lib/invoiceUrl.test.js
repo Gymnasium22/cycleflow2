@@ -9,6 +9,13 @@ describe('normalizeInvoiceUrl', () => {
     expect(isValidOpenInvoiceUrl(r.url)).toBe(true)
   })
 
+  it('rewrites telegram.me to t.me (real Bot API response)', () => {
+    const r = normalizeInvoiceUrl('https://telegram.me/$ZMvSYw8wsUpJFwAAgZaVnWQKLjs')
+    expect(r.ok).toBe(true)
+    expect(r.url).toBe('https://t.me/$ZMvSYw8wsUpJFwAAgZaVnWQKLjs')
+    expect(isValidOpenInvoiceUrl(r.url)).toBe(true)
+  })
+
   it('accepts invoice/ path', () => {
     const r = normalizeInvoiceUrl('https://t.me/invoice/ABC_def-12')
     expect(r.ok).toBe(true)
