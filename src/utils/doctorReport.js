@@ -82,6 +82,9 @@ function writeSectionTitle(doc, text, margin, y) {
   return y + 7
 }
 
+/**
+ * Build doctor PDF. Returns { blob, filename, bytes } — UI handles share/view.
+ */
 export async function downloadDoctorReport({
   cycles = [],
   symptoms = [],
@@ -222,54 +225,95 @@ export async function downloadDoctorReport({
   const datePart = new Date().toISOString().split('T')[0]
   const filename = `${slug}-doctor-report-${datePart}.pdf`
 
-  // Return blob for UI preview modal (Telegram WebView cannot use doc.save reliably)
   const blob = doc.output('blob')
-  return { blob, filename }
+  return {
+    blob,
+    filename,
+    bytes: blob.size || 0,
+  }
 }
 
 /**
- * Share PDF file via system sheet (best path inside Telegram on mobile).
+ * Share PDF — must be called from a user tap (gesture).
+ * Returns: 'shared' | 'cancelled' | 'unsupported'
  */
 export async function sharePdfBlob(blob, filename) {
-  const file = new File([blob], filename, { type: 'application/pdf' })
+  if (!blob) return 'unsupported'
+
+  const file = new File([blob], filename || 'report.pdf', { type: 'application/pdf' })
+
+  // Preferred: native share sheet (iOS/Android Telegram often supports this)
   try {
-    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: filename })
+    if (navigator.share) {
+      const canFiles = !navigator.canShare || navigator.canShare({ files: [file] })
+      if (canFiles) {
+        await navigator.share({
+          files: [file],
+          title: filename,
+        })
+        return 'shared'
+      }
+      // Share without files (less useful but sometimes opens sheet)
+      await navigator.share({
+        title: filename,
+        text: filename,
+      })
       return 'shared'
     }
   } catch (err) {
     if (err?.name === 'AbortError') return 'cancelled'
-    console.warn('[pdf] share failed', err)
+    console.warn('[pdf] navigator.share failed', err)
   }
 
-  // Fallback: trigger download attribute
-  const url = URL.createObjectURL(blob)
-  try {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.rel = 'noopener'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 30_000)
-  }
-  return 'download'
+  return 'unsupported'
 }
 
+/**
+ * Open PDF for viewing. Uses blob URL in a new context when possible.
+ */
 export function openPdfBlob(blob) {
+  if (!blob) return null
   const url = URL.createObjectURL(blob)
+
+  // Try dedicated viewer window
   try {
-    const opened = window.open(url, '_blank')
-    if (!opened) {
-      // last resort: navigate current frame (user can back out)
-      window.location.href = url
+    const w = window.open(url, '_blank', 'noopener,noreferrer')
+    if (w) {
+      setTimeout(() => URL.revokeObjectURL(url), 120_000)
+      return url
     }
-  } catch (err) {
-    console.warn('[pdf] open failed', err)
-    window.location.href = url
+  } catch {
+    // continue
   }
-  setTimeout(() => URL.revokeObjectURL(url), 120_000)
-  return url
+
+  // Telegram WebView: navigate same window (user uses Back)
+  try {
+    window.location.assign(url)
+    return url
+  } catch {
+    URL.revokeObjectURL(url)
+    return null
+  }
+}
+
+/**
+ * Last-resort: inject <a download> (works on some Android builds).
+ */
+export function triggerPdfDownload(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename || 'report.pdf'
+  a.rel = 'noopener'
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  setTimeout(() => {
+    try {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch {
+      // ignore
+    }
+  }, 5000)
 }

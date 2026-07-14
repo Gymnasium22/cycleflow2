@@ -45,7 +45,13 @@ import {
 import { persistTheme, AVAILABLE_THEMES, THEME_STORAGE_KEY } from '../utils/theme'
 import { createDebouncedSaver, normalizeNotifyTime } from '../utils/settingsDraft'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
-import { downloadDoctorReport, sharePdfBlob, openPdfBlob } from '../utils/doctorReport'
+import {
+  downloadDoctorReport,
+  sharePdfBlob,
+  openPdfBlob,
+  triggerPdfDownload,
+} from '../utils/doctorReport'
+import { PdfReadyCard, formatBytes } from '../components/PdfReadyCard'
 import { PdfPreviewModal } from '../components/PdfPreviewModal'
 import { buildForecastIcs, downloadIcs } from '../utils/calendarExport'
 import { copyText, openTelegramShare } from '../lib/clipboard'
@@ -98,8 +104,11 @@ export function Settings() {
   const [showPremium, setShowPremium] = useState(false)
   const [paywallMode, setPaywallMode] = useState('premium')
   const [shareHint, setShareHint] = useState(false)
-  const [pdfPreview, setPdfPreview] = useState({ open: false, url: null, blob: null, filename: '' })
+  const [pdfReady, setPdfReady] = useState(null) // { blob, filename, bytes, url }
+  const [pdfViewOpen, setPdfViewOpen] = useState(false)
   const [pdfSharing, setPdfSharing] = useState(false)
+  const pdfReadyRef = useRef(null)
+  pdfReadyRef.current = pdfReady
 
   const { hapticFeedback, webApp } = useTelegram()
   const { showToast } = useToast()
@@ -280,23 +289,32 @@ export function Settings() {
     }
   }
 
-  function closePdfPreview() {
-    if (pdfPreview.url) {
+  function clearPdfReady() {
+    const current = pdfReadyRef.current
+    if (current?.url) {
       try {
-        URL.revokeObjectURL(pdfPreview.url)
+        URL.revokeObjectURL(current.url)
       } catch {
         // ignore
       }
     }
-    setPdfPreview({ open: false, url: null, blob: null, filename: '' })
+    pdfReadyRef.current = null
+    setPdfReady(null)
+    setPdfViewOpen(false)
+    try {
+      webApp?.MainButton?.hide?.()
+    } catch {
+      // ignore
+    }
   }
 
   async function exportDoctorPdf() {
     hapticFeedback.impact('light')
     setIsExportingPdf(true)
+    clearPdfReady()
     try {
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
-      const { blob, filename } = await downloadDoctorReport({
+      const { blob, filename, bytes } = await downloadDoctorReport({
         cycles,
         symptoms: getExportSymptoms(),
         dayNotes: getExportDayNotes(),
@@ -331,41 +349,97 @@ export function Settings() {
         },
       })
 
+      if (!blob) {
+        throw new Error('Empty PDF blob')
+      }
+
       if (!premium && reportCredits > 0 && profile) {
         await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
       }
 
       const url = URL.createObjectURL(blob)
-      setPdfPreview({ open: true, url, blob, filename })
+      const ready = { blob, filename, bytes: bytes || blob.size || 0, url }
+      pdfReadyRef.current = ready
+      setPdfReady(ready)
       hapticFeedback.notification('success')
-      showToast(t('settings.exportPdfReady'))
+
+      // Telegram MainButton — hard to miss at bottom of screen
+      try {
+        if (webApp?.MainButton) {
+          webApp.MainButton.setText(t('settings.pdfShare'))
+          webApp.MainButton.color = webApp.themeParams?.button_color || '#e11d48'
+          webApp.MainButton.textColor = webApp.themeParams?.button_text_color || '#ffffff'
+          webApp.MainButton.show()
+          webApp.MainButton.onClick(() => {
+            handlePdfShare()
+          })
+        }
+      } catch {
+        // ignore
+      }
+
+      setTimeout(() => {
+        document.getElementById('pdf-ready-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 150)
     } catch (e) {
       console.error('PDF export failed:', e)
-      showToast(t('settings.errors.exportPdfFailed'))
-      alert(`${t('settings.errors.exportPdfFailed')}: ${e?.message || e}`)
+      hapticFeedback.notification('error')
+      try {
+        webApp?.showAlert?.(`${t('settings.errors.exportPdfFailed')}\n${e?.message || ''}`)
+      } catch {
+        alert(`${t('settings.errors.exportPdfFailed')}: ${e?.message || e}`)
+      }
     } finally {
       setIsExportingPdf(false)
     }
   }
 
   async function handlePdfShare() {
-    if (!pdfPreview.blob) return
+    const ready = pdfReadyRef.current
+    if (!ready?.blob) return
     setPdfSharing(true)
+    hapticFeedback.impact('medium')
     try {
-      const result = await sharePdfBlob(pdfPreview.blob, pdfPreview.filename)
-      if (result === 'shared') showToast(t('settings.exportPdfShared'))
-      else if (result === 'download') showToast(t('settings.exportPdfStarted'))
+      const result = await sharePdfBlob(ready.blob, ready.filename)
+      if (result === 'shared') {
+        hapticFeedback.notification('success')
+        try {
+          webApp?.showAlert?.(t('settings.exportPdfShared'))
+        } catch {
+          showToast(t('settings.exportPdfShared'))
+        }
+        return
+      }
+      if (result === 'cancelled') return
+
+      // Share unsupported — try download + clear Telegram popup
+      triggerPdfDownload(ready.blob, ready.filename)
+      try {
+        webApp?.showPopup?.({
+          title: t('settings.pdfShare'),
+          message: t('settings.pdfShareFallback'),
+          buttons: [{ type: 'close' }],
+        })
+      } catch {
+        alert(t('settings.pdfShareFallback'))
+      }
     } catch (e) {
       console.error(e)
-      showToast(t('settings.errors.exportPdfFailed'))
+      try {
+        webApp?.showAlert?.(t('settings.errors.exportPdfFailed'))
+      } catch {
+        showToast(t('settings.errors.exportPdfFailed'))
+      }
     } finally {
       setPdfSharing(false)
     }
   }
 
-  function handlePdfOpen() {
-    if (!pdfPreview.blob) return
-    openPdfBlob(pdfPreview.blob)
+  function handlePdfView() {
+    const ready = pdfReadyRef.current
+    if (!ready?.blob) return
+    hapticFeedback.impact('light')
+    setPdfViewOpen(true)
   }
 
   function exportCsv() {
@@ -847,14 +921,30 @@ export function Settings() {
           type="button"
           onClick={exportDoctorPdf}
           disabled={isExportingPdf}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#ffffff)] font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
         >
           {isExportingPdf ? <Spinner size={18} /> : <FileText size={18} />}
-          {t('settings.exportDoctorPdf')}
+          {isExportingPdf ? t('settings.exportPdfBuilding') : t('settings.exportDoctorPdf')}
         </button>
-        <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
-          {t('settings.exportPdfTelegramHint')}
-        </p>
+
+        {pdfReady && (
+          <div id="pdf-ready-card">
+            <PdfReadyCard
+              filename={pdfReady.filename}
+              fileSizeLabel={formatBytes(pdfReady.bytes)}
+              onShare={handlePdfShare}
+              onView={handlePdfView}
+              onDismiss={clearPdfReady}
+              sharing={pdfSharing}
+            />
+          </div>
+        )}
+
+        {!pdfReady && (
+          <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
+            {t('settings.exportPdfTelegramHint')}
+          </p>
+        )}
         <button
           onClick={exportCsv}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
@@ -921,12 +1011,12 @@ export function Settings() {
       />
 
       <PdfPreviewModal
-        isOpen={pdfPreview.open}
-        onClose={closePdfPreview}
-        blobUrl={pdfPreview.url}
-        filename={pdfPreview.filename}
+        isOpen={pdfViewOpen && !!pdfReady?.url}
+        onClose={() => setPdfViewOpen(false)}
+        blobUrl={pdfReady?.url}
+        filename={pdfReady?.filename}
         onShare={handlePdfShare}
-        onOpen={handlePdfOpen}
+        onOpen={() => pdfReady?.blob && openPdfBlob(pdfReady.blob)}
         sharing={pdfSharing}
       />
     </div>
