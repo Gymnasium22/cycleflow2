@@ -19,9 +19,9 @@ export function PdfExportHost() {
   const [sharing, setSharing] = useState(false)
   const [viewOpen, setViewOpen] = useState(false)
 
-  // Telegram MainButton while PDF is ready
+  // MainButton only if we still need a fallback share (bot send failed)
   useEffect(() => {
-    if (!pdf?.blob || !webApp?.MainButton) return undefined
+    if (!pdf?.blob || pdf.sentToChat || !webApp?.MainButton) return undefined
 
     const onClick = () => {
       handleShare()
@@ -43,7 +43,7 @@ export function PdfExportHost() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdf?.filename, webApp])
+  }, [pdf?.filename, pdf?.sentToChat, webApp])
 
   if (!pdf?.blob) return null
 
@@ -96,6 +96,7 @@ export function PdfExportHost() {
             <PdfReadyCard
               filename={pdf.filename}
               fileSizeLabel={formatBytes(pdf.bytes)}
+              sentToChat={!!pdf.sentToChat}
               onShare={handleShare}
               onView={() => {
                 hapticFeedback.impact('light')

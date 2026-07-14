@@ -226,11 +226,71 @@ export async function downloadDoctorReport({
   const filename = `${slug}-doctor-report-${datePart}.pdf`
 
   const blob = doc.output('blob')
+  // base64 for sending via bot (Edge Function → sendDocument)
+  const dataUri = doc.output('datauristring')
+  const pdfBase64 = dataUri.includes('base64,')
+    ? dataUri.split('base64,')[1]
+    : dataUri
+
   return {
     blob,
     filename,
     bytes: blob.size || 0,
+    pdfBase64,
   }
+}
+
+/**
+ * Send generated PDF into the user's private chat with the bot.
+ */
+export async function sendPdfToTelegramBot({ blob, filename, pdfBase64, accessToken, initData }) {
+  let b64 = pdfBase64
+  if (!b64 && blob) {
+    b64 = await blobToBase64(blob)
+  }
+  if (!b64) throw new Error('No PDF data')
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-doctor-pdf`
+  const headers = {
+    'Content-Type': 'application/json',
+    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+  }
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      filename: filename || 'kolechko-doctor-report.pdf',
+      pdfBase64: b64,
+      initData: initData || undefined,
+      caption:
+        '📄 Отчёт для врача из Колечко.\nНе является медицинским диагнозом — покажите файл специалисту.',
+    }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || !data.ok) {
+    const err = new Error(data.details || data.error || 'Send failed')
+    err.needStart = !!data.needStart
+    err.hint = data.hint
+    err.payload = data
+    throw err
+  }
+  return data
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const idx = result.indexOf('base64,')
+      resolve(idx >= 0 ? result.slice(idx + 7) : result)
+    }
+    reader.onerror = () => reject(reader.error || new Error('FileReader failed'))
+    reader.readAsDataURL(blob)
+  })
 }
 
 /**

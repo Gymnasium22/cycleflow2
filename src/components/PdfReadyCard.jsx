@@ -14,6 +14,7 @@ export function PdfReadyCard({
   onDismiss,
   sharing = false,
   viewing = false,
+  sentToChat = false,
 }) {
   const { t } = useTranslation()
 
@@ -29,7 +30,7 @@ export function PdfReadyCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-sm text-[var(--tg-theme-text-color,#111827)]">
-            {t('settings.pdfReadyTitle')}
+            {sentToChat ? t('settings.pdfSentTitle') : t('settings.pdfReadyTitle')}
           </p>
           <p className="text-xs text-[var(--tg-theme-hint-color,#6b7280)] mt-0.5 break-all">
             {filename}
@@ -49,18 +50,20 @@ export function PdfReadyCard({
       </div>
 
       <p className="text-xs leading-relaxed text-[var(--tg-theme-text-color,#111827)] bg-[var(--tg-theme-bg-color,#fff)]/60 rounded-xl px-3 py-2 border border-[var(--tg-theme-hint-color,#d1d5db)]/20">
-        {t('settings.pdfReadySteps')}
+        {sentToChat ? t('settings.pdfSentSteps') : t('settings.pdfReadySteps')}
       </p>
 
-      <button
-        type="button"
-        onClick={onShare}
-        disabled={sharing}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#fff)] font-semibold text-sm disabled:opacity-60 active:scale-[0.99]"
-      >
-        {sharing ? <Spinner size={18} /> : <Share2 size={18} aria-hidden />}
-        {t('settings.pdfShare')}
-      </button>
+      {!sentToChat && (
+        <button
+          type="button"
+          onClick={onShare}
+          disabled={sharing}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[var(--tg-theme-button-color,#e11d48)] text-[var(--tg-theme-button-text-color,#fff)] font-semibold text-sm disabled:opacity-60 active:scale-[0.99]"
+        >
+          {sharing ? <Spinner size={18} /> : <Share2 size={18} aria-hidden />}
+          {t('settings.pdfShare')}
+        </button>
+      )}
 
       <button
         type="button"
@@ -74,7 +77,7 @@ export function PdfReadyCard({
 
       <div className="flex items-center gap-2 text-[11px] text-[var(--tg-theme-hint-color,#6b7280)]">
         <FileText size={14} className="shrink-0" aria-hidden />
-        <span>{t('settings.pdfShareHelp')}</span>
+        <span>{sentToChat ? t('settings.pdfSentHelp') : t('settings.pdfShareHelp')}</span>
       </div>
     </div>
   )

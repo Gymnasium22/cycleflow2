@@ -45,7 +45,7 @@ import {
 import { persistTheme, AVAILABLE_THEMES, THEME_STORAGE_KEY } from '../utils/theme'
 import { createDebouncedSaver, normalizeNotifyTime } from '../utils/settingsDraft'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
-import { downloadDoctorReport } from '../utils/doctorReport'
+import { downloadDoctorReport, sendPdfToTelegramBot } from '../utils/doctorReport'
 import { setPdfSession, clearPdfSession } from '../lib/pdfSession'
 import { buildForecastIcs, downloadIcs } from '../utils/calendarExport'
 import { copyText, openTelegramShare } from '../lib/clipboard'
@@ -283,7 +283,7 @@ export function Settings() {
     clearPdfSession()
     try {
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
-      const { blob, filename, bytes } = await downloadDoctorReport({
+      const { blob, filename, bytes, pdfBase64 } = await downloadDoctorReport({
         cycles,
         symptoms: getExportSymptoms(),
         dayNotes: getExportDayNotes(),
@@ -320,18 +320,54 @@ export function Settings() {
 
       if (!blob) throw new Error('Empty PDF blob')
 
-      if (!premium && reportCredits > 0 && profile) {
-        await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
-      }
-
-      const url = URL.createObjectURL(blob)
-      // App-level session — survives leaving Settings / remounts
-      setPdfSession({ blob, filename, bytes: bytes || blob.size || 0, url })
-      hapticFeedback.notification('success')
+      // Primary path for Telegram Mini App: bot sends the file into private chat
+      let accessToken = null
       try {
-        webApp?.HapticFeedback?.notificationOccurred?.('success')
+        const { data: sess } = await supabase.auth.getSession()
+        accessToken = sess?.session?.access_token || null
       } catch {
         // ignore
+      }
+      const initData =
+        typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData || '' : ''
+
+      try {
+        await sendPdfToTelegramBot({
+          blob,
+          filename,
+          pdfBase64,
+          accessToken,
+          initData,
+        })
+
+        if (!premium && reportCredits > 0 && profile) {
+          await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
+        }
+
+        hapticFeedback.notification('success')
+        try {
+          webApp?.showAlert?.(t('settings.exportPdfSentToChat'))
+        } catch {
+          showToast(t('settings.exportPdfSentToChat'))
+        }
+        // Also keep local session as backup (preview / share)
+        const url = URL.createObjectURL(blob)
+        setPdfSession({ blob, filename, bytes: bytes || blob.size || 0, url, sentToChat: true })
+        return
+      } catch (sendErr) {
+        console.warn('[pdf] send to bot failed, keep local card', sendErr)
+        // Fallback: show local ready card if bot delivery failed
+        const url = URL.createObjectURL(blob)
+        setPdfSession({ blob, filename, bytes: bytes || blob.size || 0, url, sentToChat: false })
+        hapticFeedback.notification('error')
+        const msg = sendErr?.needStart
+          ? t('settings.exportPdfNeedStart')
+          : `${t('settings.exportPdfSendFailed')}\n${sendErr?.hint || sendErr?.message || ''}`
+        try {
+          webApp?.showAlert?.(msg)
+        } catch {
+          alert(msg)
+        }
       }
     } catch (e) {
       console.error('PDF export failed:', e)
