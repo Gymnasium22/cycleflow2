@@ -127,6 +127,38 @@ serve(async (req) => {
       return jsonResponse({ error: 'Server misconfigured' }, 500, origin)
     }
 
+    // Verify bot token identity — invoice MUST be created by the Mini App bot
+    const expectedBot = (Deno.env.get('EXPECTED_BOT_USERNAME') || 'my_cicle_bot').replace(/^@/, '')
+    const meRes = await fetch(`https://api.telegram.org/bot${botToken}/getMe`)
+    const meData = await meRes.json()
+    if (!meData.ok || !meData.result?.username) {
+      console.error('[create-stars-invoice] getMe failed', meData)
+      return jsonResponse(
+        {
+          error: 'Bot token invalid',
+          details: meData.description || 'getMe failed',
+          hint: 'Set TELEGRAM_BOT_TOKEN to the token of @my_cicle_bot from BotFather.',
+        },
+        500,
+        origin
+      )
+    }
+    const botUsername = String(meData.result.username)
+    if (botUsername.toLowerCase() !== expectedBot.toLowerCase()) {
+      console.error('[create-stars-invoice] wrong bot', { botUsername, expectedBot })
+      return jsonResponse(
+        {
+          error: 'Wrong bot token',
+          details: `Token belongs to @${botUsername}, Mini App is @${expectedBot}`,
+          hint: 'Update Supabase secret TELEGRAM_BOT_TOKEN to @my_cicle_bot token, then redeploy create-stars-invoice.',
+          botUsername,
+          expectedBot,
+        },
+        500,
+        origin
+      )
+    }
+
     const body = await req.json().catch(() => ({}))
     const productId = body?.productId
     const product = getProduct(productId)
@@ -281,17 +313,50 @@ serve(async (req) => {
       )
     }
 
-    const invoiceLink = String(tgData.result).trim()
+    // Normalize to form openInvoice accepts: https://t.me/$SLUG
+    let invoiceLink = String(tgData.result || '').trim()
+    try {
+      // strip trailing slash / query that break WebApp pathname check
+      if (invoiceLink.includes('t.me')) {
+        const u = new URL(invoiceLink.startsWith('http') ? invoiceLink : `https://${invoiceLink}`)
+        const path = u.pathname.replace(/\/+$/, '')
+        const mDollar = path.match(/^\/\$([A-Za-z0-9\-_=]+)$/)
+        const mInv = path.match(/^\/invoice\/([A-Za-z0-9\-_=]+)$/i)
+        if (mDollar) invoiceLink = `https://t.me/$${mDollar[1]}`
+        else if (mInv) invoiceLink = `https://t.me/invoice/${mInv[1]}`
+      } else if (invoiceLink.startsWith('$')) {
+        invoiceLink = `https://t.me/${invoiceLink}`
+      }
+    } catch (normErr) {
+      console.warn('[create-stars-invoice] normalize failed', normErr)
+    }
+
+    const pathOk = /^https:\/\/t\.me\/(\$|invoice\/)[A-Za-z0-9\-_=]+$/.test(invoiceLink)
     console.log('[create-stars-invoice] ok', {
       userId,
       productId: product.id,
       authVia,
-      linkPrefix: invoiceLink.slice(0, 32),
+      botUsername,
+      linkPrefix: invoiceLink.slice(0, 40),
+      pathOk,
     })
+
+    if (!pathOk) {
+      return jsonResponse(
+        {
+          error: 'Invalid invoice link format from Telegram',
+          details: invoiceLink.slice(0, 80),
+          botUsername,
+        },
+        502,
+        origin
+      )
+    }
 
     return jsonResponse(
       {
         invoiceLink,
+        botUsername,
         product: {
           id: product.id,
           title: product.title,

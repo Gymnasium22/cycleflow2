@@ -9,7 +9,7 @@ export const PRODUCTS = {
     titleKey: 'premium.products.premium_1m.title',
     descKey: 'premium.products.premium_1m.desc',
     stars: 250,
-    kind: 'subscription',
+    kind: 'one_time',
     premiumDays: 30,
     badge: 'popular',
   },

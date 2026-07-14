@@ -8,6 +8,7 @@ import {
   canExportDoctorReport,
   FREE_HISTORY_CYCLE_LIMIT,
 } from '../lib/products'
+import { normalizeInvoiceUrl } from '../lib/invoiceUrl'
 
 /**
  * Premium state + Telegram Stars purchase flow.
@@ -149,15 +150,34 @@ export function usePremium() {
           return 'failed'
         }
 
-        // openInvoice accepts the full link from createInvoiceLink (https://t.me/$...)
-        const invoiceUrl = String(data.invoiceLink).trim()
-        console.log('[usePremium] opening invoice', invoiceUrl.slice(0, 48))
+        // Must be exactly https://t.me/$SLUG (see telegram-web-app.js openInvoice)
+        const normalized = normalizeInvoiceUrl(data.invoiceLink)
+        console.log('[usePremium] invoice', {
+          raw: String(data.invoiceLink).slice(0, 60),
+          normalized: normalized.url,
+          bot: data.botUsername,
+          ok: normalized.ok,
+        })
 
-        // openInvoice is the Mini App payment entry point for Stars
-        if (webApp?.openInvoice) {
+        if (!normalized.ok || !normalized.url) {
+          setLastError(
+            `WebAppInvoiceUrlInvalid (${normalized.reason || 'bad_link'}; bot=@${data.botUsername || '?'})`
+          )
+          setPurchasing(false)
+          hapticFeedback.notification('error')
+          return 'failed'
+        }
+
+        const invoiceUrl = normalized.url
+
+        // Prefer window.Telegram.WebApp (official) — more reliable for openInvoice
+        const tg =
+          (typeof window !== 'undefined' && window.Telegram?.WebApp) || webApp || null
+
+        if (tg?.openInvoice) {
           return await new Promise((resolve) => {
             try {
-              webApp.openInvoice(invoiceUrl, async (status) => {
+              tg.openInvoice(invoiceUrl, async (status) => {
                 if (status === 'paid') {
                   hapticFeedback.notification('success')
                   for (let i = 0; i < 5; i++) {
@@ -172,31 +192,33 @@ export function usePremium() {
                   }
                 } else if (status === 'failed') {
                   hapticFeedback.notification('error')
-                  setLastError('WebAppInvoiceFailed')
+                  setLastError(
+                    `payment_failed (bot=@${data.botUsername || '?'}; slug=${normalized.slug || '?'})`
+                  )
                 } else if (status === 'cancelled') {
-                  // user closed sheet — not an error toast storm
+                  // user closed sheet
                 } else if (status === 'pending') {
                   // keep quiet
                 } else {
-                  // e.g. invalid url surfaces as failed in some clients
                   setLastError(String(status || 'INVOICE_STATUS'))
                 }
                 setPurchasing(false)
                 resolve(status)
               })
             } catch (openErr) {
-              console.error('[usePremium] openInvoice throw', openErr)
-              setLastError(openErr?.message || 'WebAppInvoiceUrlInvalid')
+              console.error('[usePremium] openInvoice throw', openErr, invoiceUrl)
+              setLastError(
+                `${openErr?.message || 'WebAppInvoiceUrlInvalid'} (url=${invoiceUrl.slice(0, 40)}…; bot=@${data.botUsername || '?'})`
+              )
               setPurchasing(false)
               resolve('failed')
             }
           })
         }
 
-        // Fallback outside Telegram: open link
-        window.open(invoiceUrl, '_blank')
+        setLastError('OPEN_INVOICE_UNAVAILABLE — open inside Telegram Mini App')
         setPurchasing(false)
-        return 'pending'
+        return 'failed'
       } catch (err) {
         console.error('[usePremium] purchase error', err)
         setLastError(err?.message || 'PURCHASE_ERROR')

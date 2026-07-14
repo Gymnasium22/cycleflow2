@@ -28,9 +28,9 @@ export const PRODUCTS: Record<string, Product> = {
     title: 'Kolechko Premium — 1 month',
     description: 'Unlimited history, advanced insights, priority reminders, full doctor PDF.',
     stars: 250,
-    kind: 'subscription',
+    // one_time is more compatible across bots; premium_until still extended 30 days on webhook
+    kind: 'one_time',
     premiumDays: 30,
-    subscriptionPeriod: 2592000,
   },
   premium_3m: {
     id: 'premium_3m',
