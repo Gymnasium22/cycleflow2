@@ -491,11 +491,11 @@ export function Settings() {
         </button>
         <button
           type="button"
-          onClick={() => purchase('premium_1m')}
+          onClick={() => purchase('premium_1d')}
           disabled={purchasing}
           className="w-full text-xs text-center text-[var(--tg-theme-hint-color,#6b7280)] hover:underline"
         >
-          {t('premium.quickBuy1m')}
+          {t('premium.quickBuy1d')}
         </button>
       </div>
 

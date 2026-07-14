@@ -117,6 +117,11 @@ export function PremiumPaywall({ isOpen, onClose, mode = 'premium' }) {
                   <p className="font-semibold text-sm flex items-center gap-2">
                     {p.id === 'doctor_report' ? <FileText size={14} /> : <Crown size={14} />}
                     {t(p.titleKey)}
+                    {p.badge === 'test' && (
+                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-sky-500/15 text-sky-700 font-bold">
+                        {t('premium.test')}
+                      </span>
+                    )}
                     {p.badge === 'popular' && (
                       <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-600 font-bold">
                         {t('premium.popular')}

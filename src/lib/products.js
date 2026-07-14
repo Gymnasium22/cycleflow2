@@ -4,6 +4,15 @@
  */
 
 export const PRODUCTS = {
+  premium_1d: {
+    id: 'premium_1d',
+    titleKey: 'premium.products.premium_1d.title',
+    descKey: 'premium.products.premium_1d.desc',
+    stars: 50,
+    kind: 'one_time',
+    premiumDays: 1,
+    badge: 'test',
+  },
   premium_1m: {
     id: 'premium_1m',
     titleKey: 'premium.products.premium_1m.title',
@@ -32,7 +41,8 @@ export const PRODUCTS = {
   },
 }
 
-export const PREMIUM_PRODUCTS = [PRODUCTS.premium_1m, PRODUCTS.premium_3m]
+/** 1-day test first so it is easy to find in the paywall */
+export const PREMIUM_PRODUCTS = [PRODUCTS.premium_1d, PRODUCTS.premium_1m, PRODUCTS.premium_3m]
 
 /** Free tier: last N cycles visible in history without Premium */
 export const FREE_HISTORY_CYCLE_LIMIT = 6

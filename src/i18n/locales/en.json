@@ -366,6 +366,8 @@
     "activeDays": "Premium active — {{count}} days left",
     "settingsHint": "Unlock unlimited history, richer insights, and full doctor PDFs.",
     "quickBuy1m": "Or buy 1 month instantly (250 ⭐)",
+    "quickBuy1d": "Test: 1 day Premium (50 ⭐)",
+    "test": "Test",
     "popular": "Popular",
     "bestValue": "Best value",
     "previewBadge": "Premium Analytics preview",
@@ -383,9 +385,13 @@
       "export": "Full data export anytime"
     },
     "products": {
+      "premium_1d": {
+        "title": "Premium — 1 day (test)",
+        "desc": "Cheap test access · full Premium for 24 hours"
+      },
       "premium_1m": {
         "title": "Premium — 1 month",
-        "desc": "Recurring subscription · full features for 30 days"
+        "desc": "Full features for 30 days"
       },
       "premium_3m": {
         "title": "Premium — 3 months",

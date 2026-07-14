@@ -23,6 +23,15 @@ export type Product = {
 }
 
 export const PRODUCTS: Record<string, Product> = {
+  // Cheap test SKU so you can verify Stars + premium_until without a full month
+  premium_1d: {
+    id: 'premium_1d',
+    title: 'Kolechko Premium — 1 day',
+    description: 'Test access: full Premium features for 24 hours.',
+    stars: 50,
+    kind: 'one_time',
+    premiumDays: 1,
+  },
   premium_1m: {
     id: 'premium_1m',
     title: 'Kolechko Premium — 1 month',

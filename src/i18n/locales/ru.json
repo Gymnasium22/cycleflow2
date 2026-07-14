@@ -307,6 +307,8 @@
     "activeDays": "Premium активен — осталось {{count}} дн.",
     "settingsHint": "Безлимитная история, расширенная аналитика и PDF для врача.",
     "quickBuy1m": "Или купить 1 месяц сразу (250 ⭐)",
+    "quickBuy1d": "Тест: Premium на 1 день (50 ⭐)",
+    "test": "Тест",
     "popular": "Хит",
     "bestValue": "Выгодно",
     "previewBadge": "Превью Premium Analytics",
@@ -324,9 +326,13 @@
       "export": "Полный экспорт данных"
     },
     "products": {
+      "premium_1d": {
+        "title": "Premium — 1 день (тест)",
+        "desc": "Дешёвый тест · полный Premium на 24 часа"
+      },
       "premium_1m": {
         "title": "Premium — 1 месяц",
-        "desc": "Подписка · все возможности на 30 дней"
+        "desc": "Все возможности на 30 дней"
       },
       "premium_3m": {
         "title": "Premium — 3 месяца",
