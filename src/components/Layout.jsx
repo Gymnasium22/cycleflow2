@@ -1,20 +1,15 @@
 import { Home, CalendarDays, BarChart3, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useTelegram } from '../context/TelegramContext'
-import { useSwipeTabs, TAB_ORDER } from '../hooks/useSwipeTabs'
 import { PullToRefresh } from './PullToRefresh'
 
 export function Layout({ children, activeTab, onTabChange }) {
-  const { onTouchStart, onTouchEnd } = useSwipeTabs(TAB_ORDER, activeTab, onTabChange)
-
+  // Horizontal swipe between tabs removed: it conflicted with scrolling
+  // symptom chips / horizontal lists inside pages.
   return (
     <div className="flex flex-col min-h-full bg-[var(--surface-base)] text-[var(--tg-theme-text-color,#111827)]">
       <PullToRefresh scrollKey={activeTab}>
-        <main
-          className="px-5 py-6 min-h-full"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-        >
+        <main className="px-5 py-6 min-h-full">
           <div key={activeTab} className="animate-fade-in">
             {children}
           </div>
