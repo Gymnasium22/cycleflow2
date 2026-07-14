@@ -45,14 +45,8 @@ import {
 import { persistTheme, AVAILABLE_THEMES, THEME_STORAGE_KEY } from '../utils/theme'
 import { createDebouncedSaver, normalizeNotifyTime } from '../utils/settingsDraft'
 import { buildExportCsv, downloadTextFile } from '../utils/export'
-import {
-  downloadDoctorReport,
-  sharePdfBlob,
-  openPdfBlob,
-  triggerPdfDownload,
-} from '../utils/doctorReport'
-import { PdfReadyCard, formatBytes } from '../components/PdfReadyCard'
-import { PdfPreviewModal } from '../components/PdfPreviewModal'
+import { downloadDoctorReport } from '../utils/doctorReport'
+import { setPdfSession, clearPdfSession } from '../lib/pdfSession'
 import { buildForecastIcs, downloadIcs } from '../utils/calendarExport'
 import { copyText, openTelegramShare } from '../lib/clipboard'
 import { getReferralMiniAppLink } from '../lib/botLinks'
@@ -104,12 +98,6 @@ export function Settings() {
   const [showPremium, setShowPremium] = useState(false)
   const [paywallMode, setPaywallMode] = useState('premium')
   const [shareHint, setShareHint] = useState(false)
-  const [pdfReady, setPdfReady] = useState(null) // { blob, filename, bytes, url }
-  const [pdfViewOpen, setPdfViewOpen] = useState(false)
-  const [pdfSharing, setPdfSharing] = useState(false)
-  const pdfReadyRef = useRef(null)
-  pdfReadyRef.current = pdfReady
-
   const { hapticFeedback, webApp } = useTelegram()
   const { showToast } = useToast()
   const [savePulse, setSavePulse] = useState(false)
@@ -289,29 +277,10 @@ export function Settings() {
     }
   }
 
-  function clearPdfReady() {
-    const current = pdfReadyRef.current
-    if (current?.url) {
-      try {
-        URL.revokeObjectURL(current.url)
-      } catch {
-        // ignore
-      }
-    }
-    pdfReadyRef.current = null
-    setPdfReady(null)
-    setPdfViewOpen(false)
-    try {
-      webApp?.MainButton?.hide?.()
-    } catch {
-      // ignore
-    }
-  }
-
   async function exportDoctorPdf() {
     hapticFeedback.impact('light')
     setIsExportingPdf(true)
-    clearPdfReady()
+    clearPdfSession()
     try {
       const storedProfile = localStorage.getItem('cicle_fallback_profile')
       const { blob, filename, bytes } = await downloadDoctorReport({
@@ -349,38 +318,21 @@ export function Settings() {
         },
       })
 
-      if (!blob) {
-        throw new Error('Empty PDF blob')
-      }
+      if (!blob) throw new Error('Empty PDF blob')
 
       if (!premium && reportCredits > 0 && profile) {
         await updateProfile({ doctor_report_credits: Math.max(0, reportCredits - 1) })
       }
 
       const url = URL.createObjectURL(blob)
-      const ready = { blob, filename, bytes: bytes || blob.size || 0, url }
-      pdfReadyRef.current = ready
-      setPdfReady(ready)
+      // App-level session — survives leaving Settings / remounts
+      setPdfSession({ blob, filename, bytes: bytes || blob.size || 0, url })
       hapticFeedback.notification('success')
-
-      // Telegram MainButton — hard to miss at bottom of screen
       try {
-        if (webApp?.MainButton) {
-          webApp.MainButton.setText(t('settings.pdfShare'))
-          webApp.MainButton.color = webApp.themeParams?.button_color || '#e11d48'
-          webApp.MainButton.textColor = webApp.themeParams?.button_text_color || '#ffffff'
-          webApp.MainButton.show()
-          webApp.MainButton.onClick(() => {
-            handlePdfShare()
-          })
-        }
+        webApp?.HapticFeedback?.notificationOccurred?.('success')
       } catch {
         // ignore
       }
-
-      setTimeout(() => {
-        document.getElementById('pdf-ready-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 150)
     } catch (e) {
       console.error('PDF export failed:', e)
       hapticFeedback.notification('error')
@@ -392,54 +344,6 @@ export function Settings() {
     } finally {
       setIsExportingPdf(false)
     }
-  }
-
-  async function handlePdfShare() {
-    const ready = pdfReadyRef.current
-    if (!ready?.blob) return
-    setPdfSharing(true)
-    hapticFeedback.impact('medium')
-    try {
-      const result = await sharePdfBlob(ready.blob, ready.filename)
-      if (result === 'shared') {
-        hapticFeedback.notification('success')
-        try {
-          webApp?.showAlert?.(t('settings.exportPdfShared'))
-        } catch {
-          showToast(t('settings.exportPdfShared'))
-        }
-        return
-      }
-      if (result === 'cancelled') return
-
-      // Share unsupported — try download + clear Telegram popup
-      triggerPdfDownload(ready.blob, ready.filename)
-      try {
-        webApp?.showPopup?.({
-          title: t('settings.pdfShare'),
-          message: t('settings.pdfShareFallback'),
-          buttons: [{ type: 'close' }],
-        })
-      } catch {
-        alert(t('settings.pdfShareFallback'))
-      }
-    } catch (e) {
-      console.error(e)
-      try {
-        webApp?.showAlert?.(t('settings.errors.exportPdfFailed'))
-      } catch {
-        showToast(t('settings.errors.exportPdfFailed'))
-      }
-    } finally {
-      setPdfSharing(false)
-    }
-  }
-
-  function handlePdfView() {
-    const ready = pdfReadyRef.current
-    if (!ready?.blob) return
-    hapticFeedback.impact('light')
-    setPdfViewOpen(true)
   }
 
   function exportCsv() {
@@ -927,24 +831,9 @@ export function Settings() {
           {isExportingPdf ? t('settings.exportPdfBuilding') : t('settings.exportDoctorPdf')}
         </button>
 
-        {pdfReady && (
-          <div id="pdf-ready-card">
-            <PdfReadyCard
-              filename={pdfReady.filename}
-              fileSizeLabel={formatBytes(pdfReady.bytes)}
-              onShare={handlePdfShare}
-              onView={handlePdfView}
-              onDismiss={clearPdfReady}
-              sharing={pdfSharing}
-            />
-          </div>
-        )}
-
-        {!pdfReady && (
-          <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
-            {t('settings.exportPdfTelegramHint')}
-          </p>
-        )}
+        <p className="text-[11px] text-[var(--tg-theme-hint-color,#6b7280)] leading-relaxed">
+          {t('settings.exportPdfTelegramHint')}
+        </p>
         <button
           onClick={exportCsv}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--tg-theme-secondary-bg-color,#f3f4f6)] border border-[var(--tg-theme-hint-color,#d1d5db)]/20 text-[var(--tg-theme-text-color,#111827)] font-semibold hover:bg-[var(--tg-theme-hint-color,#d1d5db)]/20 transition-colors"
@@ -1010,15 +899,6 @@ export function Settings() {
         mode={paywallMode}
       />
 
-      <PdfPreviewModal
-        isOpen={pdfViewOpen && !!pdfReady?.url}
-        onClose={() => setPdfViewOpen(false)}
-        blobUrl={pdfReady?.url}
-        filename={pdfReady?.filename}
-        onShare={handlePdfShare}
-        onOpen={() => pdfReady?.blob && openPdfBlob(pdfReady.blob)}
-        sharing={pdfSharing}
-      />
     </div>
   )
 }

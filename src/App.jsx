@@ -14,6 +14,7 @@ import { Settings } from './pages/Settings'
 import { Onboarding } from './pages/Onboarding'
 import { DebugPanel, initDebugLogging } from './components/DebugPanel'
 import { ToastProvider } from './components/Toast'
+import { PdfExportHost } from './components/PdfExportHost'
 import { applyTheme, resolveStoredTheme, THEME_STORAGE_KEY } from './utils/theme'
 import { readTelegramStartParam, parseStartParam } from './lib/botLinks'
 
@@ -41,11 +42,26 @@ function renderActiveTab(activeTab, setActiveTab) {
 
 function AppContent() {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState('home')
+  // Persist tab so heavy work (PDF) cannot "kick" user back to Home silently
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      return sessionStorage.getItem('cicle_active_tab') || 'home'
+    } catch {
+      return 'home'
+    }
+  })
   const [showReload, setShowReload] = useState(false)
   const [legalDoc, setLegalDoc] = useState(null)
   const [acceptingDisclaimer, setAcceptingDisclaimer] = useState(false)
   const { loading, profile, authTimedOut, error, updateProfile } = useAuth()
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('cicle_active_tab', activeTab)
+    } catch {
+      // ignore
+    }
+  }, [activeTab])
 
   useEffect(() => {
     if (!loading) {
@@ -130,6 +146,7 @@ function AppContent() {
       <Layout activeTab={activeTab} onTabChange={setActiveTab}>
         {renderActiveTab(activeTab, setActiveTab)}
       </Layout>
+      <PdfExportHost />
       <DisclaimerModal
         isOpen={needsDisclaimer}
         onAccept={handleAcceptDisclaimer}
